@@ -76,6 +76,12 @@ func (m *apiKeyModelMappingMiddleware) OnInboundLlmRequest(ctx context.Context, 
 }
 
 func (m *apiKeyModelMappingMiddleware) OnOutboundLlmResponse(ctx context.Context, response *llm.Response) (*llm.Response, error) {
+	// Capture the raw model reported by the provider before it is rewritten to the
+	// client-requested model, so the execution keeps an auditable upstream model.
+	if response != nil && response.Model != "" {
+		m.inbound.state.UpstreamModelID = response.Model
+	}
+
 	m.inbound.state.ModelMapper.ReplaceResponseModel(response, m.RequestModel)
 	return response, nil
 }

@@ -368,6 +368,25 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 		}
 	}
 
+	upstreamModelID := ts.state.UpstreamModelID
+	if upstreamModelID == "" && len(ts.responseChunks) > 0 && ts.state.RawProviderRequest != nil {
+		// Parse raw provider chunks directly so the model field reflects the raw
+		// upstream response, not the client-facing rewrite.
+		if rawStream, perr := ts.transformer.TransformStream(ctx, ts.state.RawProviderRequest, streams.SliceStream(ts.responseChunks)); perr == nil {
+			for rawStream.Next() {
+				resp := rawStream.Current()
+				if resp != nil && resp.Model != "" {
+					upstreamModelID = resp.Model
+					break
+				}
+			}
+			if rawStream.Err() != nil {
+				log.Warn(ctx, "Failed to parse provider chunks for upstream model", log.Cause(rawStream.Err()))
+			}
+			_ = rawStream.Close()
+		}
+	}
+
 	status := ts.terminalState.executionStatus()
 	err := ts.RequestService.UpdateRequestExecutionFinalized(
 		ctx,
@@ -377,6 +396,7 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 		meta.ID,
 		responseBody,
 		metrics,
+		upstreamModelID,
 	)
 	if err != nil {
 		log.Warn(

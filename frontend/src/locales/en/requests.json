@@ -142,5 +142,7 @@
   "requests.drawer.viewDetail": "View Detail",
   "requests.drawer.noRequestBody": "No request body",
   "requests.drawer.expandAll": "Expand all",
-  "requests.drawer.collapseAll": "Collapse all"
+  "requests.drawer.collapseAll": "Collapse all",
+  "requests.detail.upstreamModelMismatch": "Upstream returned a different model: {{model}}",
+  "requests.detail.upstreamModelMatched": "Upstream model matches the request"
 }

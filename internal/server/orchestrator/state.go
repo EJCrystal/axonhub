@@ -32,6 +32,9 @@ type PersistenceState struct {
 
 	// OriginalModel is the model after API key profile mapping, used for channel selection
 	OriginalModel string
+	// UpstreamModelID is the raw model reported by the provider response, captured
+	// before it is rewritten back to the client-requested model.
+	UpstreamModelID string
 	RawRequest    *httpclient.Request
 	LlmRequest    *llm.Request
 

@@ -142,5 +142,7 @@
   "requests.drawer.viewDetail": "查看详情",
   "requests.drawer.noRequestBody": "无请求体",
   "requests.drawer.expandAll": "展开全部",
-  "requests.drawer.collapseAll": "折叠全部"
+  "requests.drawer.collapseAll": "折叠全部",
+  "requests.detail.upstreamModelMismatch": "上游返回模型与请求不一致：{{model}}",
+  "requests.detail.upstreamModelMatched": "上游返回模型与请求一致"
 }

@@ -173,6 +173,13 @@ func (m *persistRequestExecutionMiddleware) OnOutboundLlmResponse(ctx context.Co
 	// before persisting into the JSON response_body column.
 	respBody := audioSafeResponseBody(llmResp.RequestType, m.rawResponse.Headers.Get("Content-Type"), m.rawResponse.Body)
 
+	// The model rewrite middleware stores the raw provider model in the shared state;
+	// fall back to the response model when it is available at this point.
+	upstreamModelID := state.UpstreamModelID
+	if upstreamModelID == "" && llmResp.Model != "" {
+		upstreamModelID = llmResp.Model
+	}
+
 	err := state.RequestService.UpdateRequestExecutionFinalized(
 		persistCtx,
 		state.RequestExec.ID,
@@ -181,6 +188,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundLlmResponse(ctx context.Co
 		llmResp.ID,
 		respBody,
 		metrics,
+		upstreamModelID,
 	)
 	if err != nil {
 		log.Warn(persistCtx, "Failed to update request execution status to completed", log.Cause(err))

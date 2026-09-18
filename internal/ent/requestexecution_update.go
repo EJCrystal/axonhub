@@ -57,6 +57,26 @@ func (_u *RequestExecutionUpdate) ClearExternalID() *RequestExecutionUpdate {
 	return _u
 }
 
+// SetUpstreamModelID sets the "upstream_model_id" field.
+func (_u *RequestExecutionUpdate) SetUpstreamModelID(v string) *RequestExecutionUpdate {
+	_u.mutation.SetUpstreamModelID(v)
+	return _u
+}
+
+// SetNillableUpstreamModelID sets the "upstream_model_id" field if the given value is not nil.
+func (_u *RequestExecutionUpdate) SetNillableUpstreamModelID(v *string) *RequestExecutionUpdate {
+	if v != nil {
+		_u.SetUpstreamModelID(*v)
+	}
+	return _u
+}
+
+// ClearUpstreamModelID clears the value of the "upstream_model_id" field.
+func (_u *RequestExecutionUpdate) ClearUpstreamModelID() *RequestExecutionUpdate {
+	_u.mutation.ClearUpstreamModelID()
+	return _u
+}
+
 // SetResponseBody sets the "response_body" field.
 func (_u *RequestExecutionUpdate) SetResponseBody(v objects.JSONRawMessage) *RequestExecutionUpdate {
 	_u.mutation.SetResponseBody(v)
@@ -373,6 +393,12 @@ func (_u *RequestExecutionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if _u.mutation.ExternalIDCleared() {
 		_spec.ClearField(requestexecution.FieldExternalID, field.TypeString)
 	}
+	if value, ok := _u.mutation.UpstreamModelID(); ok {
+		_spec.SetField(requestexecution.FieldUpstreamModelID, field.TypeString, value)
+	}
+	if _u.mutation.UpstreamModelIDCleared() {
+		_spec.ClearField(requestexecution.FieldUpstreamModelID, field.TypeString)
+	}
 	if _u.mutation.ReasoningEffortCleared() {
 		_spec.ClearField(requestexecution.FieldReasoningEffort, field.TypeString)
 	}
@@ -511,6 +537,26 @@ func (_u *RequestExecutionUpdateOne) SetNillableExternalID(v *string) *RequestEx
 // ClearExternalID clears the value of the "external_id" field.
 func (_u *RequestExecutionUpdateOne) ClearExternalID() *RequestExecutionUpdateOne {
 	_u.mutation.ClearExternalID()
+	return _u
+}
+
+// SetUpstreamModelID sets the "upstream_model_id" field.
+func (_u *RequestExecutionUpdateOne) SetUpstreamModelID(v string) *RequestExecutionUpdateOne {
+	_u.mutation.SetUpstreamModelID(v)
+	return _u
+}
+
+// SetNillableUpstreamModelID sets the "upstream_model_id" field if the given value is not nil.
+func (_u *RequestExecutionUpdateOne) SetNillableUpstreamModelID(v *string) *RequestExecutionUpdateOne {
+	if v != nil {
+		_u.SetUpstreamModelID(*v)
+	}
+	return _u
+}
+
+// ClearUpstreamModelID clears the value of the "upstream_model_id" field.
+func (_u *RequestExecutionUpdateOne) ClearUpstreamModelID() *RequestExecutionUpdateOne {
+	_u.mutation.ClearUpstreamModelID()
 	return _u
 }
 
@@ -859,6 +905,12 @@ func (_u *RequestExecutionUpdateOne) sqlSave(ctx context.Context) (_node *Reques
 	}
 	if _u.mutation.ExternalIDCleared() {
 		_spec.ClearField(requestexecution.FieldExternalID, field.TypeString)
+	}
+	if value, ok := _u.mutation.UpstreamModelID(); ok {
+		_spec.SetField(requestexecution.FieldUpstreamModelID, field.TypeString, value)
+	}
+	if _u.mutation.UpstreamModelIDCleared() {
+		_spec.ClearField(requestexecution.FieldUpstreamModelID, field.TypeString)
 	}
 	if _u.mutation.ReasoningEffortCleared() {
 		_spec.ClearField(requestexecution.FieldReasoningEffort, field.TypeString)

@@ -812,6 +812,25 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                             </div>
                             <div className='bg-background space-y-2 rounded-lg border p-3'>
                               <span className='flex items-center gap-2 text-sm font-medium'>
+                                <Database className='text-primary h-4 w-4' />
+                                {t('requests.columns.modelId')}
+                              </span>
+                              <p className='text-muted-foreground font-mono text-sm'>
+                                {execution.modelID || t('requests.columns.unknown')}
+                              </p>
+                              {execution.upstreamModelID && execution.upstreamModelID !== execution.modelID && (
+                                <p className='text-destructive font-mono text-xs'>
+                                  {t('requests.detail.upstreamModelMismatch', { model: execution.upstreamModelID })}
+                                </p>
+                              )}
+                              {execution.upstreamModelID && execution.upstreamModelID === execution.modelID && (
+                                <p className='font-mono text-xs text-emerald-600 dark:text-emerald-400'>
+                                  {t('requests.detail.upstreamModelMatched')}
+                                </p>
+                              )}
+                            </div>
+                            <div className='bg-background space-y-2 rounded-lg border p-3'>
+                              <span className='flex items-center gap-2 text-sm font-medium'>
                                 <Clock className='text-primary h-4 w-4' />
                                 {t('requests.dialogs.requestDetail.fields.startTime')}
                               </span>

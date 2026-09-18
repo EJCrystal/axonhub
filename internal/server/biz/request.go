@@ -761,6 +761,7 @@ func (s *RequestService) UpdateRequestExecutionFinalized(
 	externalId string,
 	responseBody any,
 	metrics *LatencyMetrics,
+	upstreamModelID string,
 ) error {
 	// Decide whether to store the final response body for execution
 	storeResponseBody := true
@@ -791,6 +792,10 @@ func (s *RequestService) UpdateRequestExecutionFinalized(
 	upd := client.RequestExecution.UpdateOneID(executionID).
 		SetStatus(status).
 		SetExternalID(externalId)
+
+	if upstreamModelID != "" {
+		upd = upd.SetUpstreamModelID(upstreamModelID)
+	}
 	if errorMessage != "" {
 		upd = upd.SetErrorMessage(errorMessage)
 	}
