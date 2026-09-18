@@ -9,7 +9,7 @@ on:
         default: 'v1.0.0-fork'
   push:
     tags:
-      - 'v*-fork*'
+      - 'fork-build-*'
 
 env:
   REGISTRY: crpi-onmpbpec5u1hl84d.cn-hangzhou.personal.cr.aliyuncs.com
@@ -34,7 +34,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
           else
-            VERSION="${GITHUB_REF#refs/tags/}"
+            VERSION="${GITHUB_REF#refs/tags/fork-build-}"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "$VERSION" > internal/build/VERSION
