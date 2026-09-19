@@ -2,7 +2,7 @@
 
 import { format } from 'date-fns';
 import { ColumnDef } from '@tanstack/react-table';
-import { IconArrowsExchange, IconArrowsJoin2, IconRoute } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowsExchange, IconArrowsJoin2, IconCheck, IconRoute } from '@tabler/icons-react';
 import { Ban, FileText } from 'lucide-react';
 import { zhCN, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
@@ -144,6 +144,19 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         const executionModelIds = Array.from(new Set(executions.map((exe) => exe.modelID || ''))).filter(
           (id) => id && id !== originalModelId
         );
+        // Upstream model audit: compare the raw model each provider reported back
+        // against the model AxonHub actually sent to that provider.
+        const sentModelIds = new Set(executions.map((exe) => exe.modelID || '').filter(Boolean));
+        const upstreamModelIds = Array.from(new Set(executions.map((exe) => exe.upstreamModelID || '').filter(Boolean)));
+        const upstreamModelMismatches = upstreamModelIds.filter((upstreamModelId) => !sentModelIds.has(upstreamModelId));
+        const upstreamModelAudited = upstreamModelIds.length > 0;
+        const upstreamModelMatches = upstreamModelAudited && upstreamModelMismatches.length === 0;
+        const upstreamModelAuditTooltip = !upstreamModelAudited
+          ? t('requests.tooltips.upstreamModelUnknown')
+          : upstreamModelMatches
+            ? t('requests.tooltips.upstreamModelMatching', { model: upstreamModelIds.join(', ') })
+            : t('requests.tooltips.upstreamModelMismatch', { model: upstreamModelMismatches.join(', ') });
+
         const reasoningEffort = executions[0]?.reasoningEffort ?? request.reasoningEffort;
         const inboundFormat = request.format;
         const outboundFormat = executions[0]?.format;
@@ -225,6 +238,25 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>{t(passThroughApplied ? 'requests.tooltips.passThroughApplied' : 'requests.tooltips.passThroughNotApplied')}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={`inline-flex h-5 w-5 items-center justify-center ${
+                      !upstreamModelAudited
+                        ? 'text-muted-foreground/45'
+                        : upstreamModelMatches
+                          ? 'text-emerald-700 dark:text-emerald-300'
+                          : 'text-red-700 dark:text-red-400'
+                    }`}
+                    tabIndex={0}
+                    role='img'
+                    aria-label={upstreamModelAuditTooltip}
+                  >
+                    {upstreamModelMatches ? <IconCheck className='h-3.5 w-3.5' /> : <IconAlertTriangle className='h-3.5 w-3.5' />}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{upstreamModelAuditTooltip}</TooltipContent>
               </Tooltip>
             </div>
           </div>

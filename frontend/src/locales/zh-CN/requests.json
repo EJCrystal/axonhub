@@ -144,5 +144,8 @@
   "requests.drawer.expandAll": "展开全部",
   "requests.drawer.collapseAll": "折叠全部",
   "requests.detail.upstreamModelMismatch": "上游返回模型与请求不一致：{{model}}",
-  "requests.detail.upstreamModelMatched": "上游返回模型与请求一致"
+  "requests.detail.upstreamModelMatched": "上游返回模型与请求一致",
+  "requests.tooltips.upstreamModelMatching": "上游返回模型一致（{{model}}）",
+  "requests.tooltips.upstreamModelMismatch": "上游返回模型不一致：{{model}}",
+  "requests.tooltips.upstreamModelUnknown": "上游未返回模型，无法审计"
 }

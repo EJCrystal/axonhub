@@ -144,5 +144,8 @@
   "requests.drawer.expandAll": "Expand all",
   "requests.drawer.collapseAll": "Collapse all",
   "requests.detail.upstreamModelMismatch": "Upstream returned a different model: {{model}}",
-  "requests.detail.upstreamModelMatched": "Upstream model matches the request"
+  "requests.detail.upstreamModelMatched": "Upstream model matches the request",
+  "requests.tooltips.upstreamModelMatching": "Upstream model matches ({{model}})",
+  "requests.tooltips.upstreamModelMismatch": "Upstream model differs: {{model}}",
+  "requests.tooltips.upstreamModelUnknown": "Upstream did not report a model"
 }
