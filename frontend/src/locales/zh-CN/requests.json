@@ -143,9 +143,10 @@
   "requests.drawer.noRequestBody": "无请求体",
   "requests.drawer.expandAll": "展开全部",
   "requests.drawer.collapseAll": "折叠全部",
-  "requests.detail.upstreamModelMismatch": "上游返回模型与请求不一致：{{model}}",
-  "requests.detail.upstreamModelMatched": "上游返回模型与请求一致",
-  "requests.tooltips.upstreamModelMatching": "上游返回模型一致（{{model}}）",
-  "requests.tooltips.upstreamModelMismatch": "上游返回模型不一致：{{model}}",
-  "requests.tooltips.upstreamModelUnknown": "上游未返回模型，无法审计"
+  "requests.detail.upstreamModelMismatch": "上游返回模型名称与发送模型不同：{{model}}",
+  "requests.detail.upstreamModelMatched": "上游返回模型名称与发送模型一致",
+  "requests.tooltips.upstreamModelMatching": "上游返回模型名称一致（{{model}}）",
+  "requests.tooltips.upstreamModelMismatch": "上游返回模型名称不同：{{model}}",
+  "requests.tooltips.upstreamModelUnknown": "上游返回模型未记录，无法判断名称是否一致",
+  "requests.tooltips.upstreamModelPartial": "仅部分执行可审计：已比较 {{compared}} 次，未知 {{unknown}} 次"
 }

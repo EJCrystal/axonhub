@@ -55,7 +55,8 @@ type persistRequestExecutionMiddleware struct {
 
 	outbound *PersistentOutboundTransformer
 
-	rawResponse *httpclient.Response
+	rawResponse     *httpclient.Response
+	upstreamModelID string
 }
 
 func persistRequestExecution(outbound *PersistentOutboundTransformer) pipeline.Middleware {
@@ -69,6 +70,11 @@ func (m *persistRequestExecutionMiddleware) Name() string {
 }
 
 func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Context, request *httpclient.Request) (*httpclient.Request, error) {
+	// This middleware is reused across attempts. Response metadata belongs only
+	// to the execution created for this outbound request.
+	m.rawResponse = nil
+	m.upstreamModelID = ""
+
 	state := m.outbound.state
 	if state == nil || state.RequestExec != nil {
 		return request, nil
@@ -120,6 +126,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 
 func (m *persistRequestExecutionMiddleware) OnOutboundRawResponse(ctx context.Context, response *httpclient.Response) (*httpclient.Response, error) {
 	m.rawResponse = response
+	m.upstreamModelID = upstreamModelFromResponse(response.Body)
 	return response, nil
 }
 
@@ -173,13 +180,6 @@ func (m *persistRequestExecutionMiddleware) OnOutboundLlmResponse(ctx context.Co
 	// before persisting into the JSON response_body column.
 	respBody := audioSafeResponseBody(llmResp.RequestType, m.rawResponse.Headers.Get("Content-Type"), m.rawResponse.Body)
 
-	// The model rewrite middleware stores the raw provider model in the shared state;
-	// fall back to the response model when it is available at this point.
-	upstreamModelID := state.UpstreamModelID
-	if upstreamModelID == "" && llmResp.Model != "" {
-		upstreamModelID = llmResp.Model
-	}
-
 	err := state.RequestService.UpdateRequestExecutionFinalized(
 		persistCtx,
 		state.RequestExec.ID,
@@ -188,7 +188,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundLlmResponse(ctx context.Co
 		llmResp.ID,
 		respBody,
 		metrics,
-		upstreamModelID,
+		m.upstreamModelID,
 	)
 	if err != nil {
 		log.Warn(persistCtx, "Failed to update request execution status to completed", log.Cause(err))
@@ -230,11 +230,14 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawError(ctx context.Conte
 
 	failure := ClassifyUpstreamTransportError(err)
 
-	updateErr := state.RequestService.UpdateRequestExecutionFailed(
+	updateErr := state.RequestService.UpdateRequestExecutionStatusWithMetrics(
 		persistCtx,
 		state.RequestExec.ID,
+		requestexecution.StatusFailed,
 		ExtractErrorMessage(failure),
 		ExtractErrorInfo(failure),
+		nil,
+		m.upstreamModelID,
 	)
 	if updateErr != nil {
 		log.Warn(persistCtx, "Failed to update request execution status to failed", log.Cause(updateErr))

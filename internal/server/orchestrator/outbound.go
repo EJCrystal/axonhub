@@ -39,10 +39,13 @@ type OutboundPersistentStream struct {
 	transformer    transformer.Outbound
 	perf           *biz.PerformanceRecord
 	responseChunks []*httpclient.StreamEvent
-	terminalState  streamTerminalState
-	terminalError  string
-	closed         bool
-	state          *PersistenceState
+	// Retain the first reported model for this attempt, independently of response
+	// aggregation, client-model rewrites, and the shared retry state.
+	upstreamModelID string
+	terminalState   streamTerminalState
+	terminalError   string
+	closed          bool
+	state           *PersistenceState
 }
 
 var _ streams.Stream[*httpclient.StreamEvent] = (*OutboundPersistentStream)(nil)
@@ -82,6 +85,9 @@ func (ts *OutboundPersistentStream) Next() bool {
 func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 	event := ts.stream.Current()
 	if event != nil {
+		if ts.upstreamModelID == "" && !event.IsBinaryAudioChunk() {
+			ts.upstreamModelID = upstreamModelFromResponse(event.Data)
+		}
 		// For raw binary audio chunks (TTS stream_format=audio), persist only a size
 		// summary to avoid buffering the full audio payload in memory.
 		ts.responseChunks = append(ts.responseChunks, httpclient.SummarizeBinaryChunk(event))
@@ -279,7 +285,7 @@ func (ts *OutboundPersistentStream) persistResponseChunks(ctx context.Context) {
 			// without trusting any partial response or usage returned with the error.
 			status := ts.terminalState.executionStatus()
 			if updateErr := ts.RequestService.UpdateRequestExecutionStatusWithMetrics(
-				persistCtx, ts.requestExec.ID, status, ts.terminalError, nil, ts.failureLatencyMetrics(),
+				persistCtx, ts.requestExec.ID, status, ts.terminalError, nil, ts.failureLatencyMetrics(), ts.upstreamModelID,
 			); updateErr != nil {
 				log.Warn(persistCtx, "Failed to update terminal execution after aggregation failure",
 					log.Cause(updateErr), log.Any("status", status))
@@ -335,7 +341,7 @@ func (ts *OutboundPersistentStream) persistExecutionFailure(ctx context.Context,
 		return
 	}
 
-	err := persistRequestExecutionFailure(ctx, ts.RequestService, ts.requestExec.ID, rawErr, ts.failureLatencyMetrics())
+	err := persistRequestExecutionFailure(ctx, ts.RequestService, ts.requestExec.ID, rawErr, ts.failureLatencyMetrics(), ts.upstreamModelID)
 	if err != nil {
 		log.Warn(ctx, "Failed to update request execution status from error", log.Cause(err))
 	}
@@ -368,25 +374,6 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 		}
 	}
 
-	upstreamModelID := ts.state.UpstreamModelID
-	if upstreamModelID == "" && len(ts.responseChunks) > 0 && ts.state.RawProviderRequest != nil {
-		// Parse raw provider chunks directly so the model field reflects the raw
-		// upstream response, not the client-facing rewrite.
-		if rawStream, perr := ts.transformer.TransformStream(ctx, ts.state.RawProviderRequest, streams.SliceStream(ts.responseChunks)); perr == nil {
-			for rawStream.Next() {
-				resp := rawStream.Current()
-				if resp != nil && resp.Model != "" {
-					upstreamModelID = resp.Model
-					break
-				}
-			}
-			if rawStream.Err() != nil {
-				log.Warn(ctx, "Failed to parse provider chunks for upstream model", log.Cause(rawStream.Err()))
-			}
-			_ = rawStream.Close()
-		}
-	}
-
 	status := ts.terminalState.executionStatus()
 	err := ts.RequestService.UpdateRequestExecutionFinalized(
 		ctx,
@@ -396,7 +383,7 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 		meta.ID,
 		responseBody,
 		metrics,
-		upstreamModelID,
+		ts.upstreamModelID,
 	)
 	if err != nil {
 		log.Warn(

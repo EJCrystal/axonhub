@@ -2,7 +2,7 @@
 
 import { format } from 'date-fns';
 import { ColumnDef } from '@tanstack/react-table';
-import { IconAlertTriangle, IconArrowsExchange, IconArrowsJoin2, IconCheck, IconRoute } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowsExchange, IconArrowsJoin2, IconCheck, IconQuestionMark, IconRoute } from '@tabler/icons-react';
 import { Ban, FileText } from 'lucide-react';
 import { zhCN, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,7 @@ import { useGeneralSettings, useSecuritySettings, useUpdateSecuritySettings } fr
 import { useRequestPermissions } from '../../../hooks/useRequestPermissions';
 import { Request } from '../data/schema';
 import { calculateTokensPerSecond, getTokensPerSecondValue } from '../utils/tokens-per-second';
+import { getUpstreamModelAudit } from '../utils/upstream-model-audit';
 import { getStatusColor } from './help';
 
 interface UseRequestsColumnsOptions {
@@ -144,18 +145,22 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         const executionModelIds = Array.from(new Set(executions.map((exe) => exe.modelID || ''))).filter(
           (id) => id && id !== originalModelId
         );
-        // Upstream model audit: compare the raw model each provider reported back
-        // against the model AxonHub actually sent to that provider.
-        const sentModelIds = new Set(executions.map((exe) => exe.modelID || '').filter(Boolean));
-        const upstreamModelIds = Array.from(new Set(executions.map((exe) => exe.upstreamModelID || '').filter(Boolean)));
-        const upstreamModelMismatches = upstreamModelIds.filter((upstreamModelId) => !sentModelIds.has(upstreamModelId));
-        const upstreamModelAudited = upstreamModelIds.length > 0;
-        const upstreamModelMatches = upstreamModelAudited && upstreamModelMismatches.length === 0;
-        const upstreamModelAuditTooltip = !upstreamModelAudited
-          ? t('requests.tooltips.upstreamModelUnknown')
-          : upstreamModelMatches
-            ? t('requests.tooltips.upstreamModelMatching', { model: upstreamModelIds.join(', ') })
-            : t('requests.tooltips.upstreamModelMismatch', { model: upstreamModelMismatches.join(', ') });
+        const modelAudit = getUpstreamModelAudit(executions);
+        const upstreamModelMatches = modelAudit.status === 'matched';
+        let upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelUnknown');
+        if (upstreamModelMatches) {
+          upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelMatching', { model: modelAudit.upstreamModelIds.join(', ') });
+        } else if (modelAudit.status === 'mismatched') {
+          upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelMismatch', { model: modelAudit.mismatchedModelIds.join(', ') });
+        }
+        if (modelAudit.unknownCount > 0 && modelAudit.comparedCount > 0) {
+          const partialAuditTooltip = t('requests.tooltips.upstreamModelPartial', {
+            compared: modelAudit.comparedCount,
+            unknown: modelAudit.unknownCount,
+          });
+          upstreamModelAuditTooltip =
+            modelAudit.status === 'mismatched' ? `${upstreamModelAuditTooltip} ${partialAuditTooltip}` : partialAuditTooltip;
+        }
 
         const reasoningEffort = executions[0]?.reasoningEffort ?? request.reasoningEffort;
         const inboundFormat = request.format;
@@ -243,7 +248,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                 <TooltipTrigger asChild>
                   <span
                     className={`inline-flex h-5 w-5 items-center justify-center ${
-                      !upstreamModelAudited
+                      modelAudit.status === 'unknown'
                         ? 'text-muted-foreground/45'
                         : upstreamModelMatches
                           ? 'text-emerald-700 dark:text-emerald-300'
@@ -253,7 +258,13 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                     role='img'
                     aria-label={upstreamModelAuditTooltip}
                   >
-                    {upstreamModelMatches ? <IconCheck className='h-3.5 w-3.5' /> : <IconAlertTriangle className='h-3.5 w-3.5' />}
+                    {modelAudit.status === 'unknown' ? (
+                      <IconQuestionMark className='h-3.5 w-3.5' />
+                    ) : upstreamModelMatches ? (
+                      <IconCheck className='h-3.5 w-3.5' />
+                    ) : (
+                      <IconAlertTriangle className='h-3.5 w-3.5' />
+                    )}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>{upstreamModelAuditTooltip}</TooltipContent>

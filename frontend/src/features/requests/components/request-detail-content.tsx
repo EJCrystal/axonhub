@@ -25,6 +25,7 @@ import { parseResponse } from '../utils/response-parser';
 import { parseRequestConversation } from '../utils/request-conversation';
 import { generateRequestCurl, generateExecutionCurl } from '../utils/curl-generator';
 import { getVideoLastFrameURL, isVideoRequestFormat } from '../utils/video-display';
+import { getUpstreamModelAudit } from '../utils/upstream-model-audit';
 
 interface RequestDetailContentProps {
   requestId: string;
@@ -772,6 +773,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                 <div className='space-y-6'>
                   {executions.edges.map((edge: any, index: number) => {
                     const execution = edge.node;
+                    const modelAudit = getUpstreamModelAudit([execution]);
                     return (
                       <Card key={execution.id} className='bg-muted/20 border-0 shadow-sm'>
                         <CardHeader className='pb-4'>
@@ -818,14 +820,19 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                               <p className='text-muted-foreground font-mono text-sm'>
                                 {execution.modelID || t('requests.columns.unknown')}
                               </p>
-                              {execution.upstreamModelID && execution.upstreamModelID !== execution.modelID && (
+                              {modelAudit.status === 'mismatched' && (
                                 <p className='text-destructive font-mono text-xs'>
                                   {t('requests.detail.upstreamModelMismatch', { model: execution.upstreamModelID })}
                                 </p>
                               )}
-                              {execution.upstreamModelID && execution.upstreamModelID === execution.modelID && (
+                              {modelAudit.status === 'matched' && (
                                 <p className='font-mono text-xs text-emerald-600 dark:text-emerald-400'>
                                   {t('requests.detail.upstreamModelMatched')}
+                                </p>
+                              )}
+                              {modelAudit.status === 'unknown' && (
+                                <p className='text-muted-foreground text-xs'>
+                                  {t('requests.tooltips.upstreamModelUnknown')}
                                 </p>
                               )}
                             </div>

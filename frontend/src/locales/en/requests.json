@@ -143,9 +143,10 @@
   "requests.drawer.noRequestBody": "No request body",
   "requests.drawer.expandAll": "Expand all",
   "requests.drawer.collapseAll": "Collapse all",
-  "requests.detail.upstreamModelMismatch": "Upstream returned a different model: {{model}}",
-  "requests.detail.upstreamModelMatched": "Upstream model matches the request",
-  "requests.tooltips.upstreamModelMatching": "Upstream model matches ({{model}})",
-  "requests.tooltips.upstreamModelMismatch": "Upstream model differs: {{model}}",
-  "requests.tooltips.upstreamModelUnknown": "Upstream did not report a model"
+  "requests.detail.upstreamModelMismatch": "Upstream model name differs from the sent model: {{model}}",
+  "requests.detail.upstreamModelMatched": "Upstream model name matches the sent model",
+  "requests.tooltips.upstreamModelMatching": "Upstream model names match ({{model}})",
+  "requests.tooltips.upstreamModelMismatch": "Upstream model name differs: {{model}}",
+  "requests.tooltips.upstreamModelUnknown": "Upstream model was not recorded; name consistency is unknown",
+  "requests.tooltips.upstreamModelPartial": "Only some executions can be audited: {{compared}} compared, {{unknown}} unknown"
 }
