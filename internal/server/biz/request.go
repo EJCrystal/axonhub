@@ -21,6 +21,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/modelmetadata"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/pkg/xjson"
 	"github.com/looplj/axonhub/llm"
@@ -378,6 +379,10 @@ func (s *RequestService) CreateRequestExecution(
 		SetStream(request.Stream).
 		SetRequestHeaders(requestHeadersBytes).
 		SetPassThroughApplied(passThroughApplied)
+
+	if outboundModel := modelmetadata.SentModel(&channelRequest, format); outboundModel != "" {
+		mut = mut.SetOutboundModelID(outboundModel)
+	}
 
 	if reasoningEffort := extractOutboundReasoningEffort(channelRequest, format); reasoningEffort != nil {
 		mut = mut.SetReasoningEffort(*reasoningEffort)
@@ -761,7 +766,7 @@ func (s *RequestService) UpdateRequestExecutionFinalized(
 	externalId string,
 	responseBody any,
 	metrics *LatencyMetrics,
-	upstreamModelID string,
+	upstreamModelIDs []string,
 ) error {
 	// Decide whether to store the final response body for execution
 	storeResponseBody := true
@@ -793,8 +798,8 @@ func (s *RequestService) UpdateRequestExecutionFinalized(
 		SetStatus(status).
 		SetExternalID(externalId)
 
-	if upstreamModelID != "" {
-		upd = upd.SetUpstreamModelID(upstreamModelID)
+	if len(upstreamModelIDs) > 0 {
+		upd = upd.SetUpstreamModelID(upstreamModelIDs[0]).SetUpstreamModelIds(upstreamModelIDs)
 	}
 	if errorMessage != "" {
 		upd = upd.SetErrorMessage(errorMessage)
@@ -883,11 +888,11 @@ func (s *RequestService) UpdateRequestExecutionStatus(
 	errorMsg string,
 	errorInfo *ExecutionErrorInfo,
 ) error {
-	return s.UpdateRequestExecutionStatusWithMetrics(ctx, executionID, status, errorMsg, errorInfo, nil, "")
+	return s.UpdateRequestExecutionStatusWithMetrics(ctx, executionID, status, errorMsg, errorInfo, nil, nil)
 }
 
 // UpdateRequestExecutionStatusWithMetrics is UpdateRequestExecutionStatus plus the latency
-// metrics and upstream model collected before the execution ended, so a failed
+// metrics and upstream models collected before the execution ended, so a failed
 // execution keeps its metadata even when its response cannot be aggregated.
 func (s *RequestService) UpdateRequestExecutionStatusWithMetrics(
 	ctx context.Context,
@@ -896,14 +901,15 @@ func (s *RequestService) UpdateRequestExecutionStatusWithMetrics(
 	errorMsg string,
 	errorInfo *ExecutionErrorInfo,
 	metrics *LatencyMetrics,
-	upstreamModelID string,
+	upstreamModelIDs []string,
 ) error {
 	client := s.entFromContext(ctx)
 
 	upd := client.RequestExecution.UpdateOneID(executionID).
 		SetStatus(status)
-	if upstreamModelID != "" {
-		upd = upd.SetUpstreamModelID(upstreamModelID)
+	// A later status-only update must not clear metadata captured at finalization.
+	if len(upstreamModelIDs) > 0 {
+		upd = upd.SetUpstreamModelID(upstreamModelIDs[0]).SetUpstreamModelIds(upstreamModelIDs)
 	}
 	if errorMsg != "" {
 		upd = upd.SetErrorMessage(errorMsg)

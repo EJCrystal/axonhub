@@ -20,39 +20,6 @@ import (
 	"github.com/looplj/axonhub/llm/pipeline"
 )
 
-func TestUpstreamModelFromResponse(t *testing.T) {
-	tests := []struct {
-		name string
-		body string
-		want string
-	}{
-		{name: "OpenAI response", body: `{"model":"provider-model","choices":[]}`, want: "provider-model"},
-		{name: "Anthropic message start", body: `{"type":"message_start","message":{"model":"claude-version"}}`, want: "claude-version"},
-		{name: "Responses event", body: `{"type":"response.created","response":{"model":"gpt-version"}}`, want: "gpt-version"},
-		{name: "Gemini model version", body: `{"modelVersion":"gemini-version","candidates":[]}`, want: "gemini-version"},
-		{name: "Antigravity envelope", body: `{"response":{"modelVersion":"gemini-version"}}`, want: "gemini-version"},
-		{name: "Cline envelope", body: `{"success":true,"data":{"model":"provider-model"}}`, want: "provider-model"},
-		{name: "Images without a model", body: `{"created":123,"data":[{"b64_json":"image"}]}`},
-		{name: "preserve reported spelling", body: `{"model":" Provider-Model "}`, want: " Provider-Model "},
-		{name: "no model", body: `{"choices":[]}`},
-		{name: "null model", body: `{"model":null}`},
-		{name: "empty model", body: `{"model":""}`},
-		{name: "blank model", body: `{"model":"   "}`},
-		{name: "non-string model", body: `{"model":123}`},
-		{name: "unrelated generated field", body: `{"choices":[{"message":{"content":{"model":"generated"}}}]}`},
-		{name: "request echo is not response metadata", body: `{"request":{"model":"requested"}}`},
-		{name: "truncated JSON", body: `{"model":"partial"`},
-		{name: "done event", body: `[DONE]`},
-		{name: "empty body"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.want, upstreamModelFromResponse([]byte(tt.body)))
-		})
-	}
-}
-
 func newUpstreamModelPersistenceTest(t *testing.T) (context.Context, *ent.Client, *PersistenceState) {
 	t.Helper()
 	client := enttest.NewEntClient(t, "sqlite3", "file:ent?mode=memory&_fk=0")
@@ -85,15 +52,16 @@ func newUpstreamModelPersistenceTest(t *testing.T) (context.Context, *ent.Client
 	}
 }
 
-func createUpstreamModelTestExecution(t *testing.T, ctx context.Context, client *ent.Client, req *ent.Request, model string, stream bool) *ent.RequestExecution {
+func createUpstreamModelTestExecution(t *testing.T, ctx context.Context, client *ent.Client, req *ent.Request, model string, format llm.APIFormat, stream bool) *ent.RequestExecution {
 	t.Helper()
 	execution, err := client.RequestExecution.Create().
 		SetRequestID(req.ID).
 		SetProjectID(req.ProjectID).
 		SetChannelID(req.ChannelID).
 		SetModelID(model).
+		SetOutboundModelID(model).
 		SetRequestBody([]byte(`{}`)).
-		SetFormat("openai/chat_completions").
+		SetFormat(string(format)).
 		SetStatus(requestexecution.StatusPending).
 		SetStream(stream).
 		Save(ctx)
@@ -115,18 +83,19 @@ func TestUpstreamModelPersistence_NonStreamingAttempts(t *testing.T) {
 		name          string
 		body          string
 		responseModel string
+		format        llm.APIFormat
 		wantModel     string
 		err           error
 	}{
-		{name: "empty response triggers retry", body: `{"model":"model-a","choices":[]}`, responseModel: "model-a", wantModel: "model-a", err: pipeline.ErrEmptyResponse},
-		{name: "retry reports its own model", body: `{"model":"model-b","choices":[]}`, responseModel: "model-b", wantModel: "model-b"},
-		{name: "synthetic image model remains unknown", body: `{"created":123,"data":[]}`, responseModel: "requested-image-model"},
-		{name: "image modelVersion takes precedence over synthesized model", body: `{"modelVersion":"reported-image-version","candidates":[]}`, responseModel: "requested-image-model", wantModel: "reported-image-version"},
+		{name: "empty response triggers retry", format: llm.APIFormatOpenAIChatCompletion, body: `{"model":"model-a","choices":[]}`, responseModel: "model-a", wantModel: "model-a", err: pipeline.ErrEmptyResponse},
+		{name: "retry reports its own model", format: llm.APIFormatOpenAIChatCompletion, body: `{"model":"model-b","choices":[]}`, responseModel: "model-b", wantModel: "model-b"},
+		{name: "synthetic image model remains unknown", format: llm.APIFormatOpenAIImageGeneration, body: `{"created":123,"data":[]}`, responseModel: "requested-image-model"},
+		{name: "image modelVersion takes precedence over synthesized model", format: llm.APIFormatGeminiContents, body: `{"modelVersion":"reported-image-version","candidates":[]}`, responseModel: "requested-image-model", wantModel: "reported-image-version"},
 	}
 
 	for _, attempt := range attempts {
 		t.Run(attempt.name, func(t *testing.T) {
-			state.RequestExec = createUpstreamModelTestExecution(t, ctx, client, state.Request, attempt.responseModel, false)
+			state.RequestExec = createUpstreamModelTestExecution(t, ctx, client, state.Request, attempt.responseModel, attempt.format, false)
 			_, err := middleware.OnOutboundRawRequest(ctx, &httpclient.Request{})
 			require.NoError(t, err)
 			_, err = middleware.OnOutboundRawResponse(ctx, &httpclient.Response{
@@ -151,6 +120,11 @@ func TestUpstreamModelPersistence_NonStreamingAttempts(t *testing.T) {
 			saved, err := client.RequestExecution.Get(ctx, state.RequestExec.ID)
 			require.NoError(t, err)
 			require.Equal(t, attempt.wantModel, saved.UpstreamModelID)
+			if attempt.wantModel != "" {
+				require.Equal(t, []string{attempt.wantModel}, saved.UpstreamModelIds)
+			} else {
+				require.Empty(t, saved.UpstreamModelIds)
+			}
 			require.Equal(t, wantStatus, saved.Status)
 			require.Empty(t, saved.ResponseBody)
 		})
@@ -158,7 +132,7 @@ func TestUpstreamModelPersistence_NonStreamingAttempts(t *testing.T) {
 
 	// A transport failure on the next attempt must not inherit the last raw
 	// response, even when no OnOutboundRawResponse callback occurs.
-	state.RequestExec = createUpstreamModelTestExecution(t, ctx, client, state.Request, "next-model", false)
+	state.RequestExec = createUpstreamModelTestExecution(t, ctx, client, state.Request, "next-model", llm.APIFormatOpenAIChatCompletion, false)
 	_, err := middleware.OnOutboundRawRequest(ctx, &httpclient.Request{})
 	require.NoError(t, err)
 	middleware.OnOutboundRawError(ctx, io.ErrUnexpectedEOF)
@@ -171,6 +145,7 @@ func TestUpstreamModelPersistence_NonStreamingAttempts(t *testing.T) {
 func TestUpstreamModelPersistence_StreamingTerminations(t *testing.T) {
 	tests := []struct {
 		name         string
+		format       llm.APIFormat
 		events       []*httpclient.StreamEvent
 		streamErr    error
 		aggregateErr error
@@ -187,17 +162,17 @@ func TestUpstreamModelPersistence_StreamingTerminations(t *testing.T) {
 			wantModel: "provider-model", wantStatus: requestexecution.StatusCompleted,
 		},
 		{
-			name:      "transport interruption after Anthropic message start",
+			name: "transport interruption after Anthropic message start", format: llm.APIFormatAnthropicMessage,
 			events:    []*httpclient.StreamEvent{{Type: "message_start", Data: []byte(`{"type":"message_start","message":{"model":"claude-version"}}`)}},
 			streamErr: io.ErrUnexpectedEOF, wantModel: "claude-version", wantStatus: requestexecution.StatusFailed,
 		},
 		{
-			name:      "clean EOF after Responses metadata",
+			name: "clean EOF after Responses metadata", format: llm.APIFormatOpenAIResponse,
 			events:    []*httpclient.StreamEvent{{Type: "response.created", Data: []byte(`{"type":"response.created","response":{"model":"gpt-version"}}`)}},
 			wantModel: "gpt-version", wantStatus: requestexecution.StatusFailed,
 		},
 		{
-			name:   "client canceled after Gemini metadata",
+			name: "client canceled after Gemini metadata", format: llm.APIFormatGeminiContents,
 			events: []*httpclient.StreamEvent{{Data: []byte(`{"modelVersion":"gemini-version","candidates":[]}`)}},
 			cancel: true, wantModel: "gemini-version", wantStatus: requestexecution.StatusCanceled,
 		},
@@ -210,7 +185,7 @@ func TestUpstreamModelPersistence_StreamingTerminations(t *testing.T) {
 			aggregateErr: errors.New("cannot aggregate response"), wantModel: "provider-model", wantStatus: requestexecution.StatusCompleted,
 		},
 		{
-			name:      "failed Responses terminal includes model",
+			name: "failed Responses terminal includes model", format: llm.APIFormatOpenAIResponse,
 			events:    []*httpclient.StreamEvent{{Type: "response.failed", Data: []byte(`{"type":"response.failed","response":{"model":"gpt-version","status":"failed"}}`)}},
 			wantModel: "gpt-version", wantStatus: requestexecution.StatusFailed,
 		},
@@ -229,7 +204,11 @@ func TestUpstreamModelPersistence_StreamingTerminations(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, client, state := newUpstreamModelPersistenceTest(t)
-			execution := createUpstreamModelTestExecution(t, ctx, client, state.Request, "sent-model", true)
+			format := tt.format
+			if format == "" {
+				format = llm.APIFormatOpenAIChatCompletion
+			}
+			execution := createUpstreamModelTestExecution(t, ctx, client, state.Request, "sent-model", format, true)
 			streamCtx, cancel := context.WithCancel(ctx)
 			defer cancel()
 			source := &sliceEventStream{events: tt.events, err: tt.streamErr}
@@ -251,6 +230,11 @@ func TestUpstreamModelPersistence_StreamingTerminations(t *testing.T) {
 			saved, err := client.RequestExecution.Get(ctx, execution.ID)
 			require.NoError(t, err)
 			require.Equal(t, tt.wantModel, saved.UpstreamModelID)
+			if tt.wantModel != "" {
+				require.Equal(t, []string{tt.wantModel}, saved.UpstreamModelIds)
+			} else {
+				require.Empty(t, saved.UpstreamModelIds)
+			}
 			require.Equal(t, tt.wantStatus, saved.Status)
 			require.Empty(t, saved.ResponseBody, "metadata must survive disabled body storage")
 			require.Empty(t, saved.ResponseChunks, "metadata must survive disabled chunk storage")

@@ -147,6 +147,11 @@
   "requests.detail.upstreamModelMatched": "Upstream model name matches the sent model",
   "requests.tooltips.upstreamModelMatching": "Upstream model names match ({{model}})",
   "requests.tooltips.upstreamModelMismatch": "Upstream model name differs: {{model}}",
-  "requests.tooltips.upstreamModelUnknown": "Upstream model was not recorded; name consistency is unknown",
-  "requests.tooltips.upstreamModelPartial": "Only some executions can be audited: {{compared}} compared, {{unknown}} unknown"
+  "requests.tooltips.upstreamModelUnknown": "Final sent or upstream-reported model was not recorded; name consistency is unknown",
+  "requests.tooltips.upstreamModelPartial": "Only some executions can be audited: {{compared}} compared, {{unknown}} unknown",
+  "requests.detail.routedModel": "Routing model",
+  "requests.detail.outboundModel": "Final sent model",
+  "requests.detail.upstreamModels": "Upstream-reported models",
+  "requests.detail.upstreamModelConflict": "Upstream reported different model names within this execution (first two distinct names retained)",
+  "requests.tooltips.upstreamModelConflict": "Different model names reported within one execution: {{model}} (first two distinct names retained)"
 }

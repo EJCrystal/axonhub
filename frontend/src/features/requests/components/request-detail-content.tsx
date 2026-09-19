@@ -817,12 +817,28 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                 <Database className='text-primary h-4 w-4' />
                                 {t('requests.columns.modelId')}
                               </span>
-                              <p className='text-muted-foreground font-mono text-sm'>
-                                {execution.modelID || t('requests.columns.unknown')}
-                              </p>
+                              <dl className='space-y-2 text-xs'>
+                                <div>
+                                  <dt className='text-muted-foreground'>{t('requests.detail.routedModel')}</dt>
+                                  <dd className='break-all font-mono'>{execution.modelID || t('requests.columns.unknown')}</dd>
+                                </div>
+                                <div>
+                                  <dt className='text-muted-foreground'>{t('requests.detail.outboundModel')}</dt>
+                                  <dd className='break-all font-mono'>{execution.outboundModelID || t('requests.columns.unknown')}</dd>
+                                </div>
+                                <div>
+                                  <dt className='text-muted-foreground'>{t('requests.detail.upstreamModels')}</dt>
+                                  <dd className='break-all font-mono'>{modelAudit.upstreamModelIds.join(', ') || t('requests.columns.unknown')}</dd>
+                                </div>
+                              </dl>
                               {modelAudit.status === 'mismatched' && (
                                 <p className='text-destructive font-mono text-xs'>
-                                  {t('requests.detail.upstreamModelMismatch', { model: execution.upstreamModelID })}
+                                  {t('requests.detail.upstreamModelMismatch', { model: modelAudit.mismatchedModelIds.join(', ') })}
+                                </p>
+                              )}
+                              {modelAudit.status === 'conflicting' && (
+                                <p className='text-destructive text-xs'>
+                                  {t('requests.detail.upstreamModelConflict')}
                                 </p>
                               )}
                               {modelAudit.status === 'matched' && (

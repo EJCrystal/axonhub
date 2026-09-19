@@ -147,6 +147,11 @@
   "requests.detail.upstreamModelMatched": "上游返回模型名称与发送模型一致",
   "requests.tooltips.upstreamModelMatching": "上游返回模型名称一致（{{model}}）",
   "requests.tooltips.upstreamModelMismatch": "上游返回模型名称不同：{{model}}",
-  "requests.tooltips.upstreamModelUnknown": "上游返回模型未记录，无法判断名称是否一致",
-  "requests.tooltips.upstreamModelPartial": "仅部分执行可审计：已比较 {{compared}} 次，未知 {{unknown}} 次"
+  "requests.tooltips.upstreamModelUnknown": "最终发送或上游自报模型未记录，无法判断名称是否一致",
+  "requests.tooltips.upstreamModelPartial": "仅部分执行可审计：已比较 {{compared}} 次，未知 {{unknown}} 次",
+  "requests.detail.routedModel": "路由模型",
+  "requests.detail.outboundModel": "最终发送模型",
+  "requests.detail.upstreamModels": "上游自报模型",
+  "requests.detail.upstreamModelConflict": "同一次执行中，上游自报的模型名发生变化（保留前两个不同名称）",
+  "requests.tooltips.upstreamModelConflict": "同一次执行出现不同的上游自报模型名：{{model}}（保留前两个不同名称）"
 }

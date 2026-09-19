@@ -145,13 +145,16 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         const executionModelIds = Array.from(new Set(executions.map((exe) => exe.modelID || ''))).filter(
           (id) => id && id !== originalModelId
         );
-        const modelAudit = getUpstreamModelAudit(executions);
+        // The latest ten display rows cannot establish a complete audit.
+        const modelAudit = request.modelAudit ?? getUpstreamModelAudit([]);
         const upstreamModelMatches = modelAudit.status === 'matched';
         let upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelUnknown');
         if (upstreamModelMatches) {
           upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelMatching', { model: modelAudit.upstreamModelIds.join(', ') });
         } else if (modelAudit.status === 'mismatched') {
           upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelMismatch', { model: modelAudit.mismatchedModelIds.join(', ') });
+        } else if (modelAudit.status === 'conflicting') {
+          upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelConflict', { model: modelAudit.conflictingModelIds.join(', ') });
         }
         if (modelAudit.unknownCount > 0 && modelAudit.comparedCount > 0) {
           const partialAuditTooltip = t('requests.tooltips.upstreamModelPartial', {
@@ -159,7 +162,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
             unknown: modelAudit.unknownCount,
           });
           upstreamModelAuditTooltip =
-            modelAudit.status === 'mismatched' ? `${upstreamModelAuditTooltip} ${partialAuditTooltip}` : partialAuditTooltip;
+            modelAudit.status === 'unknown' ? partialAuditTooltip : `${upstreamModelAuditTooltip} ${partialAuditTooltip}`;
         }
 
         const reasoningEffort = executions[0]?.reasoningEffort ?? request.reasoningEffort;

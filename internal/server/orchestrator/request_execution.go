@@ -9,6 +9,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/pkg/modelmetadata"
 	"github.com/looplj/axonhub/internal/pkg/xcontext"
 	"github.com/looplj/axonhub/internal/pkg/xerrors"
 	"github.com/looplj/axonhub/internal/server/biz"
@@ -55,8 +56,8 @@ type persistRequestExecutionMiddleware struct {
 
 	outbound *PersistentOutboundTransformer
 
-	rawResponse     *httpclient.Response
-	upstreamModelID string
+	rawResponse      *httpclient.Response
+	upstreamModelIDs []string
 }
 
 func persistRequestExecution(outbound *PersistentOutboundTransformer) pipeline.Middleware {
@@ -73,7 +74,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 	// This middleware is reused across attempts. Response metadata belongs only
 	// to the execution created for this outbound request.
 	m.rawResponse = nil
-	m.upstreamModelID = ""
+	m.upstreamModelIDs = nil
 
 	state := m.outbound.state
 	if state == nil || state.RequestExec != nil {
@@ -126,7 +127,13 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 
 func (m *persistRequestExecutionMiddleware) OnOutboundRawResponse(ctx context.Context, response *httpclient.Response) (*httpclient.Response, error) {
 	m.rawResponse = response
-	m.upstreamModelID = upstreamModelFromResponse(response.Body)
+	var format llm.APIFormat
+	if state := m.outbound.state; state != nil && state.RequestExec != nil {
+		format = llm.APIFormat(state.RequestExec.Format)
+	} else if m.outbound.wrapped != nil {
+		format = m.outbound.APIFormat()
+	}
+	m.upstreamModelIDs = modelmetadata.Observe(m.upstreamModelIDs, modelmetadata.ResponseModel(response, format))
 	return response, nil
 }
 
@@ -188,7 +195,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundLlmResponse(ctx context.Co
 		llmResp.ID,
 		respBody,
 		metrics,
-		m.upstreamModelID,
+		m.upstreamModelIDs,
 	)
 	if err != nil {
 		log.Warn(persistCtx, "Failed to update request execution status to completed", log.Cause(err))
@@ -237,7 +244,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawError(ctx context.Conte
 		ExtractErrorMessage(failure),
 		ExtractErrorInfo(failure),
 		nil,
-		m.upstreamModelID,
+		m.upstreamModelIDs,
 	)
 	if updateErr != nil {
 		log.Warn(persistCtx, "Failed to update request execution status to failed", log.Cause(updateErr))

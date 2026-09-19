@@ -16,6 +16,16 @@ export type RequestSource = z.infer<typeof requestSourceSchema>;
 export const requestExecutionStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed', 'canceled']);
 export type RequestExecutionStatus = z.infer<typeof requestExecutionStatusSchema>;
 
+export const requestModelAuditSchema = z.object({
+  status: z.enum(['matched', 'mismatched', 'unknown', 'conflicting']),
+  upstreamModelIds: z.array(z.string()),
+  mismatchedModelIds: z.array(z.string()),
+  conflictingModelIds: z.array(z.string()),
+  unknownCount: z.number(),
+  comparedCount: z.number(),
+  conflictCount: z.number(),
+});
+
 // Request Execution
 export const requestExecutionSchema = z.object({
   id: z.string(),
@@ -26,7 +36,9 @@ export const requestExecutionSchema = z.object({
   // channelID: z.number(),
   channel: channelSchema.partial().nullable().optional(),
   modelID: z.string(),
+  outboundModelID: z.string().nullable().optional(),
   upstreamModelID: z.string().nullable().optional(),
+  upstreamModelIds: z.array(z.string()).nullable().optional(),
   requestHeaders: z.any().nullable().optional(),
   requestBody: z.any(), // JSONRawMessage
   responseBody: z.any().nullable(), // JSONRawMessage
@@ -56,6 +68,7 @@ export const requestSchema = z.object({
   channel: channelSchema.partial().nullable().optional(),
   source: requestSourceSchema,
   modelID: z.string(),
+  modelAudit: requestModelAuditSchema.optional(),
   reasoningEffort: z.string().nullable().optional(),
   contentSaved: z.boolean().optional(),
   contentStorageKey: z.string().nullable().optional(),

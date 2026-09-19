@@ -1,0 +1,21 @@
+enum ModelAuditStatus {
+  matched
+  mismatched
+  unknown
+  conflicting
+}
+
+type RequestModelAudit {
+  status: ModelAuditStatus!
+  upstreamModelIds: [String!]!
+  mismatchedModelIds: [String!]!
+  conflictingModelIds: [String!]!
+  unknownCount: Int!
+  comparedCount: Int!
+  conflictCount: Int!
+}
+
+extend type Request {
+  """Model-name audit over all executions, independent of execution pagination."""
+  modelAudit: RequestModelAudit!
+}
