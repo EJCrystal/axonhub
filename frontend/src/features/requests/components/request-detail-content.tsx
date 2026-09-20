@@ -832,12 +832,12 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                 </div>
                               </dl>
                               {(execution.status === 'pending' || execution.status === 'processing') && (
-                                <p className='text-muted-foreground text-xs'>
+                                <p className='text-sky-700 text-xs font-medium dark:text-sky-300'>
                                   {t('requests.tooltips.upstreamModelRequestProcessing')}
                                 </p>
                               )}
                               {(execution.status === 'failed' || execution.status === 'canceled') && (
-                                <p className='text-amber-700 text-xs dark:text-amber-300'>
+                                <p className='text-red-700 text-xs font-medium dark:text-red-300'>
                                   {t('requests.tooltips.upstreamModelRequestFailed')}
                                 </p>
                               )}
