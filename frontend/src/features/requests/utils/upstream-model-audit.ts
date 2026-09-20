@@ -1,4 +1,5 @@
 interface ModelAuditExecution {
+  status?: 'pending' | 'processing' | 'completed' | 'failed' | 'canceled';
   modelID?: string | null;
   outboundModelID?: string | null;
   upstreamModelID?: string | null;
@@ -14,6 +15,8 @@ export function getUpstreamModelAudit(executions: readonly ModelAuditExecution[]
   const conflictingModelIds = new Set<string>();
   let unknownCount = 0;
   let conflictCount = 0;
+  let hasCompletedComparison = false;
+  let blockingUnknownCount = 0;
 
   for (const execution of executions) {
     // Routing modelID is not evidence of what was sent after body overrides.
@@ -28,8 +31,10 @@ export function getUpstreamModelAudit(executions: readonly ModelAuditExecution[]
     }
     if (!sentModel?.trim() || reportedModels.length === 0) {
       unknownCount++;
+      if (execution.status !== 'failed' && execution.status !== 'canceled') blockingUnknownCount++;
       continue;
     }
+    hasCompletedComparison ||= execution.status === 'completed';
 
     // Compare within this execution before deduplicating the display values.
     for (const model of reportedModels) {
@@ -42,7 +47,7 @@ export function getUpstreamModelAudit(executions: readonly ModelAuditExecution[]
       ? 'conflicting'
       : mismatchedModelIds.size > 0
         ? 'mismatched'
-        : executions.length === 0 || unknownCount > 0
+        : executions.length === 0 || (unknownCount > 0 && (!hasCompletedComparison || blockingUnknownCount > 0))
           ? 'unknown'
           : 'matched';
 

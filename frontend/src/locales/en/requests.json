@@ -146,6 +146,7 @@
   "requests.detail.upstreamModelMismatch": "Upstream model name differs from the sent model: {{model}}",
   "requests.detail.upstreamModelMatched": "Upstream model name matches the sent model",
   "requests.tooltips.upstreamModelMatching": "Upstream model names match ({{model}})",
+  "requests.tooltips.upstreamModelMatchedAfterRetries": "Upstream model names match the sent names on successful executions; {{unknown}} failed or canceled executions lack model information. See execution details.",
   "requests.tooltips.upstreamModelMismatch": "Upstream model name differs: {{model}}",
   "requests.tooltips.upstreamModelUnknown": "Final sent or upstream-reported model was not recorded; name consistency is unknown",
   "requests.tooltips.upstreamModelPartial": "Only some executions can be audited: {{compared}} compared, {{unknown}} unknown",

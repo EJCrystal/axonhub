@@ -21,6 +21,7 @@ func withModelAuditExecutions(query *ent.RequestQuery) *ent.RequestQuery {
 	return query.WithNamedExecutions(modelAuditExecutionsEdge, func(executions *ent.RequestExecutionQuery) {
 		executions.Select(
 			requestexecution.FieldID, requestexecution.FieldRequestID, requestexecution.FieldProjectID,
+			requestexecution.FieldStatus,
 			requestexecution.FieldOutboundModelID, requestexecution.FieldUpstreamModelID, requestexecution.FieldUpstreamModelIds,
 		).Order(ent.Desc(requestexecution.FieldID)).Where(func(s *sql.Selector) {
 			// The parent request query enforces authorization. Keep the execution in

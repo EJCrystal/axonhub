@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/objects"
 )
 
@@ -68,6 +69,58 @@ func TestAuditRequestModels(t *testing.T) {
 			require.NotNil(t, audit.UpstreamModelIds)
 			require.NotNil(t, audit.MismatchedModelIds)
 			require.NotNil(t, audit.ConflictingModelIds)
+		})
+	}
+}
+
+func TestAuditRequestModelsSuccessfulRetries(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		status requestexecution.Status
+		want   objects.ModelAuditStatus
+	}{
+		{"failed retry", requestexecution.StatusFailed, objects.ModelAuditMatched},
+		{"canceled retry", requestexecution.StatusCanceled, objects.ModelAuditMatched},
+		{"successful execution with missing metadata", requestexecution.StatusCompleted, objects.ModelAuditUnknown},
+		{"pending execution", requestexecution.StatusPending, objects.ModelAuditUnknown},
+		{"active execution", requestexecution.StatusProcessing, objects.ModelAuditUnknown},
+		{"legacy execution without status", "", objects.ModelAuditUnknown},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			matched := &ent.RequestExecution{Status: requestexecution.StatusCompleted, OutboundModelID: "sent", UpstreamModelID: "sent"}
+			unknown := &ent.RequestExecution{Status: tt.status, OutboundModelID: "sent"}
+			for _, executions := range [][]*ent.RequestExecution{{unknown, matched}, {matched, unknown}} {
+				audit := AuditRequestModels(executions)
+				require.Equal(t, tt.want, audit.Status)
+				require.Equal(t, 1, audit.UnknownCount, "retry evidence stays available")
+				require.Equal(t, 1, audit.ComparedCount)
+			}
+		})
+	}
+	for _, tt := range []struct {
+		name       string
+		executions []*ent.RequestExecution
+		want       objects.ModelAuditStatus
+	}{
+		{"no successful execution", []*ent.RequestExecution{
+			{Status: requestexecution.StatusFailed, OutboundModelID: "sent", UpstreamModelID: "sent"},
+			{Status: requestexecution.StatusFailed},
+		}, objects.ModelAuditUnknown},
+		{"final success is unknown", []*ent.RequestExecution{
+			{Status: requestexecution.StatusFailed, OutboundModelID: "sent", UpstreamModelID: "sent"},
+			{Status: requestexecution.StatusCompleted, OutboundModelID: "sent"},
+		}, objects.ModelAuditUnknown},
+		{"successful retry preserves known mismatch", []*ent.RequestExecution{
+			{Status: requestexecution.StatusFailed, OutboundModelID: "sent", UpstreamModelID: "different"},
+			{Status: requestexecution.StatusCompleted, OutboundModelID: "sent", UpstreamModelID: "sent"},
+		}, objects.ModelAuditMismatched},
+		{"successful retry preserves stream conflict", []*ent.RequestExecution{
+			{Status: requestexecution.StatusFailed, UpstreamModelIds: []string{"sent", "different"}},
+			{Status: requestexecution.StatusCompleted, OutboundModelID: "sent", UpstreamModelID: "sent"},
+		}, objects.ModelAuditConflicting},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, AuditRequestModels(tt.executions).Status)
 		})
 	}
 }

@@ -150,13 +150,16 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         const upstreamModelMatches = modelAudit.status === 'matched';
         let upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelUnknown');
         if (upstreamModelMatches) {
-          upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelMatching', { model: modelAudit.upstreamModelIds.join(', ') });
+          upstreamModelAuditTooltip = t(
+            modelAudit.unknownCount > 0 ? 'requests.tooltips.upstreamModelMatchedAfterRetries' : 'requests.tooltips.upstreamModelMatching',
+            { model: modelAudit.upstreamModelIds.join(', '), unknown: modelAudit.unknownCount }
+          );
         } else if (modelAudit.status === 'mismatched') {
           upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelMismatch', { model: modelAudit.mismatchedModelIds.join(', ') });
         } else if (modelAudit.status === 'conflicting') {
           upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelConflict', { model: modelAudit.conflictingModelIds.join(', ') });
         }
-        if (modelAudit.unknownCount > 0 && modelAudit.comparedCount > 0) {
+        if (!upstreamModelMatches && modelAudit.unknownCount > 0 && modelAudit.comparedCount > 0) {
           const partialAuditTooltip = t('requests.tooltips.upstreamModelPartial', {
             compared: modelAudit.comparedCount,
             unknown: modelAudit.unknownCount,

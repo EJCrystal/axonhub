@@ -6,6 +6,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/objects"
 )
 
@@ -19,6 +20,8 @@ func AuditRequestModels(executions []*ent.RequestExecution) *objects.RequestMode
 		MismatchedModelIds:  []string{},
 		ConflictingModelIds: []string{},
 	}
+	hasCompletedComparison := false
+	blockingUnknownCount := 0
 	for _, execution := range executions {
 		models := lo.Filter(lo.Uniq(append([]string{execution.UpstreamModelID}, execution.UpstreamModelIds...)), func(model string, _ int) bool {
 			return strings.TrimSpace(model) != ""
@@ -30,9 +33,13 @@ func AuditRequestModels(executions []*ent.RequestExecution) *objects.RequestMode
 		}
 		if strings.TrimSpace(execution.OutboundModelID) == "" || len(models) == 0 {
 			audit.UnknownCount++
+			if execution.Status != requestexecution.StatusFailed && execution.Status != requestexecution.StatusCanceled {
+				blockingUnknownCount++
+			}
 			continue
 		}
 		audit.ComparedCount++
+		hasCompletedComparison = hasCompletedComparison || execution.Status == requestexecution.StatusCompleted
 		for _, model := range models {
 			if model != execution.OutboundModelID {
 				audit.MismatchedModelIds = append(audit.MismatchedModelIds, model)
@@ -47,7 +54,10 @@ func AuditRequestModels(executions []*ent.RequestExecution) *objects.RequestMode
 		audit.Status = objects.ModelAuditConflicting
 	case len(audit.MismatchedModelIds) > 0:
 		audit.Status = objects.ModelAuditMismatched
-	case len(executions) > 0 && audit.UnknownCount == 0:
+	case len(executions) > 0 && (audit.UnknownCount == 0 || (hasCompletedComparison && blockingUnknownCount == 0)):
+		// Failed/canceled retries often have no model metadata. They must not
+		// obscure a successful match, but their counts and any known anomalies
+		// remain visible. Successful, active and legacy unknowns still block it.
 		audit.Status = objects.ModelAuditMatched
 	}
 	return audit

@@ -2,6 +2,54 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getUpstreamModelAudit } from './upstream-model-audit.ts';
 
+test('successful matching retries stay matched without discarding failed or canceled unknowns', () => {
+  for (const status of ['failed', 'canceled']) {
+    const executions = [
+      ...Array.from({ length: 12 }, () => ({ status, outboundModelID: 'sent' })),
+      { status: 'completed', outboundModelID: 'sent', upstreamModelID: 'sent' },
+    ];
+    for (const ordered of [executions, executions.toReversed()]) {
+      const audit = getUpstreamModelAudit(ordered);
+      assert.equal(audit.status, 'matched');
+      assert.equal(audit.unknownCount, 12);
+      assert.equal(audit.comparedCount, 1);
+    }
+  }
+});
+
+test('successful, active and legacy unknown executions still prevent a match', () => {
+  for (const status of ['completed', 'pending', 'processing', undefined]) {
+    const audit = getUpstreamModelAudit([
+      { status: 'completed', outboundModelID: 'sent', upstreamModelID: 'sent' },
+      { status, outboundModelID: 'sent' },
+    ]);
+    assert.equal(audit.status, 'unknown');
+  }
+});
+
+test('a failed comparison cannot establish a match when final success is unknown or absent', () => {
+  for (const status of ['completed', 'failed']) {
+    const audit = getUpstreamModelAudit([
+      { status: 'failed', outboundModelID: 'sent', upstreamModelID: 'sent' },
+      { status, outboundModelID: 'sent' },
+    ]);
+    assert.equal(audit.status, 'unknown');
+  }
+});
+
+test('successful retries do not hide earlier mismatches or conflicts', () => {
+  for (const [upstreamModelIds, expected] of [[['different'], 'mismatched'], [['sent', 'different'], 'conflicting']]) {
+    const audit = getUpstreamModelAudit([
+      { status: 'failed', outboundModelID: 'sent', upstreamModelIds },
+      { status: 'failed' },
+      { status: 'completed', outboundModelID: 'sent', upstreamModelID: 'sent' },
+    ]);
+    assert.equal(audit.status, expected);
+    assert.deepEqual(audit.mismatchedModelIds, ['different']);
+    assert.equal(audit.unknownCount, 1);
+  }
+});
+
 test('matches each execution against its own outbound model', () => {
   const audit = getUpstreamModelAudit([
     { outboundModelID: 'model-a', upstreamModelID: 'model-a' },

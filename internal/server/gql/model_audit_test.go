@@ -2,6 +2,7 @@ package gql
 
 import (
 	"context"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -27,10 +28,15 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
 	ctx := authz.WithTestBypass(t.Context())
 	project := db.Project.Create().SetName("audit").SaveX(ctx)
 	expected := map[string]objects.ModelAuditStatus{
-		"matched":        objects.ModelAuditMatched,
-		"early-mismatch": objects.ModelAuditMismatched,
-		"early-unknown":  objects.ModelAuditUnknown,
-		"early-conflict": objects.ModelAuditConflicting,
+		"matched":             objects.ModelAuditMatched,
+		"early-mismatch":      objects.ModelAuditMismatched,
+		"early-unknown":       objects.ModelAuditUnknown,
+		"early-conflict":      objects.ModelAuditConflicting,
+		"retry-success":       objects.ModelAuditMatched,
+		"retry-canceled":      objects.ModelAuditMatched,
+		"retry-mismatch":      objects.ModelAuditMismatched,
+		"retry-conflict":      objects.ModelAuditConflicting,
+		"retry-final-unknown": objects.ModelAuditUnknown,
 	}
 	for name := range expected {
 		req := db.Request.Create().SetProjectID(project.ID).SetModelID(name).
@@ -41,6 +47,16 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
 				SetStatus(requestexecution.StatusCompleted).SetCreatedAt(time.Unix(1000+int64(i), 0)).
 				SetRequestBody([]byte(`{"prompt":"body must not be loaded for auditing"}`)).
 				SetResponseBody([]byte(`{"text":"body must not be loaded for auditing"}`))
+			if strings.HasPrefix(name, "retry-") {
+				if i < 10 {
+					create.SetStatus(requestexecution.StatusFailed).SetUpstreamModelID("")
+					if name == "retry-canceled" {
+						create.SetStatus(requestexecution.StatusCanceled)
+					}
+				} else if name == "retry-final-unknown" {
+					create.SetUpstreamModelID("")
+				}
+			}
 			if i == 0 {
 				switch name {
 				case "early-mismatch":
@@ -48,6 +64,10 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
 				case "early-unknown":
 					create.SetUpstreamModelID("")
 				case "early-conflict":
+					create.SetUpstreamModelIds([]string{"sent", "changed"})
+				case "retry-mismatch":
+					create.SetUpstreamModelID("different")
+				case "retry-conflict":
 					create.SetUpstreamModelIds([]string{"sent", "changed"})
 				}
 			}
@@ -63,6 +83,7 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, executions, 11)
 		for _, execution := range executions {
+			require.NotEmpty(t, execution.Status, "audit must load execution status with model metadata")
 			require.Empty(t, execution.RequestBody)
 			require.Empty(t, execution.ResponseBody)
 		}
@@ -114,13 +135,24 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
 	for _, edge := range response.Requests.Edges {
 		node := edge.Node
 		require.Equal(t, expected[node.ModelID], node.Audit.Status)
-		require.Len(t, node.ModelAuditExecutions.Edges, 10)
+		displayCount := 10
+		if strings.HasPrefix(node.ModelID, "retry-") {
+			displayCount = 1
+			if node.ModelID == "retry-final-unknown" {
+				displayCount = 0
+			}
+		}
+		require.Len(t, node.ModelAuditExecutions.Edges, displayCount)
 		require.Equal(t, 11, node.Audit.ComparedCount+node.Audit.UnknownCount)
 		if node.ModelID == "early-mismatch" {
 			require.Equal(t, []string{"different"}, node.Audit.MismatchedModelIds)
 		}
 		if node.ModelID == "early-unknown" {
 			require.Equal(t, 1, node.Audit.UnknownCount)
+		}
+		if node.ModelID == "retry-success" || node.ModelID == "retry-canceled" {
+			require.Equal(t, 10, node.Audit.UnknownCount)
+			require.Equal(t, 1, node.Audit.ComparedCount)
 		}
 		if node.ModelID == "early-conflict" {
 			require.Equal(t, 1, node.Audit.ConflictCount)
