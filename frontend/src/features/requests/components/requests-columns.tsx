@@ -148,8 +148,14 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         // The latest ten display rows cannot establish a complete audit.
         const modelAudit = request.modelAudit ?? getUpstreamModelAudit([]);
         const upstreamModelMatches = modelAudit.status === 'matched';
+        const requestIsProcessing = request.status === 'pending' || request.status === 'processing';
+        const requestFailed = request.status === 'failed' || request.status === 'canceled';
         let upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelUnknown');
-        if (upstreamModelMatches) {
+        if (requestIsProcessing) {
+          upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelRequestProcessing');
+        } else if (requestFailed) {
+          upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelRequestFailed');
+        } else if (upstreamModelMatches) {
           upstreamModelAuditTooltip = t(
             modelAudit.unknownCount > 0 ? 'requests.tooltips.upstreamModelMatchedAfterRetries' : 'requests.tooltips.upstreamModelMatching',
             { model: modelAudit.upstreamModelIds.join(', '), unknown: modelAudit.unknownCount }
@@ -254,8 +260,12 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                 <TooltipTrigger asChild>
                   <span
                     className={`inline-flex h-5 w-5 items-center justify-center ${
-                      modelAudit.status === 'unknown'
+                      requestIsProcessing
                         ? 'text-muted-foreground/45'
+                        : requestFailed
+                          ? 'text-amber-700 dark:text-amber-300'
+                          : modelAudit.status === 'unknown'
+                            ? 'text-muted-foreground/45'
                         : upstreamModelMatches
                           ? 'text-emerald-700 dark:text-emerald-300'
                           : 'text-red-700 dark:text-red-400'
@@ -264,7 +274,11 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                     role='img'
                     aria-label={upstreamModelAuditTooltip}
                   >
-                    {modelAudit.status === 'unknown' ? (
+                    {requestIsProcessing ? (
+                      <IconQuestionMark className='h-3.5 w-3.5' />
+                    ) : requestFailed ? (
+                      <IconAlertTriangle className='h-3.5 w-3.5 text-amber-700 dark:text-amber-300' />
+                    ) : modelAudit.status === 'unknown' ? (
                       <IconQuestionMark className='h-3.5 w-3.5' />
                     ) : upstreamModelMatches ? (
                       <IconCheck className='h-3.5 w-3.5' />
