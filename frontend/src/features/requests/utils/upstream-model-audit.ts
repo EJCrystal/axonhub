@@ -10,9 +10,28 @@ interface ModelAuditExecution {
 
 type ModelAuditStatus = 'matched' | 'mismatched' | 'unknown' | 'conflicting';
 
+export type ModelAuditVerdictTone = 'success' | 'danger' | 'pending' | 'muted';
+
+export interface ModelAuditVerdict {
+  tone: ModelAuditVerdictTone;
+  message: string;
+}
+
+export const MODEL_AUDIT_VERDICT_CLASS: Record<ModelAuditVerdictTone, string> = {
+  success: 'font-mono text-xs text-emerald-600 dark:text-emerald-400',
+  danger: 'text-xs font-medium text-destructive',
+  pending: 'text-xs font-medium text-sky-700 dark:text-sky-300',
+  muted: 'text-muted-foreground text-xs',
+};
+
+// The list reads the backend's execution-set summary, which carries no per-verdict
+// evidence. Only the detail page computes equalModelIds from the raw executions.
+type ModelAuditSummary = Omit<ReturnType<typeof getUpstreamModelAudit>, 'equalModelIds'>;
+
 // Detail-page audit. List rows use the backend's full execution-set summary.
 export function getUpstreamModelAudit(executions: readonly ModelAuditExecution[]) {
   const matchedUpstreamIds = new Set<string>();
+  const equalModelIds = new Set<string>();
   const upstreamModelIds = new Set<string>();
   const mismatchedModelIds = new Set<string>();
   const conflictingModelIds = new Set<string>();
@@ -42,7 +61,10 @@ export function getUpstreamModelAudit(executions: readonly ModelAuditExecution[]
     // Compare within this execution before deduplicating the display values.
     for (const model of reportedModels) {
       if (model !== sentModel) mismatchedModelIds.add(model);
-      else if (execution.status === 'completed') matchedUpstreamIds.add(model);
+      else {
+        equalModelIds.add(model);
+        if (execution.status === 'completed') matchedUpstreamIds.add(model);
+      }
     }
   }
 
@@ -58,6 +80,7 @@ export function getUpstreamModelAudit(executions: readonly ModelAuditExecution[]
   return {
     status,
     matchedUpstreamIds: Array.from(matchedUpstreamIds),
+    equalModelIds: Array.from(equalModelIds),
     upstreamModelIds: Array.from(upstreamModelIds),
     mismatchedModelIds: Array.from(mismatchedModelIds),
     conflictingModelIds: Array.from(conflictingModelIds),
@@ -68,11 +91,7 @@ export function getUpstreamModelAudit(executions: readonly ModelAuditExecution[]
 }
 
 // List tooltips use the complete backend summary, never the paginated executions.
-export function getRequestModelAuditTooltip(
-  modelAudit: ReturnType<typeof getUpstreamModelAudit>,
-  requestStatus: ModelAuditExecution['status'],
-  t: TFunction
-) {
+export function getRequestModelAuditTooltip(modelAudit: ModelAuditSummary, requestStatus: ModelAuditExecution['status'], t: TFunction) {
   if (requestStatus === 'pending' || requestStatus === 'processing') return t('requests.tooltips.upstreamModelRequestProcessing');
   if (requestStatus === 'failed' || requestStatus === 'canceled') return t('requests.tooltips.upstreamModelRequestFailed');
 
@@ -96,4 +115,47 @@ export function getRequestModelAuditTooltip(
     return modelAudit.status === 'unknown' ? partial : `${tooltip} ${partial}`;
   }
   return tooltip;
+}
+
+// One verdict per execution row. Lifecycle decides the tone, so a failed retry
+// that happens to match can never render as a green success conclusion.
+export function getExecutionModelAuditVerdict(
+  modelAudit: ReturnType<typeof getUpstreamModelAudit>,
+  executionStatus: ModelAuditExecution['status'],
+  t: TFunction
+): ModelAuditVerdict {
+  if (executionStatus === 'pending' || executionStatus === 'processing') {
+    return { tone: 'pending', message: t('requests.tooltips.upstreamModelRequestProcessing') };
+  }
+
+  // Known anomalies outrank the lifecycle: a mismatch or stream conflict is a
+  // real finding whether or not the execution succeeded.
+  if (modelAudit.status === 'conflicting') {
+    return { tone: 'danger', message: t('requests.detail.upstreamModelConflict') };
+  }
+  if (modelAudit.status === 'mismatched') {
+    return {
+      tone: 'danger',
+      message: t('requests.detail.upstreamModelMismatch', { model: modelAudit.mismatchedModelIds.join(', ') }),
+    };
+  }
+
+  const failed = executionStatus === 'failed' || executionStatus === 'canceled';
+  if (failed) {
+    // Matching names are evidence, not a success conclusion. Keep the names, drop
+    // the success semantics and the separate failure banner this row replaces.
+    if (modelAudit.equalModelIds.length === 0) {
+      return { tone: 'danger', message: t('requests.tooltips.upstreamModelRequestFailed') };
+    }
+    return {
+      tone: 'muted',
+      message: t('requests.detail.upstreamModelMatchedButFailed', { model: modelAudit.equalModelIds.join(', ') }),
+    };
+  }
+
+  if (modelAudit.status === 'matched') {
+    return { tone: 'success', message: t('requests.detail.upstreamModelMatched') };
+  }
+
+  return { tone: 'muted', message: t('requests.tooltips.upstreamModelUnknown') };
 }

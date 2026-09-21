@@ -145,6 +145,7 @@
   "requests.drawer.collapseAll": "折叠全部",
   "requests.detail.upstreamModelMismatch": "上游返回模型名称与发送模型不同：{{model}}",
   "requests.detail.upstreamModelMatched": "上游返回模型名称与发送模型一致",
+  "requests.detail.upstreamModelMatchedButFailed": "执行未成功，上游自报模型与发送模型一致（{{model}}），不能作为成功结论",
   "requests.tooltips.upstreamModelMatching": "成功执行的上游模型名称与发送模型一致（{{model}}）",
   "requests.tooltips.upstreamModelMatchedAfterRetries": "成功执行的上游模型名称与发送模型一致（{{model}}）；另有 {{unknown}} 次失败或取消的执行缺少模型信息，可在详情中查看",
   "requests.tooltips.upstreamModelMismatch": "上游返回模型名称不同：{{model}}",
