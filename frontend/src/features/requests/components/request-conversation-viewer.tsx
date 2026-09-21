@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTranslation } from 'react-i18next';
 import { ArrowUp, ChevronDown, ChevronsDownUp, ChevronsUpDown, FileText, Layers, Search, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -408,12 +409,9 @@ export function RequestConversationViewer({ body, format, className }: RequestCo
   const [rawOpenIndex, setRawOpenIndex] = useState<number | null>(null);
   const [showBackTop, setShowBackTop] = useState(false);
 
-  const jumpTo = useCallback((target: string | number) => {
-    const el = typeof target === 'number' ? document.getElementById(`conv-msg-${target}`) : document.getElementById(target);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
-
   const rootRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const virtualizerRef = useRef<ReturnType<typeof useVirtualizer<HTMLDivElement, HTMLDivElement>> | null>(null);
   useEffect(() => {
     let scroller: HTMLElement | null = null;
     let node: HTMLElement | null = rootRef.current;
@@ -474,6 +472,29 @@ export function RequestConversationViewer({ body, format, className }: RequestCo
       return matchesSearch(m, q);
     });
   }, [data, search, roleFilter, showSystem]);
+
+  const virtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
+    count: visibleMessages.length,
+    getScrollElement: () => messagesScrollRef.current,
+    estimateSize: () => 180,
+    overscan: 6,
+  });
+  virtualizerRef.current = virtualizer;
+
+  const jumpTo = useCallback(
+    (target: string | number) => {
+      if (typeof target === 'number') {
+        const virtualIndex = visibleMessages.findIndex((message) => message.index === target);
+        if (virtualIndex >= 0) {
+          virtualizerRef.current?.scrollToIndex(virtualIndex, { align: 'start' });
+          return;
+        }
+      }
+      const el = typeof target === 'number' ? document.getElementById(`conv-msg-${target}`) : document.getElementById(target);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+    [visibleMessages]
+  );
 
   const sidebarGroups = useMemo(() => {
     if (!data) return [] as { role: string; items: { index: number; preview: string }[] }[];
@@ -634,22 +655,34 @@ export function RequestConversationViewer({ body, format, className }: RequestCo
                 <p className='text-muted-foreground text-sm'>{t('requests.conversation.noMatch')}</p>
               </div>
             ) : (
-              <div className='space-y-3'>
-                {visibleMessages.map((m) => (
-                  <MessageCard
-                    key={m.index}
-                    message={m}
-                    showReasoning={showReasoning}
-                    showToolArgs={showToolArgs}
-                    showToolResult={showToolResult}
-                    expandAll={expandAllContent}
-                    toolCallByCallId={toolCallByCallId}
-                    toolResultByCallId={toolResultByCallId}
-                    jumpTo={jumpTo}
-                    onToggleRaw={toggleRaw}
-                    rawOpen={rawOpenIndex === m.index}
-                  />
-                ))}
+              <div ref={messagesScrollRef} className='max-h-[70vh] overflow-y-auto overscroll-contain'>
+                <div className='relative' style={{ height: virtualizer.getTotalSize() }}>
+                  {virtualizer.getVirtualItems().map((virtualItem) => {
+                    const message = visibleMessages[virtualItem.index];
+                    return (
+                      <div
+                        key={message.index}
+                        data-index={virtualItem.index}
+                        ref={virtualizer.measureElement}
+                        className='absolute left-0 w-full pb-3'
+                        style={{ transform: `translateY(${virtualItem.start}px)` }}
+                      >
+                        <MessageCard
+                          message={message}
+                          showReasoning={showReasoning}
+                          showToolArgs={showToolArgs}
+                          showToolResult={showToolResult}
+                          expandAll={expandAllContent}
+                          toolCallByCallId={toolCallByCallId}
+                          toolResultByCallId={toolResultByCallId}
+                          jumpTo={jumpTo}
+                          onToggleRaw={toggleRaw}
+                          rawOpen={rawOpenIndex === message.index}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
