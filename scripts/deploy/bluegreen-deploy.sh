@@ -32,6 +32,7 @@ VERSION="${2:-${IMAGE##*:}}"
 NETWORK=${NETWORK:-axonhub_axonhub-network}
 STATE_DIR=${STATE_DIR:-/opt/axonhub/deploy-state}
 UPSTREAM_CONF=${UPSTREAM_CONF:-/etc/nginx/conf.d/00-axonhub-upstream.conf}
+ASSETS_UPSTREAM_CONF=${ASSETS_UPSTREAM_CONF:-/etc/nginx/conf.d/01-axonhub-assets-upstream.conf}
 CONFIG_MOUNT=${CONFIG_MOUNT:-/opt/axonhub/config.yml}
 DB_DSN=${DB_DSN:-postgres://axonhub:axonhub_password@postgres:5432/axonhub?sslmode=disable}
 PUBLIC_HEALTH_URL=${PUBLIC_HEALTH_URL:-https://axonhub.lumior.vip/health}
@@ -44,6 +45,7 @@ LOCK_FILE="$STATE_DIR/deploy.lock"
 BACKUP_DIR=${BACKUP_DIR:-/opt/axonhub/backups/$(date -u +%Y%m%dT%H%M%SZ)-bluegreen}
 
 port_for() { case "$1" in a) echo "$SLOT_A_PORT";; b) echo "$SLOT_B_PORT";; *) return 1;; esac; }
+slot_for_port() { case "$1" in "$SLOT_A_PORT") echo a;; "$SLOT_B_PORT") echo b;; *) return 1;; esac; }
 name_for() { echo "axonhub-slot-$1"; }
 
 mkdir -p "$STATE_DIR" "$BACKUP_DIR"
@@ -52,6 +54,7 @@ if ! flock -n 9; then echo 'another deploy is running' >&2; exit 1; fi
 
 log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 inspect_state() { docker inspect -f '{{.State.Health.Status}}' "$1" 2>/dev/null || echo missing; }
+container_running() { [[ $(docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null) == true ]]; }
 nginx_workers() { pgrep -f 'nginx: worker process' 2>/dev/null | sort -n | tr '\n' ' '; }
 
 wait_healthy() {
@@ -90,6 +93,26 @@ point_upstream() {
   nginx -s reload
 }
 
+# Assets upstream lists the live slot first and the previous slot as a backup, so a
+# tab that still runs the previous build can fetch chunks the new build does not have.
+# Only writes the file; the caller triggers a single reload.
+point_assets_upstream() {
+  local primary=$1 backup=${2:-} tmp
+  # A `backup` server that is down turns a plain 404 into a 502, so only advertise
+  # the fallback while its container is actually running.
+  if [[ -n $backup ]] && ! container_running "$(name_for "$(slot_for_port "$backup")")"; then backup=''; fi
+  tmp=$(mktemp)
+  {
+    echo '# Managed by bluegreen-deploy.sh - do not edit by hand.'
+    echo 'upstream axonhub_assets {'
+    echo "    server 127.0.0.1:$primary;"
+    if [[ -n $backup ]]; then echo "    server 127.0.0.1:$backup backup;"; fi
+    echo '}'
+  } > "$tmp"
+  install -m 0644 "$tmp" "$ASSETS_UPSTREAM_CONF"
+  rm -f "$tmp"
+}
+
 wait_drain() {
   local pids=$1 deadline=$((SECONDS + DRAIN_TIMEOUT)) pid alive
   while (( SECONDS < deadline )); do
@@ -125,6 +148,7 @@ if [[ $ACTIVE_SLOT != none ]]; then ACTIVE_PORT=$(port_for "$ACTIVE_SLOT"); fi
 log "active=$ACTIVE_SLOT target=$TARGET_SLOT port=$TARGET_PORT"
 
 cp -a "$UPSTREAM_CONF" "$BACKUP_DIR/upstream-before.conf"
+cp -a "$ASSETS_UPSTREAM_CONF" "$BACKUP_DIR/assets-upstream-before.conf" 2>/dev/null || true
 if [[ $ACTIVE_SLOT != none ]]; then echo "$ACTIVE_SLOT" > "$BACKUP_DIR/active-slot-before"; fi
 docker rm -f "$TARGET_NAME" >/dev/null 2>&1 || true
 
@@ -149,6 +173,9 @@ rollback() {
   log 'deploy failed - rolling back'
   if [[ -f "$BACKUP_DIR/upstream-before.conf" ]]; then
     install -m 0644 "$BACKUP_DIR/upstream-before.conf" "$UPSTREAM_CONF"
+    if [[ -f "$BACKUP_DIR/assets-upstream-before.conf" ]]; then
+      install -m 0644 "$BACKUP_DIR/assets-upstream-before.conf" "$ASSETS_UPSTREAM_CONF"
+    fi
     nginx -t >/dev/null 2>&1 && nginx -s reload || true
   fi
   if [[ -f "$BACKUP_DIR/active-slot-before" ]]; then
@@ -168,6 +195,7 @@ log "candidate healthy: $(cat "$BACKUP_DIR/candidate-health.json")"
 # 3. phase 1: new slot becomes primary, old slot stays as backup so workers that
 #    were forked before this reload can still reach it.
 PRE_RELOAD_WORKERS=$(nginx_workers)
+point_assets_upstream "$TARGET_PORT" "$ACTIVE_PORT"
 point_upstream "$TARGET_PORT" "$ACTIVE_PORT"
 sleep 1
 if ! domain_ok; then echo 'public health check failed after switch' >&2; exit 1; fi
@@ -190,10 +218,9 @@ if (( DRAINED )) && [[ $ACTIVE_SLOT != none ]]; then
   point_upstream "$TARGET_PORT"
   log 'upstream collapsed to the new slot'
   if wait_drain "$PHASE1_WORKERS"; then
-    OLD_NAME=$(name_for "$ACTIVE_SLOT")
-    docker stop "$OLD_NAME" >/dev/null 2>&1 || true
-    docker rm "$OLD_NAME" >/dev/null 2>&1 || true
-    log "retired $OLD_NAME"
+    # Keep the previous slot running: it no longer receives traffic, but
+    # /assets/ falls back to it so tabs on the previous build still load.
+    log "previous slot $ACTIVE_SLOT kept for asset fallback"
   else
     DRAINED=0
     log 'WARN: phase-1 workers still alive; leaving the old container in place'
@@ -201,6 +228,8 @@ if (( DRAINED )) && [[ $ACTIVE_SLOT != none ]]; then
 fi
 
 if (( DRAINED )) && docker inspect axonhub-app >/dev/null 2>&1; then
+  # Legacy compose container: no longer receiving traffic, so reclaim the port it
+  # held. Its image stays in the local cache for rollback.
   docker stop axonhub-app >/dev/null 2>&1 || true
   docker rm axonhub-app >/dev/null 2>&1 || true
   log 'retired legacy axonhub-app container'

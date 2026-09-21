@@ -16,16 +16,32 @@ import i18n from './lib/i18n';
 import { routeTree } from './routeTree.gen';
 
 
-// A deploy replaces the hashed chunk files. An already-open tab still holds the
-// previous entry module and then requests chunks that no longer exist, leaving
-// the page stuck on a loading state. Reload once so the tab picks up the new build.
-const CHUNK_RELOAD_KEY = 'axonhub:chunk-reload';
+// A deploy replaces the hashed chunk files. A tab that is still running the
+// previous build keeps asking for chunks that no longer exist, and the dynamic
+// import rejects, which leaves the route stuck on a loading state. Reload once to
+// pick up the new build. The cooldown keeps a still-broken tab from reloading in a
+// loop, and it is not cleared on load because load also fires for a broken page.
+const CHUNK_RELOAD_KEY = 'axonhub:chunk-reload-at';
+const CHUNK_RELOAD_COOLDOWN_MS = 15_000;
 window.addEventListener('vite:preloadError', () => {
-  if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return;
-  sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
+  const last = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) ?? 0);
+  if (Date.now() - last < CHUNK_RELOAD_COOLDOWN_MS) return;
+  sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
   window.location.reload();
 });
-window.addEventListener('load', () => sessionStorage.removeItem(CHUNK_RELOAD_KEY));
+// Some dynamic imports fail without emitting vite:preloadError (for example a
+// modulepreload hit served by a stale CDN entry). Treat those the same way.
+const isChunkLoadFailure = (reason: unknown) =>
+  /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(
+    String((reason as { message?: string })?.message ?? reason)
+  );
+window.addEventListener('unhandledrejection', (event) => {
+  if (!isChunkLoadFailure(event.reason)) return;
+  const last = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) ?? 0);
+  if (Date.now() - last < CHUNK_RELOAD_COOLDOWN_MS) return;
+  sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+  window.location.reload();
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
