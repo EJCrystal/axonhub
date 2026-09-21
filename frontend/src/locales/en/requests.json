@@ -145,6 +145,7 @@
   "requests.drawer.collapseAll": "Collapse all",
   "requests.detail.upstreamModelMismatch": "Upstream model name differs from the sent model: {{model}}",
   "requests.detail.upstreamModelMatched": "Upstream model name matches the sent model",
+  "requests.detail.upstreamModelMatchedButFailed": "Execution did not succeed; the upstream-reported model matches the sent model ({{model}}), which is not a success conclusion",
   "requests.tooltips.upstreamModelMatching": "Upstream model names match the sent names on successful executions ({{model}})",
   "requests.tooltips.upstreamModelMatchedAfterRetries": "Upstream model names match the sent names on successful executions ({{model}}); {{unknown}} failed or canceled executions lack model information. See execution details.",
   "requests.tooltips.upstreamModelMismatch": "Upstream model name differs: {{model}}",

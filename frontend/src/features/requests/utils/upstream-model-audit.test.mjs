@@ -2,7 +2,7 @@ import i18next from 'i18next';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { getRequestModelAuditTooltip, getUpstreamModelAudit } from './upstream-model-audit.ts';
+import { getExecutionModelAuditVerdict, getRequestModelAuditTooltip, getUpstreamModelAudit } from './upstream-model-audit.ts';
 
 const resources = Object.fromEntries(
   ['en', 'zh-CN'].map((locale) => [
@@ -251,4 +251,84 @@ test('a conflict does not hide other known mismatches or unknown executions', ()
   assert.equal(audit.unknownCount, 1);
   assert.equal(audit.comparedCount, 2);
   assert.deepEqual(audit.mismatchedModelIds, ['model-b', 'model-d']);
+});
+
+test('a failed execution never reports a green success conclusion', () => {
+  for (const execution of [
+    { status: 'failed', outboundModelID: 'gpt-6-astra', upstreamModelID: 'gpt-6-astra', upstreamModelIds: ['gpt-6-astra'] },
+    { status: 'failed', outboundModelID: 'glm-5.3:free', upstreamModelID: 'glm-5.3:free', upstreamModelIds: ['glm-5.3:free'] },
+  ]) {
+    const audit = getUpstreamModelAudit([execution]);
+    assert.equal(audit.status, 'matched');
+    assert.deepEqual(audit.equalModelIds, [execution.upstreamModelID]);
+    assert.deepEqual(audit.matchedUpstreamIds, []);
+    for (const locale of ['en', 'zh-CN']) {
+      const verdict = getExecutionModelAuditVerdict(audit, execution.status, i18n.getFixedT(locale));
+      assert.equal(verdict.tone, 'muted');
+      assert.ok(verdict.message.includes(execution.upstreamModelID));
+      assert.ok(!verdict.message.includes('{{'));
+    }
+  }
+});
+
+test('a completed execution keeps the green success conclusion', () => {
+  const audit = getUpstreamModelAudit([{ status: 'completed', outboundModelID: 'glm-5.3', upstreamModelID: 'glm-5.3' }]);
+  const verdict = getExecutionModelAuditVerdict(audit, 'completed', i18n.getFixedT('zh-CN'));
+  assert.equal(verdict.tone, 'success');
+  assert.equal(verdict.message, i18n.t('requests.detail.upstreamModelMatched'));
+});
+
+test('a failed execution without model evidence keeps the failure reason prompt', () => {
+  for (const status of ['failed', 'canceled']) {
+    const audit = getUpstreamModelAudit([{ status, outboundModelID: 'glm-5.3:free' }]);
+    const verdict = getExecutionModelAuditVerdict(audit, status, i18n.getFixedT('zh-CN'));
+    assert.equal(verdict.tone, 'danger');
+    assert.equal(verdict.message, i18n.t('requests.tooltips.upstreamModelRequestFailed'));
+  }
+});
+
+test('known anomalies outrank the failed lifecycle so they stay red', () => {
+  const mismatch = getExecutionModelAuditVerdict(
+    getUpstreamModelAudit([{ status: 'failed', outboundModelID: 'sent', upstreamModelID: 'different' }]),
+    'failed',
+    i18n.getFixedT('zh-CN')
+  );
+  assert.equal(mismatch.tone, 'danger');
+  assert.ok(mismatch.message.includes('different'));
+
+  const conflict = getExecutionModelAuditVerdict(
+    getUpstreamModelAudit([{ status: 'failed', outboundModelID: 'sent', upstreamModelIds: ['sent', 'other'] }]),
+    'failed',
+    i18n.getFixedT('zh-CN')
+  );
+  assert.equal(conflict.tone, 'danger');
+  assert.equal(conflict.message, i18n.t('requests.detail.upstreamModelConflict'));
+});
+
+test('in-flight executions report the waiting state instead of a name conclusion', () => {
+  const audit = getUpstreamModelAudit([{ status: 'processing', outboundModelID: 'sent', upstreamModelID: 'sent' }]);
+  for (const status of ['pending', 'processing']) {
+    const verdict = getExecutionModelAuditVerdict(audit, status, i18n.getFixedT('zh-CN'));
+    assert.equal(verdict.tone, 'pending');
+    assert.equal(verdict.message, i18n.t('requests.tooltips.upstreamModelRequestProcessing'));
+  }
+});
+
+test('each execution yields exactly one verdict and one locale key per tone', () => {
+  const cases = [
+    ['failed', { status: 'failed', outboundModelID: 'a', upstreamModelID: 'a' }],
+    ['failed', { status: 'failed', outboundModelID: 'a' }],
+    ['completed', { status: 'completed', outboundModelID: 'a', upstreamModelID: 'a' }],
+    ['completed', { status: 'completed', outboundModelID: 'a' }],
+    ['failed', { status: 'failed', outboundModelID: 'a', upstreamModelID: 'b' }],
+  ];
+  for (const [status, execution] of cases) {
+    for (const locale of ['en', 'zh-CN']) {
+      const verdict = getExecutionModelAuditVerdict(getUpstreamModelAudit([execution]), status, i18n.getFixedT(locale));
+      assert.equal(typeof verdict.message, 'string');
+      assert.ok(verdict.message.length > 0);
+      assert.ok(!verdict.message.includes('{{'));
+      assert.ok(['success', 'danger', 'pending', 'muted'].includes(verdict.tone));
+    }
+  }
 });
