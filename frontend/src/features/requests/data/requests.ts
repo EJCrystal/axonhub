@@ -70,6 +70,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
             metricsReasoningDurationMs
             modelAudit {
               status
+              matchedUpstreamIds
               upstreamModelIds
               mismatchedModelIds
               conflictingModelIds

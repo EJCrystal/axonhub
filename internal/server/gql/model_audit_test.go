@@ -28,15 +28,16 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
 	ctx := authz.WithTestBypass(t.Context())
 	project := db.Project.Create().SetName("audit").SaveX(ctx)
 	expected := map[string]objects.ModelAuditStatus{
-		"matched":             objects.ModelAuditMatched,
-		"early-mismatch":      objects.ModelAuditMismatched,
-		"early-unknown":       objects.ModelAuditUnknown,
-		"early-conflict":      objects.ModelAuditConflicting,
-		"retry-success":       objects.ModelAuditMatched,
-		"retry-canceled":      objects.ModelAuditMatched,
-		"retry-mismatch":      objects.ModelAuditMismatched,
-		"retry-conflict":      objects.ModelAuditConflicting,
-		"retry-final-unknown": objects.ModelAuditUnknown,
+		"matched":              objects.ModelAuditMatched,
+		"early-mismatch":       objects.ModelAuditMismatched,
+		"early-unknown":        objects.ModelAuditUnknown,
+		"early-conflict":       objects.ModelAuditConflicting,
+		"retry-reported-model": objects.ModelAuditMatched,
+		"retry-success":        objects.ModelAuditMatched,
+		"retry-canceled":       objects.ModelAuditMatched,
+		"retry-mismatch":       objects.ModelAuditMismatched,
+		"retry-conflict":       objects.ModelAuditConflicting,
+		"retry-final-unknown":  objects.ModelAuditUnknown,
 	}
 	for name := range expected {
 		req := db.Request.Create().SetProjectID(project.ID).SetModelID(name).
@@ -50,6 +51,9 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
 			if strings.HasPrefix(name, "retry-") {
 				if i < 10 {
 					create.SetStatus(requestexecution.StatusFailed).SetUpstreamModelID("")
+					if name == "retry-reported-model" {
+						create.SetOutboundModelID("sent:free").SetUpstreamModelID("sent:free")
+					}
 					if name == "retry-canceled" {
 						create.SetStatus(requestexecution.StatusCanceled)
 					}
@@ -126,7 +130,7 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
     }
     fragment AuditFields on Request {
         audit: modelAudit @include(if: $include) {
-            status upstreamModelIds mismatchedModelIds conflictingModelIds unknownCount comparedCount conflictCount
+            status matchedUpstreamIds upstreamModelIds mismatchedModelIds conflictingModelIds unknownCount comparedCount conflictCount
         }
     }`, &response, gqlclient.Var("include", true))
 	require.NoError(t, err)
@@ -135,6 +139,16 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
 	for _, edge := range response.Requests.Edges {
 		node := edge.Node
 		require.Equal(t, expected[node.ModelID], node.Audit.Status)
+		if node.ModelID == "retry-final-unknown" {
+			require.Empty(t, node.Audit.MatchedUpstreamIds)
+		} else {
+			require.Equal(t, []string{"sent"}, node.Audit.MatchedUpstreamIds)
+		}
+		if node.ModelID == "retry-reported-model" {
+			require.ElementsMatch(t, []string{"sent", "sent:free"}, node.Audit.UpstreamModelIds)
+			require.Equal(t, 11, node.Audit.ComparedCount)
+			require.Zero(t, node.Audit.UnknownCount)
+		}
 		displayCount := 10
 		if strings.HasPrefix(node.ModelID, "retry-") {
 			displayCount = 1
@@ -162,7 +176,7 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
 			Node struct{ ModelAudit objects.RequestModelAudit }
 		}
 		err := client.Post(`query($id: ID!) { node(id: $id) { ... on Request {
-            modelAudit { status upstreamModelIds mismatchedModelIds conflictingModelIds unknownCount comparedCount conflictCount }
+            modelAudit { status matchedUpstreamIds upstreamModelIds mismatchedModelIds conflictingModelIds unknownCount comparedCount conflictCount }
         } } }`, &detail, gqlclient.Var("id", node.ID))
 		require.NoError(t, err)
 		require.Equal(t, node.Audit, detail.Node.ModelAudit, "node/detail fallback must return the same complete audit")
@@ -216,6 +230,7 @@ func TestRequestModelAuditPrivacy(t *testing.T) {
 	audit, err := resolver.ModelAudit(memberCtx, &ent.Request{ID: public.ID})
 	require.NoError(t, err)
 	require.Equal(t, []string{"public"}, audit.UpstreamModelIds)
+	require.Equal(t, []string{"public"}, audit.MatchedUpstreamIds)
 	require.Equal(t, 1, audit.ComparedCount)
 	for _, req := range []*ent.Request{private, foreign} {
 		_, err := resolver.ModelAudit(memberCtx, &ent.Request{ID: req.ID})
@@ -233,7 +248,7 @@ func TestRequestModelAuditPrivacy(t *testing.T) {
 			}
 		}
 	}
-	err = client.Post("{ requests(first: 10) { edges { node { modelAudit { status upstreamModelIds comparedCount } } } } }", &response)
+	err = client.Post("{ requests(first: 10) { edges { node { modelAudit { status matchedUpstreamIds upstreamModelIds comparedCount } } } } }", &response)
 	require.NoError(t, err)
 	require.Len(t, response.Requests.Edges, 1)
 	require.Equal(t, []string{"public"}, response.Requests.Edges[0].Node.ModelAudit.UpstreamModelIds)

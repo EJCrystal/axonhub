@@ -16,6 +16,7 @@ import (
 func AuditRequestModels(executions []*ent.RequestExecution) *objects.RequestModelAudit {
 	audit := &objects.RequestModelAudit{
 		Status:              objects.ModelAuditUnknown,
+		MatchedUpstreamIds:  []string{},
 		UpstreamModelIds:    []string{},
 		MismatchedModelIds:  []string{},
 		ConflictingModelIds: []string{},
@@ -41,12 +42,17 @@ func AuditRequestModels(executions []*ent.RequestExecution) *objects.RequestMode
 		audit.ComparedCount++
 		hasCompletedComparison = hasCompletedComparison || execution.Status == requestexecution.StatusCompleted
 		for _, model := range models {
-			if model != execution.OutboundModelID {
+			if model == execution.OutboundModelID {
+				if execution.Status == requestexecution.StatusCompleted {
+					audit.MatchedUpstreamIds = append(audit.MatchedUpstreamIds, model)
+				}
+			} else {
 				audit.MismatchedModelIds = append(audit.MismatchedModelIds, model)
 			}
 		}
 	}
 	audit.UpstreamModelIds = lo.Uniq(audit.UpstreamModelIds)
+	audit.MatchedUpstreamIds = lo.Uniq(audit.MatchedUpstreamIds)
 	audit.MismatchedModelIds = lo.Uniq(audit.MismatchedModelIds)
 	audit.ConflictingModelIds = lo.Uniq(audit.ConflictingModelIds)
 	switch {

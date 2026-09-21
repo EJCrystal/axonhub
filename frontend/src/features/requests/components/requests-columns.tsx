@@ -19,7 +19,7 @@ import { useGeneralSettings, useSecuritySettings, useUpdateSecuritySettings } fr
 import { useRequestPermissions } from '../../../hooks/useRequestPermissions';
 import { Request } from '../data/schema';
 import { calculateTokensPerSecond, getTokensPerSecondValue } from '../utils/tokens-per-second';
-import { getUpstreamModelAudit } from '../utils/upstream-model-audit';
+import { getRequestModelAuditTooltip, getUpstreamModelAudit } from '../utils/upstream-model-audit';
 import { getStatusColor } from './help';
 
 interface UseRequestsColumnsOptions {
@@ -159,29 +159,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
               : upstreamModelMatches
                 ? 'text-emerald-700 dark:text-emerald-300'
                 : 'text-red-700 dark:text-red-400';
-        let upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelUnknown');
-        if (requestIsProcessing) {
-          upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelRequestProcessing');
-        } else if (requestFailed) {
-          upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelRequestFailed');
-        } else if (upstreamModelMatches) {
-          upstreamModelAuditTooltip = t(
-            modelAudit.unknownCount > 0 ? 'requests.tooltips.upstreamModelMatchedAfterRetries' : 'requests.tooltips.upstreamModelMatching',
-            { model: modelAudit.upstreamModelIds.join(', '), unknown: modelAudit.unknownCount }
-          );
-        } else if (modelAudit.status === 'mismatched') {
-          upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelMismatch', { model: modelAudit.mismatchedModelIds.join(', ') });
-        } else if (modelAudit.status === 'conflicting') {
-          upstreamModelAuditTooltip = t('requests.tooltips.upstreamModelConflict', { model: modelAudit.conflictingModelIds.join(', ') });
-        }
-        if (!upstreamModelMatches && modelAudit.unknownCount > 0 && modelAudit.comparedCount > 0) {
-          const partialAuditTooltip = t('requests.tooltips.upstreamModelPartial', {
-            compared: modelAudit.comparedCount,
-            unknown: modelAudit.unknownCount,
-          });
-          upstreamModelAuditTooltip =
-            modelAudit.status === 'unknown' ? partialAuditTooltip : `${upstreamModelAuditTooltip} ${partialAuditTooltip}`;
-        }
+        const upstreamModelAuditTooltip = getRequestModelAuditTooltip(modelAudit, request.status, t);
 
         const reasoningEffort = executions[0]?.reasoningEffort ?? request.reasoningEffort;
         const inboundFormat = request.format;

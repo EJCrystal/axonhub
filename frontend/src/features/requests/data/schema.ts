@@ -18,6 +18,7 @@ export type RequestExecutionStatus = z.infer<typeof requestExecutionStatusSchema
 
 export const requestModelAuditSchema = z.object({
   status: z.enum(['matched', 'mismatched', 'unknown', 'conflicting']),
+  matchedUpstreamIds: z.array(z.string()),
   upstreamModelIds: z.array(z.string()),
   mismatchedModelIds: z.array(z.string()),
   conflictingModelIds: z.array(z.string()),

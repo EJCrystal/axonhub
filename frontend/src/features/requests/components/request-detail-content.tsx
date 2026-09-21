@@ -841,22 +841,22 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                   {t('requests.tooltips.upstreamModelRequestFailed')}
                                 </p>
                               )}
-                              {execution.status !== 'pending' && execution.status !== 'processing' && execution.status !== 'failed' && execution.status !== 'canceled' && modelAudit.status === 'mismatched' && (
+                              {execution.status !== 'pending' && execution.status !== 'processing' && modelAudit.status === 'mismatched' && (
                                 <p className='text-destructive font-mono text-xs'>
                                   {t('requests.detail.upstreamModelMismatch', { model: modelAudit.mismatchedModelIds.join(', ') })}
                                 </p>
                               )}
-                              {execution.status !== 'pending' && execution.status !== 'processing' && execution.status !== 'failed' && execution.status !== 'canceled' && modelAudit.status === 'conflicting' && (
+                              {execution.status !== 'pending' && execution.status !== 'processing' && modelAudit.status === 'conflicting' && (
                                 <p className='text-destructive text-xs'>
                                   {t('requests.detail.upstreamModelConflict')}
                                 </p>
                               )}
-                              {execution.status !== 'pending' && execution.status !== 'processing' && execution.status !== 'failed' && execution.status !== 'canceled' && modelAudit.status === 'matched' && (
+                              {execution.status !== 'pending' && execution.status !== 'processing' && modelAudit.status === 'matched' && (
                                 <p className='font-mono text-xs text-emerald-600 dark:text-emerald-400'>
                                   {t('requests.detail.upstreamModelMatched')}
                                 </p>
                               )}
-                              {execution.status !== 'pending' && execution.status !== 'processing' && execution.status !== 'failed' && execution.status !== 'canceled' && modelAudit.status === 'unknown' && (
+                              {execution.status !== 'pending' && execution.status !== 'processing' && modelAudit.status === 'unknown' && (
                                 <p className='text-muted-foreground text-xs'>
                                   {t('requests.tooltips.upstreamModelUnknown')}
                                 </p>

@@ -67,6 +67,7 @@ func TestAuditRequestModels(t *testing.T) {
 			require.ElementsMatch(t, tt.mismatched, audit.MismatchedModelIds)
 			require.ElementsMatch(t, tt.conflicting, audit.ConflictingModelIds)
 			require.NotNil(t, audit.UpstreamModelIds)
+			require.NotNil(t, audit.MatchedUpstreamIds)
 			require.NotNil(t, audit.MismatchedModelIds)
 			require.NotNil(t, audit.ConflictingModelIds)
 		})
@@ -122,5 +123,32 @@ func TestAuditRequestModelsSuccessfulRetries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.want, AuditRequestModels(tt.executions).Status)
 		})
+	}
+}
+
+func TestAuditRequestModelsMatchedUpstreamIds(t *testing.T) {
+	for _, status := range []requestexecution.Status{
+		requestexecution.StatusFailed, requestexecution.StatusCanceled,
+		requestexecution.StatusPending, requestexecution.StatusProcessing, "",
+	} {
+		t.Run(string(status), func(t *testing.T) {
+			retry := &ent.RequestExecution{Status: status, OutboundModelID: "glm-5.3:free", UpstreamModelID: "glm-5.3:free"}
+			success := &ent.RequestExecution{Status: requestexecution.StatusCompleted, OutboundModelID: "glm-5.3", UpstreamModelID: "glm-5.3", UpstreamModelIds: []string{"glm-5.3"}}
+			for _, executions := range [][]*ent.RequestExecution{{retry, retry, retry, success}, {success, retry, retry, retry}} {
+				audit := AuditRequestModels(executions)
+				require.Equal(t, objects.ModelAuditMatched, audit.Status)
+				require.Equal(t, []string{"glm-5.3"}, audit.MatchedUpstreamIds)
+				require.ElementsMatch(t, []string{"glm-5.3", "glm-5.3:free"}, audit.UpstreamModelIds)
+				require.Equal(t, 4, audit.ComparedCount)
+			}
+			require.Empty(t, AuditRequestModels([]*ent.RequestExecution{retry}).MatchedUpstreamIds)
+		})
+	}
+	for _, execution := range []*ent.RequestExecution{
+		{Status: requestexecution.StatusCompleted, OutboundModelID: "sent"},
+		{Status: requestexecution.StatusCompleted, UpstreamModelID: "sent"},
+		{Status: requestexecution.StatusCompleted, OutboundModelID: "sent", UpstreamModelID: "different"},
+	} {
+		require.Empty(t, AuditRequestModels([]*ent.RequestExecution{execution}).MatchedUpstreamIds)
 	}
 }

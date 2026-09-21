@@ -12,6 +12,7 @@ const (
 // RequestModelAudit summarizes the complete execution set, independently of UI pagination.
 type RequestModelAudit struct {
 	Status              ModelAuditStatus `json:"status"`
+	MatchedUpstreamIds  []string         `json:"matchedUpstreamIds"`
 	UpstreamModelIds    []string         `json:"upstreamModelIds"`
 	MismatchedModelIds  []string         `json:"mismatchedModelIds"`
 	ConflictingModelIds []string         `json:"conflictingModelIds"`

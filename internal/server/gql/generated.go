@@ -1580,6 +1580,7 @@ type ComplexityRoot struct {
 		ComparedCount       func(childComplexity int) int
 		ConflictCount       func(childComplexity int) int
 		ConflictingModelIds func(childComplexity int) int
+		MatchedUpstreamIds  func(childComplexity int) int
 		MismatchedModelIds  func(childComplexity int) int
 		Status              func(childComplexity int) int
 		UnknownCount        func(childComplexity int) int
@@ -9536,6 +9537,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestModelAudit.ConflictingModelIds(childComplexity), true
+	case "RequestModelAudit.matchedUpstreamIds":
+		if e.complexity.RequestModelAudit.MatchedUpstreamIds == nil {
+			break
+		}
+
+		return e.complexity.RequestModelAudit.MatchedUpstreamIds(childComplexity), true
 	case "RequestModelAudit.mismatchedModelIds":
 		if e.complexity.RequestModelAudit.MismatchedModelIds == nil {
 			break
@@ -49788,6 +49795,8 @@ func (ec *executionContext) fieldContext_Request_modelAudit(_ context.Context, f
 			switch field.Name {
 			case "status":
 				return ec.fieldContext_RequestModelAudit_status(ctx, field)
+			case "matchedUpstreamIds":
+				return ec.fieldContext_RequestModelAudit_matchedUpstreamIds(ctx, field)
 			case "upstreamModelIds":
 				return ec.fieldContext_RequestModelAudit_upstreamModelIds(ctx, field)
 			case "mismatchedModelIds":
@@ -51495,6 +51504,35 @@ func (ec *executionContext) fieldContext_RequestModelAudit_status(_ context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ModelAuditStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestModelAudit_matchedUpstreamIds(ctx context.Context, field graphql.CollectedField, obj *objects.RequestModelAudit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestModelAudit_matchedUpstreamIds,
+		func(ctx context.Context) (any, error) {
+			return obj.MatchedUpstreamIds, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestModelAudit_matchedUpstreamIds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestModelAudit",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -106356,6 +106394,11 @@ func (ec *executionContext) _RequestModelAudit(ctx context.Context, sel ast.Sele
 			out.Values[i] = graphql.MarshalString("RequestModelAudit")
 		case "status":
 			out.Values[i] = ec._RequestModelAudit_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "matchedUpstreamIds":
+			out.Values[i] = ec._RequestModelAudit_matchedUpstreamIds(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
