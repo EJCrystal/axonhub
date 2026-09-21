@@ -27,6 +27,8 @@ import { generateRequestCurl, generateExecutionCurl } from '../utils/curl-genera
 import { getVideoLastFrameURL, isVideoRequestFormat } from '../utils/video-display';
 import { getUpstreamModelAudit } from '../utils/upstream-model-audit';
 
+const JSON_VIEWER_EXPAND_DEPTH = 2;
+
 interface RequestDetailContentProps {
   requestId: string;
   projectId?: string | null;
@@ -557,7 +559,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                     </div>
                   </div>
                   <div className='bg-muted/20 h-[300px] w-full overflow-auto rounded-lg border p-4'>
-                    <JsonViewer data={request.requestHeaders} rootName='' defaultExpanded={true} expandDepth='all' hideArrayIndices={true} className='text-sm' />
+                    <JsonViewer data={request.requestHeaders} rootName='' defaultExpanded={true} expandDepth={JSON_VIEWER_EXPAND_DEPTH} hideArrayIndices={true} className='text-sm' />
                   </div>
                 </div>
               )}
@@ -590,7 +592,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                   <RequestConversationViewer body={request.requestBody} format={request.format} />
                 ) : (
                   <div className='bg-muted/20 h-[500px] w-full overflow-auto rounded-lg border p-4'>
-                    <JsonViewer data={request.requestBody} rootName='' defaultExpanded={true} expandDepth='all' hideArrayIndices={true} className='text-sm' />
+                    <JsonViewer data={request.requestBody} rootName='' defaultExpanded={true} expandDepth={JSON_VIEWER_EXPAND_DEPTH} hideArrayIndices={true} className='text-sm' />
                   </div>
                 )}
               </div>
@@ -732,7 +734,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                   <TabsContent value='json' className='mt-0 focus-visible:outline-none'>
                     {hasResponseBody ? (
                       <div className='bg-muted/20 h-[500px] w-full overflow-auto rounded-lg border p-4'>
-                        <JsonViewer data={request.responseBody} rootName='' defaultExpanded={true} expandDepth='all' hideArrayIndices={true} className='text-sm' />
+                        <JsonViewer data={request.responseBody} rootName='' defaultExpanded={true} expandDepth={JSON_VIEWER_EXPAND_DEPTH} hideArrayIndices={true} className='text-sm' />
                       </div>
                     ) : request.status === 'processing' ? (
                       <div className='bg-muted/20 flex h-[500px] w-full items-center justify-center rounded-lg border'>
