@@ -16,6 +16,17 @@ import i18n from './lib/i18n';
 import { routeTree } from './routeTree.gen';
 
 
+// A deploy replaces the hashed chunk files. An already-open tab still holds the
+// previous entry module and then requests chunks that no longer exist, leaving
+// the page stuck on a loading state. Reload once so the tab picks up the new build.
+const CHUNK_RELOAD_KEY = 'axonhub:chunk-reload';
+window.addEventListener('vite:preloadError', () => {
+  if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return;
+  sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
+  window.location.reload();
+});
+window.addEventListener('load', () => sessionStorage.removeItem(CHUNK_RELOAD_KEY));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
