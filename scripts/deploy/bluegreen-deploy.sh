@@ -34,7 +34,11 @@ STATE_DIR=${STATE_DIR:-/opt/axonhub/deploy-state}
 UPSTREAM_CONF=${UPSTREAM_CONF:-/etc/nginx/conf.d/00-axonhub-upstream.conf}
 ASSETS_UPSTREAM_CONF=${ASSETS_UPSTREAM_CONF:-/etc/nginx/conf.d/01-axonhub-assets-upstream.conf}
 CONFIG_MOUNT=${CONFIG_MOUNT:-/opt/axonhub/config.yml}
-DB_DSN=${DB_DSN:-postgres://axonhub:axonhub_password@postgres:5432/axonhub?sslmode=disable}
+# Required: the database DSN is deployment-specific, so it has no built-in default.
+# Export it before deploying, for example:
+#   DB_DSN='postgres://user:password@postgres:5432/axonhub?sslmode=disable' \
+#     ./bluegreen-deploy.sh <image-ref> <version>
+DB_DSN=${DB_DSN:?DB_DSN is required, for example: postgres://user:password@postgres:5432/axonhub?sslmode=disable}
 PUBLIC_HEALTH_URL=${PUBLIC_HEALTH_URL:-https://axonhub.lumior.vip/health}
 SLOT_A_PORT=${SLOT_A_PORT:-18090}
 SLOT_B_PORT=${SLOT_B_PORT:-18091}
