@@ -268,7 +268,7 @@ func TestUpstreamModelPipeline_ChannelRetry(t *testing.T) {
 			require.Equal(t, reported, executions[1].UpstreamModelID)
 			if reported == "" {
 				require.Empty(t, executions[1].UpstreamModelIds)
-				require.Equal(t, objects.ModelAuditUnknown, biz.AuditRequestModels(executions).Status)
+				require.Equal(t, objects.ModelAuditMatched, biz.AuditRequestModels(executions).Status)
 			} else {
 				require.Equal(t, []string{reported}, executions[1].UpstreamModelIds)
 				require.Equal(t, objects.ModelAuditMismatched, biz.AuditRequestModels(executions).Status)

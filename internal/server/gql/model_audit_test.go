@@ -30,7 +30,7 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
 	expected := map[string]objects.ModelAuditStatus{
 		"matched":              objects.ModelAuditMatched,
 		"early-mismatch":       objects.ModelAuditMismatched,
-		"early-unknown":        objects.ModelAuditUnknown,
+		"early-unknown":        objects.ModelAuditMatched,
 		"early-conflict":       objects.ModelAuditConflicting,
 		"retry-reported-model": objects.ModelAuditMatched,
 		"retry-success":        objects.ModelAuditMatched,
@@ -141,6 +141,8 @@ func TestRequestModelAuditCompleteExecutions(t *testing.T) {
 		require.Equal(t, expected[node.ModelID], node.Audit.Status)
 		if node.ModelID == "retry-final-unknown" {
 			require.Empty(t, node.Audit.MatchedUpstreamIds)
+		} else if node.ModelID == "retry-reported-model" {
+			require.ElementsMatch(t, []string{"sent", "sent:free"}, node.Audit.MatchedUpstreamIds)
 		} else {
 			require.Equal(t, []string{"sent"}, node.Audit.MatchedUpstreamIds)
 		}

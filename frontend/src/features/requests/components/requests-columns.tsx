@@ -148,18 +148,13 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         // The latest ten display rows cannot establish a complete audit.
         const modelAudit = request.modelAudit ?? getUpstreamModelAudit([]);
         const upstreamModelMatches = modelAudit.status === 'matched';
-        const requestIsProcessing = request.status === 'pending' || request.status === 'processing';
-        const requestFailed = request.status === 'failed' || request.status === 'canceled';
-        const upstreamModelAuditIconClass = requestIsProcessing
-          ? 'text-sky-600 dark:text-sky-400 motion-safe:animate-pulse'
-          : requestFailed
-            ? 'text-red-600 dark:text-red-400'
-            : modelAudit.status === 'unknown'
-              ? 'text-amber-600 dark:text-amber-400'
-              : upstreamModelMatches
-                ? 'text-emerald-700 dark:text-emerald-300'
-                : 'text-red-700 dark:text-red-400';
-        const upstreamModelAuditTooltip = getRequestModelAuditTooltip(modelAudit, request.status, t);
+        const upstreamModelAuditIconClass =
+          modelAudit.status === 'unknown'
+            ? 'text-amber-600 dark:text-amber-400'
+            : upstreamModelMatches
+              ? 'text-emerald-700 dark:text-emerald-300'
+              : 'text-red-700 dark:text-red-400';
+        const upstreamModelAuditTooltip = getRequestModelAuditTooltip(modelAudit, t);
 
         const reasoningEffort = executions[0]?.reasoningEffort ?? request.reasoningEffort;
         const inboundFormat = request.format;
@@ -251,11 +246,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                     role='img'
                     aria-label={upstreamModelAuditTooltip}
                   >
-                    {requestIsProcessing ? (
-                      <IconQuestionMark className='h-3.5 w-3.5' />
-                    ) : requestFailed ? (
-                      <IconAlertTriangle className='h-3.5 w-3.5' />
-                    ) : modelAudit.status === 'unknown' ? (
+                    {modelAudit.status === 'unknown' ? (
                       <IconQuestionMark className='h-3.5 w-3.5' />
                     ) : upstreamModelMatches ? (
                       <IconCheck className='h-3.5 w-3.5' />

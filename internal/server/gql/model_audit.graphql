@@ -7,7 +7,7 @@ enum ModelAuditStatus {
 
 type RequestModelAudit {
   status: ModelAuditStatus!
-  "Upstream names that matched the sent name on completed executions; the list view shows only these."
+  "Upstream names that matched their corresponding sent name on executions with model evidence."
   matchedUpstreamIds: [String!]!
   upstreamModelIds: [String!]!
   mismatchedModelIds: [String!]!

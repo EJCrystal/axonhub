@@ -776,7 +776,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                   {executions.edges.map((edge: any, index: number) => {
                     const execution = edge.node;
                     const modelAudit = getUpstreamModelAudit([execution]);
-                    const modelVerdict = getExecutionModelAuditVerdict(modelAudit, execution.status, t);
+                    const modelVerdict = getExecutionModelAuditVerdict(modelAudit, t);
                     return (
                       <Card key={execution.id} className='bg-muted/20 border-0 shadow-sm'>
                         <CardHeader className='pb-4'>

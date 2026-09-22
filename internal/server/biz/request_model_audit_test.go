@@ -33,10 +33,10 @@ func TestAuditRequestModels(t *testing.T) {
 			{OutboundModelID: "b", UpstreamModelID: "a"},
 			{OutboundModelID: "c"},
 		}, status: objects.ModelAuditMismatched, compared: 2, unknown: 1, upstream: []string{"a"}, mismatched: []string{"a"}},
-		{name: "partial metadata cannot establish all matched", executions: []*ent.RequestExecution{
+		{name: "partial metadata retains a known match", executions: []*ent.RequestExecution{
 			{OutboundModelID: "a", UpstreamModelID: "a"},
 			{OutboundModelID: "a", UpstreamModelID: "   "},
-		}, status: objects.ModelAuditUnknown, compared: 1, unknown: 1, upstream: []string{"a"}},
+		}, status: objects.ModelAuditMatched, compared: 1, unknown: 1, upstream: []string{"a"}},
 		{name: "exact names retain whitespace case and version", executions: []*ent.RequestExecution{
 			{OutboundModelID: "a", UpstreamModelID: "A"},
 			{OutboundModelID: "a", UpstreamModelID: " a "},
@@ -82,10 +82,10 @@ func TestAuditRequestModelsSuccessfulRetries(t *testing.T) {
 	}{
 		{"failed retry", requestexecution.StatusFailed, objects.ModelAuditMatched},
 		{"canceled retry", requestexecution.StatusCanceled, objects.ModelAuditMatched},
-		{"successful execution with missing metadata", requestexecution.StatusCompleted, objects.ModelAuditUnknown},
-		{"pending execution", requestexecution.StatusPending, objects.ModelAuditUnknown},
-		{"active execution", requestexecution.StatusProcessing, objects.ModelAuditUnknown},
-		{"legacy execution without status", "", objects.ModelAuditUnknown},
+		{"successful execution with missing metadata", requestexecution.StatusCompleted, objects.ModelAuditMatched},
+		{"pending execution", requestexecution.StatusPending, objects.ModelAuditMatched},
+		{"active execution", requestexecution.StatusProcessing, objects.ModelAuditMatched},
+		{"legacy execution without status", "", objects.ModelAuditMatched},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			matched := &ent.RequestExecution{Status: requestexecution.StatusCompleted, OutboundModelID: "sent", UpstreamModelID: "sent"}
@@ -103,14 +103,14 @@ func TestAuditRequestModelsSuccessfulRetries(t *testing.T) {
 		executions []*ent.RequestExecution
 		want       objects.ModelAuditStatus
 	}{
-		{"no successful execution", []*ent.RequestExecution{
+		{"failed matching evidence with failed unknown", []*ent.RequestExecution{
 			{Status: requestexecution.StatusFailed, OutboundModelID: "sent", UpstreamModelID: "sent"},
 			{Status: requestexecution.StatusFailed},
-		}, objects.ModelAuditUnknown},
-		{"final success is unknown", []*ent.RequestExecution{
+		}, objects.ModelAuditMatched},
+		{"matching evidence remains matched when another execution is unknown", []*ent.RequestExecution{
 			{Status: requestexecution.StatusFailed, OutboundModelID: "sent", UpstreamModelID: "sent"},
 			{Status: requestexecution.StatusCompleted, OutboundModelID: "sent"},
-		}, objects.ModelAuditUnknown},
+		}, objects.ModelAuditMatched},
 		{"successful retry preserves known mismatch", []*ent.RequestExecution{
 			{Status: requestexecution.StatusFailed, OutboundModelID: "sent", UpstreamModelID: "different"},
 			{Status: requestexecution.StatusCompleted, OutboundModelID: "sent", UpstreamModelID: "sent"},
@@ -137,11 +137,11 @@ func TestAuditRequestModelsMatchedUpstreamIds(t *testing.T) {
 			for _, executions := range [][]*ent.RequestExecution{{retry, retry, retry, success}, {success, retry, retry, retry}} {
 				audit := AuditRequestModels(executions)
 				require.Equal(t, objects.ModelAuditMatched, audit.Status)
-				require.Equal(t, []string{"glm-5.3"}, audit.MatchedUpstreamIds)
+				require.ElementsMatch(t, []string{"glm-5.3", "glm-5.3:free"}, audit.MatchedUpstreamIds)
 				require.ElementsMatch(t, []string{"glm-5.3", "glm-5.3:free"}, audit.UpstreamModelIds)
 				require.Equal(t, 4, audit.ComparedCount)
 			}
-			require.Empty(t, AuditRequestModels([]*ent.RequestExecution{retry}).MatchedUpstreamIds)
+			require.Equal(t, []string{"glm-5.3:free"}, AuditRequestModels([]*ent.RequestExecution{retry}).MatchedUpstreamIds)
 		})
 	}
 	for _, execution := range []*ent.RequestExecution{
