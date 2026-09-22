@@ -88,17 +88,17 @@ func TestChatCompletionOrchestrator_Process_MinuteQuotaExceeded(t *testing.T) {
 	channelSelector := &staticChannelSelector{candidates: channelsToTestCandidates([]*biz.Channel{bizChannel}, "gpt-4")}
 
 	orchestrator := &ChatCompletionOrchestrator{
-		channelSelector:   channelSelector,
-		Inbound:           openai.NewInboundTransformer(),
-		RequestService:    requestService,
-		ChannelService:    channelService,
-		PromptProvider:    &stubPromptProvider{},
-		SystemService:     systemService,
-		UsageLogService:   usageLogService,
-		QuotaService:      quotaService,
-		PipelineFactory:   pipeline.NewFactory(executor),
-		ModelMapper:       NewModelMapper(),
-		channelLimiterManager:      NewChannelLimiterManager(),
+		channelSelector:       channelSelector,
+		Inbound:               openai.NewInboundTransformer(),
+		RequestService:        requestService,
+		ChannelService:        channelService,
+		PromptProvider:        &stubPromptProvider{},
+		SystemService:         systemService,
+		UsageLogService:       usageLogService,
+		QuotaService:          quotaService,
+		PipelineFactory:       pipeline.NewFactory(executor),
+		ModelMapper:           NewModelMapper(),
+		channelLimiterManager: NewChannelLimiterManager(),
 		Middlewares: []pipeline.Middleware{
 			stream.EnsureUsage(),
 		},

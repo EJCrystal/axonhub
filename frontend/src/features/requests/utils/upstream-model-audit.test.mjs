@@ -15,20 +15,20 @@ const resources = Object.fromEntries(
 const i18n = i18next.createInstance();
 await i18n.init({ lng: 'zh-CN', fallbackLng: 'en', keySeparator: false, resources });
 
-test('request 73927 reports every matching upstream model regardless of execution status', () => {
-  const retry = { status: 'failed', outboundModelID: 'glm-5.3:free', upstreamModelID: 'glm-5.3:free' };
-  const success = { status: 'completed', outboundModelID: 'glm-5.3', upstreamModelID: 'glm-5.3' };
+test('request 73927 shows only the successful model in both list languages and retains each execution audit', () => {
+  const retry = { status: 'failed', modelID: 'glm-5.3:free', upstreamModelID: 'glm-5.3:free' };
+  const success = { status: 'completed', modelID: 'glm-5.3', upstreamModelID: 'glm-5.3' };
   for (const executions of [
     [retry, retry, retry, success],
     [success, retry, retry, retry],
   ]) {
     const audit = getUpstreamModelAudit(executions);
     assert.equal(audit.status, 'matched');
-    assert.deepEqual(new Set(audit.matchedUpstreamIds), new Set(['glm-5.3', 'glm-5.3:free']));
+    assert.deepEqual(audit.matchedUpstreamIds, ['glm-5.3']);
     for (const locale of ['en', 'zh-CN']) {
-      const tooltip = getRequestModelAuditTooltip(audit, i18n.getFixedT(locale));
+      const tooltip = getRequestModelAuditTooltip(audit, 'completed', i18n.getFixedT(locale));
       assert.ok(tooltip.includes('glm-5.3'));
-      assert.ok(tooltip.includes('glm-5.3:free'));
+      assert.ok(!tooltip.includes('glm-5.3:free'));
       assert.ok(!tooltip.includes('{{'));
     }
     for (const execution of executions) {
@@ -41,11 +41,11 @@ test('request 73927 reports every matching upstream model regardless of executio
 
 test('unknown retries retain their count alongside the successful model in both list languages', () => {
   const audit = getUpstreamModelAudit([
-    { status: 'failed', outboundModelID: 'glm-5.3:free' },
-    { status: 'completed', outboundModelID: 'glm-5.3', upstreamModelID: 'glm-5.3' },
+    { status: 'failed', modelID: 'glm-5.3:free' },
+    { status: 'completed', modelID: 'glm-5.3', upstreamModelID: 'glm-5.3' },
   ]);
   for (const locale of ['en', 'zh-CN']) {
-    const tooltip = getRequestModelAuditTooltip(audit, i18n.getFixedT(locale));
+    const tooltip = getRequestModelAuditTooltip(audit, 'completed', i18n.getFixedT(locale));
     assert.ok(tooltip.includes('glm-5.3'));
     assert.ok(tooltip.includes('1'));
     assert.ok(!tooltip.includes('glm-5.3:free'));
@@ -53,39 +53,39 @@ test('unknown retries retain their count alongside the successful model in both 
   }
 });
 
-test('list warnings still display anomalies from failed retries after a successful match', () => {
-  for (const upstreamModelIds of [['different'], ['sent', 'different']]) {
-    const audit = getUpstreamModelAudit([
-      { status: 'failed', outboundModelID: 'sent', upstreamModelIds },
-      { status: 'completed', outboundModelID: 'glm-5.3', upstreamModelID: 'glm-5.3' },
-    ]);
-    for (const locale of ['en', 'zh-CN']) {
-      assert.ok(getRequestModelAuditTooltip(audit, i18n.getFixedT(locale)).includes('different'));
-    }
+test('list warnings still display a mismatch from a failed retry after a successful match', () => {
+  const audit = getUpstreamModelAudit([
+    { status: 'failed', modelID: 'sent', upstreamModelID: 'different' },
+    { status: 'completed', modelID: 'glm-5.3', upstreamModelID: 'glm-5.3' },
+  ]);
+  assert.equal(audit.status, 'mismatched');
+  for (const locale of ['en', 'zh-CN']) {
+    assert.ok(getRequestModelAuditTooltip(audit, 'completed', i18n.getFixedT(locale)).includes('different'));
   }
 });
 
-test('failed matching evidence is valid model audit evidence', () => {
-  const retry = { status: 'failed', outboundModelID: 'glm-5.3:free', upstreamModelID: 'glm-5.3:free' };
-  const audit = getUpstreamModelAudit([retry]);
-  assert.equal(audit.status, 'matched');
-  assert.deepEqual(audit.matchedUpstreamIds, ['glm-5.3:free']);
-  assert.ok(getRequestModelAuditTooltip(audit, i18n.t).includes('glm-5.3:free'));
+test('missing successful evidence never falls back to a failed retry model', () => {
+  const retry = { status: 'failed', modelID: 'glm-5.3:free', upstreamModelID: 'glm-5.3:free' };
+  for (const executions of [[retry], [retry, { status: 'completed', modelID: 'glm-5.3' }]]) {
+    const audit = getUpstreamModelAudit(executions);
+    assert.deepEqual(audit.matchedUpstreamIds, []);
+    assert.ok(!getRequestModelAuditTooltip(audit, 'completed', i18n.t).includes('glm-5.3:free'));
+  }
 });
 
-test('request lifecycle does not override model match tooltips', () => {
-  const audit = getUpstreamModelAudit([{ status: 'completed', outboundModelID: 'sent', upstreamModelID: 'sent' }]);
-  const tooltip = getRequestModelAuditTooltip(audit, i18n.t);
-  assert.ok(tooltip.includes('sent'));
-  assert.ok(!tooltip.includes('请求未成功'));
-  assert.ok(!tooltip.includes('请求处理中'));
+test('request lifecycle takes precedence over model match tooltips', () => {
+  const audit = getUpstreamModelAudit([{ status: 'completed', modelID: 'sent', upstreamModelID: 'sent' }]);
+  for (const status of ['pending', 'processing', 'failed', 'canceled']) {
+    const key = status === 'pending' || status === 'processing' ? 'upstreamModelRequestProcessing' : 'upstreamModelRequestFailed';
+    assert.equal(getRequestModelAuditTooltip(audit, status, i18n.t), i18n.t('requests.tooltips.' + key));
+  }
 });
 
 test('successful matching retries stay matched without discarding failed or canceled unknowns', () => {
   for (const status of ['failed', 'canceled']) {
     const executions = [
-      ...Array.from({ length: 12 }, () => ({ status, outboundModelID: 'sent' })),
-      { status: 'completed', outboundModelID: 'sent', upstreamModelID: 'sent' },
+      ...Array.from({ length: 12 }, () => ({ status, modelID: 'sent' })),
+      { status: 'completed', modelID: 'sent', upstreamModelID: 'sent' },
     ];
     for (const ordered of [executions, executions.toReversed()]) {
       const audit = getUpstreamModelAudit(ordered);
@@ -96,48 +96,41 @@ test('successful matching retries stay matched without discarding failed or canc
   }
 });
 
-test('any matching evidence establishes a match despite unknown executions', () => {
+test('successful, active and legacy unknown executions still prevent a match', () => {
   for (const status of ['completed', 'pending', 'processing', undefined]) {
     const audit = getUpstreamModelAudit([
-      { status: 'completed', outboundModelID: 'sent', upstreamModelID: 'sent' },
-      { status, outboundModelID: 'sent' },
+      { status: 'completed', modelID: 'sent', upstreamModelID: 'sent' },
+      { status, modelID: 'sent' },
     ]);
-    assert.equal(audit.status, 'matched');
-    assert.equal(audit.comparedCount, 1);
-    assert.equal(audit.unknownCount, 1);
+    assert.equal(audit.status, 'unknown');
   }
 });
 
-test('failed matching evidence remains matched when another failed execution is unknown', () => {
-  const audit = getUpstreamModelAudit([
-    { status: 'failed', outboundModelID: 'sent', upstreamModelID: 'sent' },
-    { status: 'failed', outboundModelID: 'sent' },
-  ]);
-  assert.equal(audit.status, 'matched');
-  assert.equal(audit.unknownCount, 1);
-  assert.deepEqual(audit.matchedUpstreamIds, ['sent']);
-});
-
-test('successful retries do not hide earlier mismatches or conflicts', () => {
-  for (const [upstreamModelIds, expected] of [
-    [['different'], 'mismatched'],
-    [['sent', 'different'], 'conflicting'],
-  ]) {
+test('a failed comparison cannot establish a match when final success is unknown or absent', () => {
+  for (const status of ['completed', 'failed']) {
     const audit = getUpstreamModelAudit([
-      { status: 'failed', outboundModelID: 'sent', upstreamModelIds },
-      { status: 'failed' },
-      { status: 'completed', outboundModelID: 'sent', upstreamModelID: 'sent' },
+      { status: 'failed', modelID: 'sent', upstreamModelID: 'sent' },
+      { status, modelID: 'sent' },
     ]);
-    assert.equal(audit.status, expected);
-    assert.deepEqual(audit.mismatchedModelIds, ['different']);
-    assert.equal(audit.unknownCount, 1);
+    assert.equal(audit.status, 'unknown');
   }
 });
 
-test('matches each execution against its own outbound model', () => {
+test('successful retries do not hide an earlier mismatch', () => {
   const audit = getUpstreamModelAudit([
-    { outboundModelID: 'model-a', upstreamModelID: 'model-a' },
-    { outboundModelID: 'model-b', upstreamModelID: 'model-b' },
+    { status: 'failed', modelID: 'sent', upstreamModelID: 'different' },
+    { status: 'failed' },
+    { status: 'completed', modelID: 'sent', upstreamModelID: 'sent' },
+  ]);
+  assert.equal(audit.status, 'mismatched');
+  assert.deepEqual(audit.mismatchedModelIds, ['different']);
+  assert.equal(audit.unknownCount, 1);
+});
+
+test('matches each execution against its own requested model', () => {
+  const audit = getUpstreamModelAudit([
+    { modelID: 'model-a', upstreamModelID: 'model-a' },
+    { modelID: 'model-b', upstreamModelID: 'model-b' },
   ]);
   assert.equal(audit.status, 'matched');
   assert.equal(audit.comparedCount, 2);
@@ -146,26 +139,26 @@ test('matches each execution against its own outbound model', () => {
 
 test('does not match a retry against a previous execution model', () => {
   const audit = getUpstreamModelAudit([
-    { outboundModelID: 'model-a', upstreamModelID: null },
-    { outboundModelID: 'model-b', upstreamModelID: 'model-a' },
+    { modelID: 'model-a', upstreamModelID: null },
+    { modelID: 'model-b', upstreamModelID: 'model-a' },
   ]);
   assert.equal(audit.status, 'mismatched');
   assert.deepEqual(audit.mismatchedModelIds, ['model-a']);
   assert.equal(audit.unknownCount, 1);
 });
 
-test('detects swapped models even when both appear in the outbound model set', () => {
+test('detects swapped models even when both appear in the requested model set', () => {
   const audit = getUpstreamModelAudit([
-    { outboundModelID: 'model-a', upstreamModelID: 'model-b' },
-    { outboundModelID: 'model-b', upstreamModelID: 'model-a' },
+    { modelID: 'model-a', upstreamModelID: 'model-b' },
+    { modelID: 'model-b', upstreamModelID: 'model-a' },
   ]);
   assert.equal(audit.status, 'mismatched');
   assert.deepEqual(audit.mismatchedModelIds, ['model-b', 'model-a']);
 });
 
-test('marks partially unknown executions as matched when known evidence matches', () => {
-  const audit = getUpstreamModelAudit([{ outboundModelID: 'model-a', upstreamModelID: 'model-a' }, { outboundModelID: 'model-b' }]);
-  assert.equal(audit.status, 'matched');
+test('does not mark partially unknown executions as matched', () => {
+  const audit = getUpstreamModelAudit([{ modelID: 'model-a', upstreamModelID: 'model-a' }, { modelID: 'model-b' }]);
+  assert.equal(audit.status, 'unknown');
   assert.equal(audit.comparedCount, 1);
   assert.equal(audit.unknownCount, 1);
 });
@@ -173,11 +166,12 @@ test('marks partially unknown executions as matched when known evidence matches'
 test('keeps empty, historical, and missing-model executions unknown', () => {
   assert.equal(getUpstreamModelAudit([]).status, 'unknown');
   for (const execution of [
-    { outboundModelID: 'model-a' },
-    { outboundModelID: 'model-a', upstreamModelID: null },
-    { outboundModelID: 'model-a', upstreamModelID: '' },
-    { outboundModelID: 'model-a', upstreamModelID: '   ' },
-    { outboundModelID: '', upstreamModelID: 'model-a' },
+    { modelID: 'model-a' },
+    { modelID: 'model-a', upstreamModelID: null },
+    { modelID: 'model-a', upstreamModelID: '' },
+    { modelID: 'model-a', upstreamModelID: '   ' },
+    { modelID: '', upstreamModelID: 'model-a' },
+    { upstreamModelID: 'model-a' },
   ]) {
     const audit = getUpstreamModelAudit([execution]);
     assert.equal(audit.status, 'unknown');
@@ -188,8 +182,8 @@ test('keeps empty, historical, and missing-model executions unknown', () => {
 
 test('preserves exact reported names instead of normalizing versions or case', () => {
   const audit = getUpstreamModelAudit([
-    { outboundModelID: 'model-a', upstreamModelID: 'Model-A' },
-    { outboundModelID: 'model-a', upstreamModelID: 'model-a-2026-09-19' },
+    { modelID: 'model-a', upstreamModelID: 'Model-A' },
+    { modelID: 'model-a', upstreamModelID: 'model-a-2026-09-19' },
   ]);
   assert.equal(audit.status, 'mismatched');
   assert.deepEqual(audit.upstreamModelIds, ['Model-A', 'model-a-2026-09-19']);
@@ -197,141 +191,89 @@ test('preserves exact reported names instead of normalizing versions or case', (
 
 test('deduplicates reported names only after retaining every execution mismatch', () => {
   const audit = getUpstreamModelAudit([
-    { outboundModelID: 'model-a', upstreamModelID: 'model-a' },
-    { outboundModelID: 'model-b', upstreamModelID: 'model-a' },
+    { modelID: 'model-a', upstreamModelID: 'model-a' },
+    { modelID: 'model-b', upstreamModelID: 'model-a' },
   ]);
   assert.equal(audit.status, 'mismatched');
   assert.deepEqual(audit.upstreamModelIds, ['model-a']);
   assert.deepEqual(audit.mismatchedModelIds, ['model-a']);
 });
 
-test('uses the final sent model after channel overrides, preserving the routing name', () => {
-  const execution = { modelID: 'routed-a', outboundModelID: 'sent-b' };
-  assert.equal(getUpstreamModelAudit([{ ...execution, upstreamModelID: 'sent-b' }]).status, 'matched');
-  assert.equal(getUpstreamModelAudit([{ ...execution, upstreamModelID: 'routed-a' }]).status, 'mismatched');
-  const historical = getUpstreamModelAudit([{ modelID: 'routed-a', upstreamModelID: 'routed-a' }]);
-  assert.equal(historical.status, 'unknown');
-  assert.deepEqual(historical.upstreamModelIds, ['routed-a']);
+test('compares against the client-requested model, so a channel mapping is a mismatch', () => {
+  const mapped = { modelID: 'routed-a', upstreamModelID: 'sent-b' };
+  assert.equal(getUpstreamModelAudit([mapped]).status, 'mismatched');
+  assert.deepEqual(getUpstreamModelAudit([mapped]).mismatchedModelIds, ['sent-b']);
+  assert.equal(getUpstreamModelAudit([{ modelID: 'routed-a', upstreamModelID: 'routed-a' }]).status, 'matched');
 });
 
-test('retains conflicting names from one stream even when its first model matches', () => {
-  const audit = getUpstreamModelAudit([
-    { outboundModelID: 'model-a', upstreamModelID: 'model-a', upstreamModelIds: ['model-a', 'model-b'] },
-  ]);
-  assert.equal(audit.status, 'conflicting');
-  assert.equal(audit.conflictCount, 1);
-  assert.deepEqual(audit.conflictingModelIds, ['model-a', 'model-b']);
-  assert.deepEqual(audit.mismatchedModelIds, ['model-b']);
-});
-
-test('reports a stream conflict even when the final sent model is unknown', () => {
-  const audit = getUpstreamModelAudit([{ upstreamModelIds: ['model-a', 'model-b'] }]);
-  assert.equal(audit.status, 'conflicting');
-  assert.equal(audit.unknownCount, 1);
-  assert.equal(audit.comparedCount, 0);
-  assert.deepEqual(audit.conflictingModelIds, ['model-a', 'model-b']);
-});
-
-test('does not confuse retry model changes or duplicate observations with a stream conflict', () => {
-  const audit = getUpstreamModelAudit([
-    { outboundModelID: 'model-a', upstreamModelID: 'model-a', upstreamModelIds: ['model-a', 'model-a'] },
-    { outboundModelID: 'model-b', upstreamModelIds: ['model-b'] },
-  ]);
-  assert.equal(audit.status, 'matched');
-  assert.equal(audit.conflictCount, 0);
-  assert.deepEqual(audit.upstreamModelIds, ['model-a', 'model-b']);
-});
-
-test('a conflict does not hide other known mismatches or unknown executions', () => {
-  const audit = getUpstreamModelAudit([
-    { outboundModelID: 'model-a', upstreamModelIds: ['model-a', 'model-b'] },
-    { outboundModelID: 'model-c', upstreamModelID: 'model-d' },
-    { modelID: 'historical', upstreamModelID: 'historical' },
-  ]);
-  assert.equal(audit.status, 'conflicting');
-  assert.equal(audit.unknownCount, 1);
-  assert.equal(audit.comparedCount, 2);
-  assert.deepEqual(audit.mismatchedModelIds, ['model-b', 'model-d']);
-});
-
-test('a failed execution with matching upstream evidence is green', () => {
+test('a failed execution never reports a green success conclusion', () => {
   for (const execution of [
-    { status: 'failed', outboundModelID: 'gpt-6-astra', upstreamModelID: 'gpt-6-astra', upstreamModelIds: ['gpt-6-astra'] },
-    { status: 'failed', outboundModelID: 'glm-5.3:free', upstreamModelID: 'glm-5.3:free', upstreamModelIds: ['glm-5.3:free'] },
+    { status: 'failed', modelID: 'gpt-6-astra', upstreamModelID: 'gpt-6-astra' },
+    { status: 'failed', modelID: 'glm-5.3:free', upstreamModelID: 'glm-5.3:free' },
   ]) {
     const audit = getUpstreamModelAudit([execution]);
     assert.equal(audit.status, 'matched');
-    assert.deepEqual(audit.matchedUpstreamIds, [execution.upstreamModelID]);
+    assert.deepEqual(audit.equalModelIds, [execution.upstreamModelID]);
+    assert.deepEqual(audit.matchedUpstreamIds, []);
     for (const locale of ['en', 'zh-CN']) {
-      const verdict = getExecutionModelAuditVerdict(audit, i18n.getFixedT(locale));
-      assert.equal(verdict.tone, 'success');
-      assert.equal(verdict.message, i18n.getFixedT(locale)('requests.detail.upstreamModelMatched'));
+      const verdict = getExecutionModelAuditVerdict(audit, execution.status, i18n.getFixedT(locale));
+      assert.equal(verdict.tone, 'muted');
+      assert.ok(verdict.message.includes(execution.upstreamModelID));
       assert.ok(!verdict.message.includes('{{'));
     }
   }
 });
 
-test('execution lifecycle never changes a matching model verdict', () => {
-  for (const status of ['pending', 'processing', 'completed', 'failed', 'canceled', undefined]) {
-    const audit = getUpstreamModelAudit([{ status, outboundModelID: 'sent', upstreamModelID: 'sent' }]);
-    const verdict = getExecutionModelAuditVerdict(audit, i18n.getFixedT('zh-CN'));
-    assert.equal(verdict.tone, 'success');
-    assert.equal(verdict.message, i18n.t('requests.detail.upstreamModelMatched'));
+test('a completed execution keeps the green success conclusion', () => {
+  const audit = getUpstreamModelAudit([{ status: 'completed', modelID: 'glm-5.3', upstreamModelID: 'glm-5.3' }]);
+  const verdict = getExecutionModelAuditVerdict(audit, 'completed', i18n.getFixedT('zh-CN'));
+  assert.equal(verdict.tone, 'success');
+  assert.equal(verdict.message, i18n.t('requests.detail.upstreamModelMatched'));
+});
+
+test('a failed execution without model evidence keeps the failure reason prompt', () => {
+  for (const status of ['failed', 'canceled']) {
+    const audit = getUpstreamModelAudit([{ status, modelID: 'glm-5.3:free' }]);
+    const verdict = getExecutionModelAuditVerdict(audit, status, i18n.getFixedT('zh-CN'));
+    assert.equal(verdict.tone, 'danger');
+    assert.equal(verdict.message, i18n.t('requests.tooltips.upstreamModelRequestFailed'));
   }
 });
 
-test('missing model evidence stays unknown regardless of execution lifecycle', () => {
-  for (const status of ['pending', 'processing', 'completed', 'failed', 'canceled', undefined]) {
-    const audit = getUpstreamModelAudit([{ status, outboundModelID: 'glm-5.3:free' }]);
-    const verdict = getExecutionModelAuditVerdict(audit, i18n.getFixedT('zh-CN'));
-    assert.equal(verdict.tone, 'muted');
-    assert.equal(verdict.message, i18n.t('requests.tooltips.upstreamModelUnknown'));
-  }
-});
-
-test('known mismatches and conflicts stay red regardless of execution lifecycle', () => {
-  for (const status of ['pending', 'processing', 'completed', 'failed', 'canceled', undefined]) {
-    const mismatch = getExecutionModelAuditVerdict(
-      getUpstreamModelAudit([{ status, outboundModelID: 'sent', upstreamModelID: 'different' }]),
-      i18n.getFixedT('zh-CN')
-    );
-    assert.equal(mismatch.tone, 'danger');
-    assert.ok(mismatch.message.includes('different'));
-
-    const conflict = getExecutionModelAuditVerdict(
-      getUpstreamModelAudit([{ status, outboundModelID: 'sent', upstreamModelIds: ['sent', 'other'] }]),
-      i18n.getFixedT('zh-CN')
-    );
-    assert.equal(conflict.tone, 'danger');
-    assert.equal(conflict.message, i18n.t('requests.detail.upstreamModelConflict'));
-  }
-});
-
-test('a stream mismatch remains visible even when a failed execution also matched once', () => {
+test('a known mismatch outranks the failed lifecycle so it stays red', () => {
   const mismatch = getExecutionModelAuditVerdict(
-    getUpstreamModelAudit([
-      { status: 'failed', outboundModelID: 'sent', upstreamModelID: 'sent' },
-      { status: 'failed', outboundModelID: 'sent', upstreamModelID: 'different' },
-    ]),
+    getUpstreamModelAudit([{ status: 'failed', modelID: 'sent', upstreamModelID: 'different' }]),
+    'failed',
     i18n.getFixedT('zh-CN')
   );
   assert.equal(mismatch.tone, 'danger');
   assert.ok(mismatch.message.includes('different'));
 });
 
+test('in-flight executions report the waiting state instead of a name conclusion', () => {
+  const audit = getUpstreamModelAudit([{ status: 'processing', modelID: 'sent', upstreamModelID: 'sent' }]);
+  for (const status of ['pending', 'processing']) {
+    const verdict = getExecutionModelAuditVerdict(audit, status, i18n.getFixedT('zh-CN'));
+    assert.equal(verdict.tone, 'pending');
+    assert.equal(verdict.message, i18n.t('requests.tooltips.upstreamModelRequestProcessing'));
+  }
+});
+
 test('each execution yields exactly one verdict and one locale key per tone', () => {
   const cases = [
-    { outboundModelID: 'a', upstreamModelID: 'a' },
-    { outboundModelID: 'a' },
-    { outboundModelID: 'a', upstreamModelID: 'b' },
+    ['failed', { status: 'failed', modelID: 'a', upstreamModelID: 'a' }],
+    ['failed', { status: 'failed', modelID: 'a' }],
+    ['completed', { status: 'completed', modelID: 'a', upstreamModelID: 'a' }],
+    ['completed', { status: 'completed', modelID: 'a' }],
+    ['failed', { status: 'failed', modelID: 'a', upstreamModelID: 'b' }],
   ];
-  for (const execution of cases) {
+  for (const [status, execution] of cases) {
     for (const locale of ['en', 'zh-CN']) {
-      const verdict = getExecutionModelAuditVerdict(getUpstreamModelAudit([execution]), i18n.getFixedT(locale));
+      const verdict = getExecutionModelAuditVerdict(getUpstreamModelAudit([execution]), status, i18n.getFixedT(locale));
       assert.equal(typeof verdict.message, 'string');
       assert.ok(verdict.message.length > 0);
       assert.ok(!verdict.message.includes('{{'));
-      assert.ok(['success', 'danger', 'muted'].includes(verdict.tone));
+      assert.ok(['success', 'danger', 'pending', 'muted'].includes(verdict.tone));
     }
   }
 });

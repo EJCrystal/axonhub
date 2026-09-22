@@ -444,13 +444,12 @@ var schemaGraph = func() *sqlgraph.Schema {
 			requestexecution.FieldDataStorageID:              {Type: field.TypeInt, Column: requestexecution.FieldDataStorageID},
 			requestexecution.FieldExternalID:                 {Type: field.TypeString, Column: requestexecution.FieldExternalID},
 			requestexecution.FieldModelID:                    {Type: field.TypeString, Column: requestexecution.FieldModelID},
-			requestexecution.FieldOutboundModelID:            {Type: field.TypeString, Column: requestexecution.FieldOutboundModelID},
 			requestexecution.FieldUpstreamModelID:            {Type: field.TypeString, Column: requestexecution.FieldUpstreamModelID},
-			requestexecution.FieldUpstreamModelIds:           {Type: field.TypeJSON, Column: requestexecution.FieldUpstreamModelIds},
 			requestexecution.FieldFormat:                     {Type: field.TypeString, Column: requestexecution.FieldFormat},
 			requestexecution.FieldReasoningEffort:            {Type: field.TypeString, Column: requestexecution.FieldReasoningEffort},
 			requestexecution.FieldChannelAPIKeySuffix:        {Type: field.TypeString, Column: requestexecution.FieldChannelAPIKeySuffix},
 			requestexecution.FieldRequestBody:                {Type: field.TypeJSON, Column: requestexecution.FieldRequestBody},
+			requestexecution.FieldResponseHeaders:            {Type: field.TypeJSON, Column: requestexecution.FieldResponseHeaders},
 			requestexecution.FieldResponseBody:               {Type: field.TypeJSON, Column: requestexecution.FieldResponseBody},
 			requestexecution.FieldResponseChunks:             {Type: field.TypeJSON, Column: requestexecution.FieldResponseChunks},
 			requestexecution.FieldErrorMessage:               {Type: field.TypeString, Column: requestexecution.FieldErrorMessage},
@@ -3571,19 +3570,9 @@ func (f *RequestExecutionFilter) WhereModelID(p entql.StringP) {
 	f.Where(p.Field(requestexecution.FieldModelID))
 }
 
-// WhereOutboundModelID applies the entql string predicate on the outbound_model_id field.
-func (f *RequestExecutionFilter) WhereOutboundModelID(p entql.StringP) {
-	f.Where(p.Field(requestexecution.FieldOutboundModelID))
-}
-
 // WhereUpstreamModelID applies the entql string predicate on the upstream_model_id field.
 func (f *RequestExecutionFilter) WhereUpstreamModelID(p entql.StringP) {
 	f.Where(p.Field(requestexecution.FieldUpstreamModelID))
-}
-
-// WhereUpstreamModelIds applies the entql json.RawMessage predicate on the upstream_model_ids field.
-func (f *RequestExecutionFilter) WhereUpstreamModelIds(p entql.BytesP) {
-	f.Where(p.Field(requestexecution.FieldUpstreamModelIds))
 }
 
 // WhereFormat applies the entql string predicate on the format field.
@@ -3604,6 +3593,11 @@ func (f *RequestExecutionFilter) WhereChannelAPIKeySuffix(p entql.StringP) {
 // WhereRequestBody applies the entql json.RawMessage predicate on the request_body field.
 func (f *RequestExecutionFilter) WhereRequestBody(p entql.BytesP) {
 	f.Where(p.Field(requestexecution.FieldRequestBody))
+}
+
+// WhereResponseHeaders applies the entql json.RawMessage predicate on the response_headers field.
+func (f *RequestExecutionFilter) WhereResponseHeaders(p entql.BytesP) {
+	f.Where(p.Field(requestexecution.FieldResponseHeaders))
 }
 
 // WhereResponseBody applies the entql json.RawMessage predicate on the response_body field.

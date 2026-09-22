@@ -4,11 +4,11 @@ package modelmetadata
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"mime"
 	"mime/multipart"
 	"net/url"
-	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -80,7 +80,7 @@ func SentModel(request *httpclient.Request, format llm.APIFormat) string {
 		var model string
 		for {
 			part, err := reader.NextPart()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return model
 			}
 			if err != nil {
@@ -136,8 +136,8 @@ func modelInURL(rawURL, marker string, suffixes ...string) string {
 		return ""
 	}
 	for _, suffix := range suffixes {
-		if strings.HasSuffix(model, suffix) {
-			model, err = url.PathUnescape(strings.TrimSuffix(model, suffix))
+		if remaining, found := strings.CutSuffix(model, suffix); found {
+			model, err = url.PathUnescape(remaining)
 			if err == nil && validModel(model) {
 				return model
 			}
@@ -213,13 +213,4 @@ func reportedModel(body []byte, format llm.APIFormat, eventType string, stream b
 		}
 	}
 	return ""
-}
-
-// Observe retains the first identifier and the first different identifier.
-// Two values are enough to prove a conflict without unbounded per-stream state.
-func Observe(models []string, model string) []string {
-	if len(models) >= 2 || !validModel(model) || slices.Contains(models, model) {
-		return models
-	}
-	return append(models, model)
 }

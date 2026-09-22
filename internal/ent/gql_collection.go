@@ -3752,7 +3752,7 @@ func (_q *RequestQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				selectedFields = append(selectedFields, request.FieldAPIKeyID)
 				fieldSeen[request.FieldAPIKeyID] = struct{}{}
 			}
-		case "projectID", "modelAudit":
+		case "projectID":
 			if _, ok := fieldSeen[request.FieldProjectID]; !ok {
 				selectedFields = append(selectedFields, request.FieldProjectID)
 				fieldSeen[request.FieldProjectID] = struct{}{}
@@ -4036,20 +4036,10 @@ func (_q *RequestExecutionQuery) collectField(ctx context.Context, oneNode bool,
 				selectedFields = append(selectedFields, requestexecution.FieldModelID)
 				fieldSeen[requestexecution.FieldModelID] = struct{}{}
 			}
-		case "outboundModelID":
-			if _, ok := fieldSeen[requestexecution.FieldOutboundModelID]; !ok {
-				selectedFields = append(selectedFields, requestexecution.FieldOutboundModelID)
-				fieldSeen[requestexecution.FieldOutboundModelID] = struct{}{}
-			}
 		case "upstreamModelID":
 			if _, ok := fieldSeen[requestexecution.FieldUpstreamModelID]; !ok {
 				selectedFields = append(selectedFields, requestexecution.FieldUpstreamModelID)
 				fieldSeen[requestexecution.FieldUpstreamModelID] = struct{}{}
-			}
-		case "upstreamModelIds":
-			if _, ok := fieldSeen[requestexecution.FieldUpstreamModelIds]; !ok {
-				selectedFields = append(selectedFields, requestexecution.FieldUpstreamModelIds)
-				fieldSeen[requestexecution.FieldUpstreamModelIds] = struct{}{}
 			}
 		case "format":
 			if _, ok := fieldSeen[requestexecution.FieldFormat]; !ok {
@@ -4070,6 +4060,11 @@ func (_q *RequestExecutionQuery) collectField(ctx context.Context, oneNode bool,
 			if _, ok := fieldSeen[requestexecution.FieldRequestBody]; !ok {
 				selectedFields = append(selectedFields, requestexecution.FieldRequestBody)
 				fieldSeen[requestexecution.FieldRequestBody] = struct{}{}
+			}
+		case "responseHeaders":
+			if _, ok := fieldSeen[requestexecution.FieldResponseHeaders]; !ok {
+				selectedFields = append(selectedFields, requestexecution.FieldResponseHeaders)
+				fieldSeen[requestexecution.FieldResponseHeaders] = struct{}{}
 			}
 		case "responseBody":
 			if _, ok := fieldSeen[requestexecution.FieldResponseBody]; !ok {

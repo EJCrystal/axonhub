@@ -65,28 +65,17 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
             stream
             status
             clientIP
+            userAgent
             metricsLatencyMs
             metricsFirstTokenLatencyMs
             metricsReasoningDurationMs
-            modelAudit {
-              status
-              matchedUpstreamIds
-              upstreamModelIds
-              mismatchedModelIds
-              conflictingModelIds
-              unknownCount
-              comparedCount
-              conflictCount
-            }
             executions(first: 10, orderBy: { field: CREATED_AT, direction: DESC }) {
               edges {
                 node {
                   id
                   createdAt
                   modelID
-                  outboundModelID
                   upstreamModelID
-                  upstreamModelIds
                   format
                   status
                   reasoningEffort
@@ -160,6 +149,7 @@ function buildRequestDetailQuery(permissions: { canViewApiKeys: boolean; canView
           contentSaved
           contentStorageKey
           requestHeaders
+          responseHeaders
           requestBody
           responseBody
           responseChunks
@@ -222,6 +212,7 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           dataStorageID
           contentSaved
           contentStorageKey
+          responseHeaders
           status
           format
           metricsReasoningDurationMs
@@ -261,12 +252,11 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }) 
                 updatedAt
                 requestID${channelFields}
                 modelID
-                outboundModelID
                 upstreamModelID
-                upstreamModelIds
                 projectID
                 dataStorageID
                 requestHeaders
+                responseHeaders
                 requestBody
                 responseBody
                 responseChunks
