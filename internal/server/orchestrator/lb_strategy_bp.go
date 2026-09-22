@@ -205,3 +205,4 @@ func (s *ErrorAwareStrategy) ScoreWithDebug(ctx context.Context, channel *biz.Ch
 func (s *ErrorAwareStrategy) Name() string {
 	return "ErrorAware"
 }
+

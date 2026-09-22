@@ -65,7 +65,6 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
             stream
             status
             clientIP
-            userAgent
             metricsLatencyMs
             metricsFirstTokenLatencyMs
             metricsReasoningDurationMs
@@ -149,7 +148,6 @@ function buildRequestDetailQuery(permissions: { canViewApiKeys: boolean; canView
           contentSaved
           contentStorageKey
           requestHeaders
-          responseHeaders
           requestBody
           responseBody
           responseChunks
@@ -212,7 +210,6 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           dataStorageID
           contentSaved
           contentStorageKey
-          responseHeaders
           status
           format
           metricsReasoningDurationMs
@@ -256,7 +253,6 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }) 
                 projectID
                 dataStorageID
                 requestHeaders
-                responseHeaders
                 requestBody
                 responseBody
                 responseChunks

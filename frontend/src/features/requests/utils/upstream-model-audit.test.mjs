@@ -127,7 +127,7 @@ test('successful retries do not hide an earlier mismatch', () => {
   assert.equal(audit.unknownCount, 1);
 });
 
-test('matches each execution against its own requested model', () => {
+test('matches each execution against its own sent model', () => {
   const audit = getUpstreamModelAudit([
     { modelID: 'model-a', upstreamModelID: 'model-a' },
     { modelID: 'model-b', upstreamModelID: 'model-b' },
@@ -147,7 +147,7 @@ test('does not match a retry against a previous execution model', () => {
   assert.equal(audit.unknownCount, 1);
 });
 
-test('detects swapped models even when both appear in the requested model set', () => {
+test('detects swapped models even when both appear in the sent model set', () => {
   const audit = getUpstreamModelAudit([
     { modelID: 'model-a', upstreamModelID: 'model-b' },
     { modelID: 'model-b', upstreamModelID: 'model-a' },
@@ -199,11 +199,20 @@ test('deduplicates reported names only after retaining every execution mismatch'
   assert.deepEqual(audit.mismatchedModelIds, ['model-a']);
 });
 
-test('compares against the client-requested model, so a channel mapping is a mismatch', () => {
-  const mapped = { modelID: 'routed-a', upstreamModelID: 'sent-b' };
-  assert.equal(getUpstreamModelAudit([mapped]).status, 'mismatched');
-  assert.deepEqual(getUpstreamModelAudit([mapped]).mismatchedModelIds, ['sent-b']);
-  assert.equal(getUpstreamModelAudit([{ modelID: 'routed-a', upstreamModelID: 'routed-a' }]).status, 'matched');
+test('compares against the model the execution actually sent', () => {
+  // execution.modelID is already resolved through the channel: a reported alias
+  // that differs from it is a real mismatch.
+  const mismatch = { modelID: 'sent-a', upstreamModelID: 'reported-b' };
+  assert.equal(getUpstreamModelAudit([mismatch]).status, 'mismatched');
+  assert.deepEqual(getUpstreamModelAudit([mismatch]).mismatchedModelIds, ['reported-b']);
+  assert.equal(getUpstreamModelAudit([{ modelID: 'sent-a', upstreamModelID: 'sent-a' }]).status, 'matched');
+});
+
+test('a channel alias that resolves before sending is not a mismatch', () => {
+  // The client asked for an alias; the channel resolved it to what it sent, and
+  // the provider echoed that same name back.
+  const alias = { modelID: 'deepseek-v4.1-flash', upstreamModelID: 'deepseek-v4.1-flash' };
+  assert.equal(getUpstreamModelAudit([alias]).status, 'matched');
 });
 
 test('a failed execution never reports a green success conclusion', () => {

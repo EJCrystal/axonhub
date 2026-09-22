@@ -28,7 +28,6 @@ export const requestExecutionSchema = z.object({
   modelID: z.string(),
   upstreamModelID: z.string().nullable().optional(),
   requestHeaders: z.any().nullable().optional(),
-  responseHeaders: z.any().nullable().optional(),
   requestBody: z.any(), // JSONRawMessage
   responseBody: z.any().nullable(), // JSONRawMessage
   responseChunks: z.array(z.any()).nullable(), // [JSONRawMessage!]
@@ -61,14 +60,12 @@ export const requestSchema = z.object({
   contentSaved: z.boolean().optional(),
   contentStorageKey: z.string().nullable().optional(),
   requestHeaders: z.any().nullable().optional(),
-  responseHeaders: z.any().nullable().optional(),
   requestBody: z.any().nullable().optional(), // JSONRawMessage
   responseBody: z.any().nullable().optional(), // JSONRawMessage
   responseChunks: z.array(z.any()).nullable().optional(), // [JSONRawMessage!]
   status: requestStatusSchema,
   format: z.string().optional(),
   clientIP: z.string().nullable().optional(),
-  userAgent: z.string().nullable().optional(),
   stream: z.boolean().nullable(),
   metricsLatencyMs: z.number().nullable().optional(),
   metricsFirstTokenLatencyMs: z.number().nullable().optional(),
