@@ -187,6 +187,12 @@ models:
   ChannelRateLimitInput:
     model:
       - github.com/looplj/axonhub/internal/objects.ChannelRateLimit
+  ChannelAPIKeyModels:
+    model:
+      - github.com/looplj/axonhub/internal/objects.APIKeyModels
+  ChannelAPIKeyModelsInput:
+    model:
+      - github.com/looplj/axonhub/internal/objects.APIKeyModels
   ChannelCredentials:
     model:
       - github.com/looplj/axonhub/internal/objects.ChannelCredentials

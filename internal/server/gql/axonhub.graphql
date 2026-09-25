@@ -314,9 +314,15 @@ type ChannelRateLimit {
   queueTimeoutMs: Int
 }
 
+type ChannelAPIKeyModels {
+  apiKey: String!
+  models: [String!]!
+}
+
 type ChannelCredentials {
   apiKey: String
   apiKeys: [String!]
+  apiKeyModels: [ChannelAPIKeyModels!]
   gcp: GCPCredential
   oauth: OAuthCredentials
 }
@@ -344,9 +350,15 @@ type GCPCredential {
   jsonData: String!
 }
 
+input ChannelAPIKeyModelsInput {
+  apiKey: String!
+  models: [String!]!
+}
+
 input ChannelCredentialsInput {
   apiKey: String
   apiKeys: [String!]
+  apiKeyModels: [ChannelAPIKeyModelsInput!]
   gcp: GCPCredentialInput
   oauth: OAuthCredentialsInput
   managementApiKey: String

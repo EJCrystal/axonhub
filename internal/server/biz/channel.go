@@ -80,6 +80,10 @@ type Channel struct {
 	// cachedEnabledAPIKeys caches enabled API keys (computed once when channel is loaded)
 	cachedEnabledAPIKeys []string
 
+	// cachedAPIKeyModels maps an enabled API key to models it explicitly supports.
+	// Keys absent from the map inherit the channel model list.
+	cachedAPIKeyModels map[string][]string
+
 	// cachedDisabledKeySet caches disabled key lookup set for O(1) check
 	cachedDisabledKeySet map[string]struct{}
 
@@ -551,6 +555,8 @@ func (svc *ChannelService) createChannel(ctx context.Context, input ent.CreateCh
 		return nil, err
 	}
 
+	applyAPIKeyModelUnion(&input.Credentials, &input.SupportedModels)
+
 	if input.Settings != nil {
 		// A new channel may intentionally be created before its model list is
 		// populated (for example by a bulk configuration flow). An empty list is
@@ -845,6 +851,34 @@ func normalizeAutoDisableRules(rules []objects.APIKeyAutoDisableRule, allowDelet
 	return normalized, nil
 }
 
+// applyAPIKeyModelUnion replaces the channel model list with the union of every key list
+// when at least one key has an explicit model assignment. Legacy credentials are unchanged.
+func applyAPIKeyModelUnion(credentials *objects.ChannelCredentials, supportedModels *[]string) bool {
+	if credentials == nil || !credentials.NormalizeAPIKeyModels() {
+		return false
+	}
+
+	var fallback []string
+	if supportedModels != nil {
+		fallback = *supportedModels
+	}
+
+	union := credentials.UnionAPIKeyModels(fallback)
+	if supportedModels != nil {
+		*supportedModels = union
+	}
+
+	return true
+}
+
+func unionEnabledAPIKeyModels(credentials objects.ChannelCredentials, fallback []string, disabledKeys []objects.DisabledAPIKey) []string {
+	if !credentials.NormalizeAPIKeyModels() {
+		return fallback
+	}
+
+	return credentials.UnionEnabledAPIKeyModels(fallback, disabledKeys)
+}
+
 // UpdateChannel updates an existing channel with the provided input.
 func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent.UpdateChannelInput) (*ent.Channel, error) {
 	log.Debug(ctx, "UpdateChannel", log.Int("id", id))
@@ -854,7 +888,7 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 	existingIdentity, err := authz.RunWithScopeDecision(ctx, scopes.ScopeWriteChannels, func(queryCtx context.Context) (*ent.Channel, error) {
 		return svc.entFromContext(queryCtx).Channel.Query().
 			Where(channel.IDEQ(id)).
-			Select(channel.FieldType, channel.FieldBaseURL, channel.FieldUpdatedAt).
+			Select(channel.FieldType, channel.FieldBaseURL, channel.FieldSupportedModels, channel.FieldDisabledAPIKeys, channel.FieldUpdatedAt).
 			Only(queryCtx)
 	})
 	if err != nil {
@@ -937,6 +971,16 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 	// Synchronize overrides even for callers that have write_channels without
 	// read_channels. The scoped decision permits only this internal read required
 	// to preserve the write invariant; it does not expose channel data to callers.
+	if input.Credentials != nil {
+		existingModels := existingIdentity.SupportedModels
+		if input.SupportedModels != nil {
+			existingModels = input.SupportedModels
+		}
+		if input.Credentials.NormalizeAPIKeyModels() {
+			input.SupportedModels = input.Credentials.UnionEnabledAPIKeyModels(existingModels, existingIdentity.DisabledAPIKeys)
+		}
+	}
+
 	if input.SupportedModels != nil {
 		settings := input.Settings
 		if settings == nil {

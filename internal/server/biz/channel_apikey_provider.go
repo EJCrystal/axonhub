@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/samber/lo"
 
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/log"
@@ -54,9 +55,65 @@ func NewTraceStickyKeyProvider(channel *Channel) *TraceStickyKeyProvider {
 	}
 }
 
+// modelFilteredKeyProvider keeps the single-key fast path while still rejecting a key
+// that explicitly does not support the upstream model selected for this attempt.
+type modelFilteredKeyProvider struct {
+	channel *Channel
+	keys    []string
+}
+
+func newModelFilteredKeyProvider(channel *Channel, keys []string) *modelFilteredKeyProvider {
+	return &modelFilteredKeyProvider{channel: channel, keys: keys}
+}
+
+func (p *modelFilteredKeyProvider) Get(ctx context.Context) string {
+	keys := p.channel.filterAPIKeysForRequest(ctx, p.keys)
+	if len(keys) == 0 {
+		return ""
+	}
+
+	return keys[0]
+}
+
+func (c *Channel) enabledAPIKeysForRequest(ctx context.Context) []string {
+	if c == nil {
+		return nil
+	}
+
+	return c.filterAPIKeysForRequest(ctx, c.cachedEnabledAPIKeys)
+}
+
+func (c *Channel) filterAPIKeysForRequest(ctx context.Context, keys []string) []string {
+	if c == nil || len(keys) == 0 || len(c.cachedAPIKeyModels) == 0 {
+		return keys
+	}
+
+	model, ok := contexts.GetChannelRequestModel(ctx)
+	if !ok || model == "" {
+		return keys
+	}
+
+	filtered := make([]string, 0, len(keys))
+	for _, key := range keys {
+		models, explicit := c.cachedAPIKeyModels[key]
+		if !explicit || lo.Contains(models, model) {
+			filtered = append(filtered, key)
+		}
+	}
+
+	return filtered
+}
+
 func (p *TraceStickyKeyProvider) Get(ctx context.Context) string {
-	enabled := p.channel.cachedEnabledAPIKeys
+	enabled := p.channel.enabledAPIKeysForRequest(ctx)
 	if len(enabled) == 0 {
+		if _, explicit := contexts.GetChannelRequestModel(ctx); explicit && len(p.channel.cachedAPIKeyModels) > 0 {
+			return ""
+		}
+		if len(p.channel.Credentials.APIKeys) == 0 {
+			return ""
+		}
+
 		return p.channel.Credentials.APIKeys[0]
 	}
 
@@ -67,11 +124,13 @@ func (p *TraceStickyKeyProvider) Get(ctx context.Context) string {
 	var selectedKey string
 
 	if trace, ok := contexts.GetTrace(ctx); ok && trace != nil {
-		if cached, ok := p.cache.Get(trace.TraceID); ok {
+		model, _ := contexts.GetChannelRequestModel(ctx)
+		cacheKey := trace.TraceID + "\x00" + model
+		if cached, ok := p.cache.Get(cacheKey); ok && lo.Contains(enabled, cached) {
 			selectedKey = cached
 		} else {
-			selectedKey = rendezvousSelect(enabled, trace.TraceID)
-			p.cache.Add(trace.TraceID, selectedKey)
+			selectedKey = rendezvousSelect(enabled, cacheKey)
+			p.cache.Add(cacheKey, selectedKey)
 		}
 
 		if log.DebugEnabled(ctx) {

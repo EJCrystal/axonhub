@@ -378,6 +378,15 @@ export type ChannelModelEntry = z.infer<typeof channelModelEntrySchema>;
 export const channelCredentialsSchema = z.object({
   apiKey: z.string().optional().nullable(),
   apiKeys: z.array(z.string()).optional().nullable(),
+  apiKeyModels: z
+    .array(
+      z.object({
+        apiKey: z.string(),
+        models: z.array(z.string()).default([]),
+      })
+    )
+    .optional()
+    .nullable(),
   // Optional provider management/console API key (e.g. ZenMux) used only for
   // server-side quota checks; inference keeps using apiKey/apiKeys.
   managementApiKey: z.string().optional().nullable(),
@@ -647,6 +656,15 @@ export const createChannelInputSchema = z
       apiKey: z.string().optional(),
       // apiKeys is used for regular API keys (multiple keys for load balancing)
       apiKeys: z.array(z.string()).optional().default([]),
+      apiKeyModels: z
+        .array(
+          z.object({
+            apiKey: z.string(),
+            models: z.array(z.string()).default([]),
+          })
+        )
+        .optional()
+        .default([]),
       // Optional management key used only by the backend for quota checks
       managementApiKey: z.string().optional(),
       gcp: z
@@ -741,6 +759,14 @@ export const updateChannelInputSchema = z
         apiKey: z.string().optional(),
         // apiKeys 用于普通 API Key（支持多 key 负载均衡），OAuth 类型不使用此字段
         apiKeys: z.array(z.string()).optional(),
+        apiKeyModels: z
+          .array(
+            z.object({
+              apiKey: z.string(),
+              models: z.array(z.string()).default([]),
+            })
+          )
+          .optional(),
         // Optional management key used only by the backend for quota checks
         managementApiKey: z.string().optional(),
         gcp: z

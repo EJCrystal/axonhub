@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
@@ -322,6 +323,55 @@ func setupTestChannelService(t *testing.T) (*ChannelService, *ent.Client) {
 	svc := NewChannelServiceForTest(client)
 
 	return svc, client
+}
+
+func TestChannelService_APIKeyModelsUnion(t *testing.T) {
+	svc, client := setupTestChannelService(t)
+	defer client.Close()
+
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	created, err := svc.CreateChannel(ctx, ent.CreateChannelInput{
+		Type:    channel.TypeOpenai,
+		Name:    "Per Key Models",
+		BaseURL: lo.ToPtr("https://api.openai.com/v1"),
+		Credentials: objects.ChannelCredentials{
+			APIKeys: []string{"key-a", "key-b", "key-shared"},
+			APIKeyModels: []objects.APIKeyModels{
+				{APIKey: "key-a", Models: []string{"model-a"}},
+				{APIKey: "key-b", Models: []string{"model-b", "model-shared"}},
+				{APIKey: "key-shared", Models: []string{"model-a", "model-shared"}},
+			},
+		},
+		SupportedModels:  []string{"stale-model"},
+		DefaultTestModel: "model-a",
+	})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"model-a", "model-b", "model-shared"}, created.SupportedModels)
+
+	_, err = client.Channel.UpdateOneID(created.ID).
+		SetDisabledAPIKeys([]objects.DisabledAPIKey{{Key: "key-b", DisabledAt: time.Now()}}).
+		SetSupportedModels([]string{"model-a", "model-shared"}).
+		Save(ctx)
+	require.NoError(t, err)
+
+	updated, err := svc.UpdateChannel(ctx, created.ID, &ent.UpdateChannelInput{
+		Credentials: &objects.ChannelCredentials{
+			APIKeys: []string{"key-a", "legacy-key"},
+			APIKeyModels: []objects.APIKeyModels{
+				{APIKey: "key-a", Models: []string{"model-a"}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"model-a", "model-shared"}, updated.SupportedModels)
+
+	_, err = svc.DeleteDisabledAPIKeys(ctx, created.ID, []string{"key-a"})
+	require.NoError(t, err)
+	deleted, err := client.Channel.Get(ctx, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"legacy-key"}, deleted.Credentials.APIKeys)
+	require.Empty(t, deleted.Credentials.APIKeyModels)
+	require.ElementsMatch(t, []string{"model-a", "model-shared"}, deleted.SupportedModels)
 }
 
 func TestChannelService_CreateChannel(t *testing.T) {
