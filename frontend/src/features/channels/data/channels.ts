@@ -1052,6 +1052,10 @@ const CHANNEL_QUERY_FULL_NODE_SELECTION = `
           credentials {
             apiKey
             apiKeys
+            apiKeyModels {
+              apiKey
+              models
+            }
             gcp {
               region
               projectID

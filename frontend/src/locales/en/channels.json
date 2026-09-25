@@ -381,6 +381,7 @@
   "channels.dialogs.fields.managementApiKey.hint": "Management API Key used for quota checks; created in the ZenMux console",
   "channels.dialogs.fields.apiKey.panelTitle": "API Keys ({{count}})",
   "channels.dialogs.fields.apiKey.panelDescription": "Remove keys here to sync back to the editor. Changes take effect only after you save.",
+  "channels.dialogs.fields.apiKey.modelsPlaceholder": "Select models supported by this key",
   "channels.dialogs.fields.apiKey.searchPlaceholder": "Search keys...",
   "channels.dialogs.fields.apiKey.disabled": "Disabled",
   "channels.dialogs.fields.apiKey.disabledHint": "This key is currently disabled on the server.",

@@ -81,8 +81,10 @@ func (svc *ChannelService) DisableAPIKey(
 	enabledKeys := ch.Credentials.GetEnabledCredentialRefs(newDisabledKeys)
 
 	// 更新 channel
+	supportedModels := unionEnabledAPIKeyModels(ch.Credentials, ch.SupportedModels, newDisabledKeys)
 	update := svc.entFromContext(ctx).Channel.UpdateOneID(channelID).
-		SetDisabledAPIKeys(newDisabledKeys)
+		SetDisabledAPIKeys(newDisabledKeys).
+		SetSupportedModels(supportedModels)
 
 	// 如果没有可用 key 了，禁用整个 channel
 	channelDisabled := len(enabledKeys) == 0
@@ -178,8 +180,10 @@ func (svc *ChannelService) EnableAPIKey(ctx context.Context, channelID int, key 
 	}
 
 	// 更新 channel
+	supportedModels := unionEnabledAPIKeyModels(ch.Credentials, ch.SupportedModels, newDisabledKeys)
 	update := svc.entFromContext(ctx).Channel.UpdateOneID(channelID).
-		SetDisabledAPIKeys(newDisabledKeys)
+		SetDisabledAPIKeys(newDisabledKeys).
+		SetSupportedModels(supportedModels)
 	update = applyRecoveredChannelStatus(ctx, update, ch, ch.Credentials, newDisabledKeys)
 
 	if _, err := update.Save(ctx); err != nil {
@@ -208,8 +212,10 @@ func (svc *ChannelService) EnableAllAPIKeys(ctx context.Context, channelID int) 
 	}
 
 	// 更新 channel，清空 disabled_api_keys
+	supportedModels := unionEnabledAPIKeyModels(ch.Credentials, ch.SupportedModels, nil)
 	update := svc.entFromContext(ctx).Channel.UpdateOneID(channelID).
-		SetDisabledAPIKeys([]objects.DisabledAPIKey{})
+		SetDisabledAPIKeys([]objects.DisabledAPIKey{}).
+		SetSupportedModels(supportedModels)
 	update = applyRecoveredChannelStatus(ctx, update, ch, ch.Credentials, nil)
 
 	if _, err := update.Save(ctx); err != nil {
@@ -259,8 +265,10 @@ func (svc *ChannelService) EnableSelectedAPIKeys(ctx context.Context, channelID 
 		return nil
 	}
 
+	supportedModels := unionEnabledAPIKeyModels(ch.Credentials, ch.SupportedModels, newDisabledKeys)
 	update := svc.entFromContext(ctx).Channel.UpdateOneID(channelID).
-		SetDisabledAPIKeys(newDisabledKeys)
+		SetDisabledAPIKeys(newDisabledKeys).
+		SetSupportedModels(supportedModels)
 	update = applyRecoveredChannelStatus(ctx, update, ch, ch.Credentials, newDisabledKeys)
 
 	if _, err := update.Save(ctx); err != nil {
@@ -335,6 +343,19 @@ func (svc *ChannelService) DeleteDisabledAPIKeys(ctx context.Context, channelID 
 		}
 	}
 
+	if len(newCredentials.APIKeyModels) > 0 {
+		remainingModels := make([]objects.APIKeyModels, 0, len(newCredentials.APIKeyModels))
+		for _, item := range newCredentials.APIKeyModels {
+			if _, found := keysToDelete[item.APIKey]; !found {
+				remainingModels = append(remainingModels, item)
+			}
+		}
+		newCredentials.APIKeyModels = remainingModels
+	}
+
+	supportedModels := unionEnabledAPIKeyModels(newCredentials, ch.SupportedModels, newDisabledKeys)
+	modelsChanged := !slices.Equal(supportedModels, ch.SupportedModels)
+
 	// Ensure at least one API key remains
 	allKeys := newCredentials.GetAllAPIKeys()
 	if len(allKeys) == 0 {
@@ -347,6 +368,9 @@ func (svc *ChannelService) DeleteDisabledAPIKeys(ctx context.Context, channelID 
 	update := svc.entFromContext(ctx).Channel.UpdateOneID(channelID).
 		SetDisabledAPIKeys(newDisabledKeys).
 		SetCredentials(newCredentials)
+	if modelsChanged {
+		update.SetSupportedModels(supportedModels)
+	}
 	update = applyRecoveredChannelStatus(ctx, update, ch, newCredentials, newDisabledKeys)
 
 	if _, err := update.Save(ctx); err != nil {
