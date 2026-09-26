@@ -619,3 +619,46 @@ func TestCaseSensitivity(t *testing.T) {
 func mergeModelsForTest(manualModels, fetchedModels []string) []string {
 	return lo.Uniq(append(manualModels, fetchedModels...))
 }
+
+func TestChannelService_ModelSyncKeepsModelsPerAPIKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.Header.Get("Authorization") {
+		case "Bearer key-deepseek":
+			_, _ = w.Write([]byte(`{"data":[{"id":"deepseek-v4.1-flash"},{"id":"shared-model"}]}`))
+		case "Bearer key-other":
+			_, _ = w.Write([]byte(`{"data":[{"id":"shared-model"},{"id":"other-model"}]}`))
+		default:
+			http.Error(w, "unexpected key", http.StatusUnauthorized)
+		}
+	}))
+	defer server.Close()
+
+	svc, client := setupTestChannelService(t)
+	defer client.Close()
+
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	svc.httpClient = httpclient.NewHttpClientWithClient(server.Client())
+
+	ch, err := client.Channel.Create().
+		SetType(channel.TypeOpenai).
+		SetName("Per key model sync").
+		SetBaseURL(server.URL).
+		SetCredentials(objects.ChannelCredentials{APIKeys: []string{"key-deepseek", "key-other"}}).
+		SetSupportedModels([]string{"stale-model"}).
+		SetDefaultTestModel("stale-model").
+		Save(ctx)
+	require.NoError(t, err)
+
+	updated, err := svc.SyncChannelModels(ctx, ch.ID, nil)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"deepseek-v4.1-flash", "shared-model", "other-model"}, updated.SupportedModels)
+
+	deepseekModels, explicit := updated.Credentials.ModelsForAPIKey("key-deepseek")
+	require.True(t, explicit)
+	require.ElementsMatch(t, []string{"deepseek-v4.1-flash", "shared-model"}, deepseekModels)
+	otherModels, explicit := updated.Credentials.ModelsForAPIKey("key-other")
+	require.True(t, explicit)
+	require.ElementsMatch(t, []string{"shared-model", "other-model"}, otherModels)
+	require.NotContains(t, otherModels, "deepseek-v4.1-flash")
+}

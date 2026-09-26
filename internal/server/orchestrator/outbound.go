@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/samber/lo"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
@@ -423,7 +425,10 @@ func isCompletedAggregated(meta llm.ResponseMeta) bool {
 		(meta.Usage != nil && meta.Usage.CompletionTokens > 0)
 }
 
-var errSkipCandidateByCircuitBreaker = errors.New("skip candidate by circuit breaker")
+var (
+	errSkipCandidateByCircuitBreaker = errors.New("skip candidate by circuit breaker")
+	errNoAPIKeySupportsModel         = errors.New("no api key supports model")
+)
 
 // PersistentOutboundTransformer wraps an outbound transformer with shared persistence state.
 type PersistentOutboundTransformer struct {
@@ -536,6 +541,7 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 	)
 
 	llmRequest.Model = entry.ActualModel
+	ctx = contexts.WithChannelRequestModel(ctx, entry.ActualModel)
 
 	outboundFormat := p.wrapped.APIFormat()
 	if candidate.APIFormat != "" {
@@ -574,6 +580,11 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 	httpRequest, err := p.wrapped.TransformRequest(ctx, llmRequest)
 	if err != nil {
 		return nil, err
+	}
+	if (httpRequest.Auth == nil || strings.TrimSpace(httpRequest.Auth.APIKey) == "") &&
+		len(candidate.Channel.Credentials.GetAllAPIKeys()) > 0 &&
+		candidate.Channel.Credentials.HasExplicitAPIKeyModels() {
+		return nil, fmt.Errorf("%w: no api key supports model %s", errNoAPIKeySupportsModel, entry.ActualModel)
 	}
 
 	if httpRequest.APIFormat != "" {
@@ -753,7 +764,7 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 		return false
 	}
 
-	if errors.Is(err, errSkipCandidateByCircuitBreaker) {
+	if errors.Is(err, errSkipCandidateByCircuitBreaker) || errors.Is(err, errNoAPIKeySupportsModel) {
 		return false
 	}
 

@@ -1052,6 +1052,10 @@ const CHANNEL_QUERY_FULL_NODE_SELECTION = `
           credentials {
             apiKey
             apiKeys
+            apiKeyModels {
+              apiKey
+              models
+            }
             gcp {
               region
               projectID
@@ -2184,6 +2188,10 @@ const SYNC_CHANNEL_MODELS_MUTATION = `
       channelID
       supportedModels
       manualModels
+      apiKeyModels {
+        apiKey
+        models
+      }
     }
   }
 `;
@@ -2192,6 +2200,7 @@ const syncChannelModelsPayloadSchema = z.object({
   channelID: z.string(),
   supportedModels: z.array(z.string()),
   manualModels: z.array(z.string()),
+  apiKeyModels: z.array(z.object({ apiKey: z.string(), models: z.array(z.string()) })).nullish(),
 });
 
 export function useSyncChannelModels() {

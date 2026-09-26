@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/samber/lo"
+
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/oauth"
@@ -332,6 +334,12 @@ func (dk DisabledAPIKey) IsExpired() bool {
 	return dk.ExpiresAt != nil && time.Now().After(*dk.ExpiresAt)
 }
 
+// APIKeyModels records the upstream models accepted by one channel API key.
+type APIKeyModels struct {
+	APIKey string   `json:"apiKey"`
+	Models []string `json:"models,omitempty"`
+}
+
 type ChannelCredentials struct {
 	// APIKey is the API key for the channel, for the single key channel, e.g. Codex, Claude code, Antigravity.
 	// It is kept for backward compatibility with existing data, recommend to use OAuth instead.
@@ -343,6 +351,11 @@ type ChannelCredentials struct {
 	// APIKeys is a list of API keys for the channel.
 	// When multiple keys are provided, they will be used in a round-robin fashion.
 	APIKeys []string `json:"apiKeys,omitempty"`
+
+	// APIKeyModels maps each API key to the upstream models it can serve.
+	// A missing or empty list means the key inherits the channel model list,
+	// preserving channels created before per-key models existed.
+	APIKeyModels []APIKeyModels `json:"apiKeyModels,omitempty"`
 
 	// ManagementAPIKey is an optional provider management/console API key used only
 	// for server-side quota checks (e.g. ZenMux). It is never attached to inference
@@ -412,6 +425,168 @@ func (c *ChannelCredentials) GetEnabledCredentialRefs(disabledKeys []DisabledAPI
 // GetEnabledAPIKeys returns API keys that are not disabled.
 func (c *ChannelCredentials) GetEnabledAPIKeys(disabledKeys []DisabledAPIKey) []string {
 	return filterDisabled(c.GetAllAPIKeys(), disabledKeys)
+}
+
+// HasExplicitAPIKeyModels reports whether any key has an explicit model assignment.
+func (c *ChannelCredentials) HasExplicitAPIKeyModels() bool {
+	if c == nil {
+		return false
+	}
+
+	for _, item := range c.APIKeyModels {
+		if len(item.Models) > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// NormalizeAPIKeyModels keeps assignments only for keys present in the channel
+// and reports whether any key has an explicit model list.
+func (c *ChannelCredentials) NormalizeAPIKeyModels() bool {
+	if c == nil {
+		return false
+	}
+
+	keys := c.GetAllAPIKeys()
+	keySet := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		keySet[key] = struct{}{}
+	}
+
+	explicit := false
+	normalized := make([]APIKeyModels, 0, len(c.APIKeyModels))
+	seen := make(map[string]struct{}, len(c.APIKeyModels))
+	for _, item := range c.APIKeyModels {
+		if _, ok := keySet[item.APIKey]; !ok {
+			continue
+		}
+		if _, ok := seen[item.APIKey]; ok {
+			continue
+		}
+
+		seen[item.APIKey] = struct{}{}
+		item.Models = lo.Uniq(item.Models)
+		if len(item.Models) > 0 {
+			explicit = true
+		}
+		normalized = append(normalized, item)
+	}
+	c.APIKeyModels = normalized
+
+	return explicit
+}
+
+// UnionEnabledAPIKeyModels excludes disabled keys before calculating the channel union.
+func (c *ChannelCredentials) UnionEnabledAPIKeyModels(fallback []string, disabledKeys []DisabledAPIKey) []string {
+	if c == nil {
+		return append([]string(nil), fallback...)
+	}
+
+	enabled := c.GetEnabledAPIKeys(disabledKeys)
+	assigned := make(map[string][]string, len(c.APIKeyModels))
+	for _, item := range c.APIKeyModels {
+		if len(item.Models) > 0 {
+			assigned[item.APIKey] = item.Models
+		}
+	}
+
+	union := make([]string, 0)
+	for _, key := range enabled {
+		if models, ok := assigned[key]; ok {
+			union = append(union, models...)
+			continue
+		}
+		union = append(union, fallback...)
+	}
+
+	return lo.Uniq(union)
+}
+
+// UnionAPIKeyModels returns the deduplicated models supported by the channel keys.
+// Keys without an explicit list contribute fallback, which is the channel-level list.
+func (c *ChannelCredentials) UnionAPIKeyModels(fallback []string) []string {
+	if c == nil {
+		return append([]string(nil), fallback...)
+	}
+
+	assigned := make(map[string][]string, len(c.APIKeyModels))
+	for _, item := range c.APIKeyModels {
+		if len(item.Models) > 0 {
+			assigned[item.APIKey] = item.Models
+		}
+	}
+
+	union := make([]string, 0)
+	for _, key := range c.GetAllAPIKeys() {
+		if models, ok := assigned[key]; ok {
+			union = append(union, models...)
+			continue
+		}
+		union = append(union, fallback...)
+	}
+
+	return lo.Uniq(union)
+}
+
+// ApplyFetchedAPIKeyModels records a successful per-key model fetch.
+// Keys absent from fetched keep their previous assignment.
+func (c *ChannelCredentials) ApplyFetchedAPIKeyModels(fetched map[string][]string, disabledKeys []DisabledAPIKey) {
+	if c == nil || len(fetched) == 0 {
+		return
+	}
+
+	disabled := make(map[string]struct{}, len(disabledKeys))
+	for _, item := range disabledKeys {
+		if item.Key != "" && !item.IsExpired() {
+			disabled[item.Key] = struct{}{}
+		}
+	}
+
+	assigned := make(map[string][]string, len(c.APIKeyModels)+len(fetched))
+	for _, item := range c.APIKeyModels {
+		if len(item.Models) > 0 {
+			assigned[item.APIKey] = append([]string(nil), item.Models...)
+		}
+	}
+	for key, models := range fetched {
+		if _, ok := disabled[key]; ok {
+			continue
+		}
+		assigned[key] = lo.Uniq(models)
+	}
+
+	normalized := make([]APIKeyModels, 0, len(assigned))
+	for _, key := range c.GetAllAPIKeys() {
+		models, ok := assigned[key]
+		if !ok {
+			continue
+		}
+		normalized = append(normalized, APIKeyModels{APIKey: key, Models: models})
+	}
+	c.APIKeyModels = normalized
+}
+
+// ModelsForAPIKey returns the models explicitly assigned to one API key.
+// The second result is false when the key inherits the channel model list.
+func (c *ChannelCredentials) ModelsForAPIKey(apiKey string) ([]string, bool) {
+	if c == nil || apiKey == "" {
+		return nil, false
+	}
+
+	for _, item := range c.APIKeyModels {
+		if item.APIKey != apiKey {
+			continue
+		}
+		if len(item.Models) == 0 {
+			return nil, false
+		}
+
+		return append([]string(nil), item.Models...), true
+	}
+
+	return nil, false
 }
 
 // filterDisabled drops every candidate that carries an active disable record.
