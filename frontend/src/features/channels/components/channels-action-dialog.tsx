@@ -91,7 +91,7 @@ function normalizeAPIKeyModels<T extends { apiKeys?: string[] | null; apiKeyMode
     ...credentials,
     apiKeyModels: credentials.apiKeyModels.flatMap((item) => {
       const models = item.models.filter((model) => !removedModels.has(model));
-      if (!keys.has(item.apiKey) || models.length === 0 || sameModelSet(models, supportedModels)) return [];
+      if (!keys.has(item.apiKey) || models.length === 0) return [];
       return [{ ...item, models }];
     }),
   };
@@ -854,14 +854,10 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     (apiKey: string, models: string[]) => {
       const current = form.getValues('credentials.apiKeyModels') || [];
       const next = current.filter((item) => item.apiKey !== apiKey);
-      const channelModels = supportedModels;
-      const inheritsAllModels = sameModelSet(models, channelModels);
-      if (!inheritsAllModels) {
-        next.push({ apiKey, models });
-      }
+      next.push({ apiKey, models });
       form.setValue('credentials.apiKeyModels', next, { shouldDirty: true });
     },
-    [form, supportedModels]
+    [form]
   );
 
   useEffect(() => {
@@ -3511,25 +3507,46 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                 )}
                               </div>
                               </div>
-                              <div className='flex flex-wrap gap-1 pl-6'>
-                                {supportedModels.map((model) => {
-                                  const selected = assignedModels.includes(model);
-                                  return (
-                                    <Badge
-                                      key={model}
-                                      variant={selected ? 'default' : 'secondary'}
-                                      className='cursor-pointer text-[10px]'
-                                      onClick={() =>
-                                        updateAPIKeyModels(
-                                          key,
-                                          selected ? assignedModels.filter((item) => item !== model) : [...assignedModels, model]
-                                        )
-                                      }
-                                    >
-                                      {model}
-                                    </Badge>
-                                  );
-                                })}
+                              <div className='flex flex-wrap items-center gap-1 pl-6'>
+                                {assignedModels.map((model) => (
+                                  <Badge
+                                    key={model}
+                                    variant='default'
+                                    className='cursor-pointer text-[10px]'
+                                    onClick={() => updateAPIKeyModels(key, assignedModels.filter((item) => item !== model))}
+                                  >
+                                    {model}
+                                    <X className='ml-1 h-3 w-3' />
+                                  </Badge>
+                                ))}
+                                {supportedModels.some((model) => !assignedModels.includes(model)) && (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button type='button' variant='outline' size='sm' className='h-5 px-2 text-[10px]'>
+                                        <Plus className='mr-1 h-3 w-3' />
+                                        {t('channels.dialogs.fields.apiKey.modelsPlaceholder')}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className='w-64 p-2' align='start'>
+                                      <div className='flex max-h-48 flex-col gap-1 overflow-auto'>
+                                        {supportedModels
+                                          .filter((model) => !assignedModels.includes(model))
+                                          .map((model) => (
+                                            <Button
+                                              key={model}
+                                              type='button'
+                                              variant='ghost'
+                                              size='sm'
+                                              className='h-7 justify-start px-2 text-xs'
+                                              onClick={() => updateAPIKeyModels(key, [...assignedModels, model])}
+                                            >
+                                              {model}
+                                            </Button>
+                                          ))}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                )}
                               </div>
                             </div>
                           );
