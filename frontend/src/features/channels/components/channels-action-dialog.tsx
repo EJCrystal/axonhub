@@ -91,7 +91,7 @@ function normalizeAPIKeyModels<T extends { apiKeys?: string[] | null; apiKeyMode
     ...credentials,
     apiKeyModels: credentials.apiKeyModels.flatMap((item) => {
       const models = item.models.filter((model) => !removedModels.has(model));
-      if (!keys.has(item.apiKey) || models.length === 0) return [];
+      if (!keys.has(item.apiKey)) return [];
       return [{ ...item, models }];
     }),
   };
@@ -106,7 +106,7 @@ function unionAPIKeyModels(
   if (assignments.length === 0) return supportedModels;
   const assigned = new Map(assignments.map((item) => [item.apiKey, item.models]));
   const keys = (credentials?.apiKeys || []).filter((key) => !disabledKeys.has(key));
-  return [...new Set(keys.flatMap((key) => assigned.get(key) || supportedModels))];
+  return [...new Set(keys.flatMap((key) => assigned.get(key) ?? supportedModels))];
 }
 
 interface Props {
@@ -1682,7 +1682,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
       }
 
       const models = [...new Set([...fetchedByKey.values()].flat())];
-      if (keys.length > 1) {
+      if (keys.length > 0) {
         const currentAssignments = form.getValues('credentials.apiKeyModels') || [];
         const nextAssignments = currentAssignments.filter((item) => !fetchedByKey.has(item.apiKey));
         fetchedByKey.forEach((keyModels, key) => {
@@ -1692,6 +1692,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
         form.setValue('credentials.apiKeyModels', nextAssignments, { shouldDirty: true });
       }
       if (models.length) {
+        setSupportedModels(models);
         setFetchedModels(models);
         setUseFetchedModels(true);
         setShowFetchedModelsPanel(true);
@@ -3355,7 +3356,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                           const masked = key.length > 8 ? `${key.slice(0, 4)}****${key.slice(-4)}` : `****${key.slice(-4)}`;
 
                           const assignedModels =
-                            apiKeyModels.find((item) => item.apiKey === key)?.models ?? supportedModels;
+                            apiKeyModels.find((item) => item.apiKey === key)?.models || [];
 
                           return (
                             <div key={key} className='hover:bg-accent flex flex-col gap-2 rounded-md p-2 text-sm'>
