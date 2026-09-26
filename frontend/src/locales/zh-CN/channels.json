@@ -378,6 +378,7 @@
   "channels.dialogs.fields.managementApiKey.hint": "用于配额查询的 Management API Key，在 ZenMux 控制台创建",
   "channels.dialogs.fields.apiKey.panelTitle": "API Keys ({{count}})",
   "channels.dialogs.fields.apiKey.panelDescription": "在这里删除密钥会同步回编辑框；需要点击保存后才会生效。",
+  "channels.dialogs.fields.apiKey.noModels": "尚未关联模型",
   "channels.dialogs.fields.apiKey.modelsPlaceholder": "选择此密钥支持的模型",
   "channels.dialogs.fields.apiKey.searchPlaceholder": "搜索密钥...",
   "channels.dialogs.fields.apiKey.disabled": "已禁用",
