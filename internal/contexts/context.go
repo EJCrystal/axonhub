@@ -123,6 +123,29 @@ func WithChannelAPIKey(ctx context.Context, apiKey string) context.Context {
 	return withContainer(ctx, container)
 }
 
+// WithChannelRequestModel stores the upstream model selected for the current channel attempt.
+func WithChannelRequestModel(ctx context.Context, model string) context.Context {
+	container := getContainer(ctx)
+	container.mu.Lock()
+	container.ChannelRequestModel = &model
+	container.mu.Unlock()
+
+	return withContainer(ctx, container)
+}
+
+// GetChannelRequestModel retrieves the upstream model selected for the current channel attempt.
+func GetChannelRequestModel(ctx context.Context) (string, bool) {
+	container := getContainer(ctx)
+	container.mu.RLock()
+	defer container.mu.RUnlock()
+
+	if container.ChannelRequestModel != nil {
+		return *container.ChannelRequestModel, true
+	}
+
+	return "", false
+}
+
 // GetChannelAPIKey retrieves the channel API key from the context.
 func GetChannelAPIKey(ctx context.Context) (string, bool) {
 	container := getContainer(ctx)

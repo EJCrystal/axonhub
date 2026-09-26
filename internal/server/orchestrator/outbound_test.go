@@ -745,6 +745,64 @@ func TestPersistentOutboundTransformer_TransformRequest_ResetsStreamCompletedFor
 	require.Equal(t, streamTerminalNone, processor.state.OutboundStreamTerminal)
 }
 
+func TestPersistentOutboundTransformer_TransformRequest_SwitchesWhenNoAPIKeySupportsModel(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer client.Close()
+	channelSvc := biz.NewChannelServiceForTest(client)
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	unsupportedEntity := client.Channel.Create().
+		SetType(entchannel.TypeOpenai).
+		SetName("unsupported-key").
+		SetBaseURL("https://api.example.com/v1").
+		SetCredentials(objects.ChannelCredentials{
+			APIKeys: []string{"key-a"},
+			APIKeyModels: []objects.APIKeyModels{
+				{APIKey: "key-a", Models: []string{"other-model"}},
+			},
+		}).
+		SetSupportedModels([]string{"gpt-4"}).
+		SetDefaultTestModel("gpt-4").
+		SaveX(ctx)
+	supportedEntity := client.Channel.Create().
+		SetType(entchannel.TypeOpenai).
+		SetName("supported-key").
+		SetBaseURL("https://api.example.com/v1").
+		SetCredentials(objects.ChannelCredentials{
+			APIKeys: []string{"key-b"},
+			APIKeyModels: []objects.APIKeyModels{
+				{APIKey: "key-b", Models: []string{"gpt-4"}},
+			},
+		}).
+		SetSupportedModels([]string{"gpt-4"}).
+		SetDefaultTestModel("gpt-4").
+		SaveX(ctx)
+	unsupported, err := channelSvc.TestBuildChannel(unsupportedEntity)
+	require.NoError(t, err)
+	supported, err := channelSvc.TestBuildChannel(supportedEntity)
+	require.NoError(t, err)
+	processor := &PersistentOutboundTransformer{
+		wrapped: unsupported.Outbound,
+		state: &PersistenceState{
+			ChannelModelsCandidates: []*ChannelModelsCandidate{
+				{Channel: unsupported, Models: []biz.ChannelModelEntry{{RequestModel: "gpt-4", ActualModel: "gpt-4"}}},
+				{Channel: supported, Models: []biz.ChannelModelEntry{{RequestModel: "gpt-4", ActualModel: "gpt-4"}}},
+			},
+		},
+	}
+
+	text := "Hello"
+	request := &llm.Request{Model: "gpt-4", Messages: []llm.Message{{Role: "user", Content: llm.MessageContent{Content: &text}}}}
+	_, err = processor.TransformRequest(context.Background(), request)
+	require.ErrorIs(t, err, errNoAPIKeySupportsModel)
+	require.False(t, processor.CanRetry(err))
+	require.True(t, processor.HasMoreChannels())
+
+	require.NoError(t, processor.NextChannel(context.Background()))
+	httpRequest, err := processor.TransformRequest(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, httpRequest)
+}
+
 func TestPersistentOutboundTransformer_CanRetry(t *testing.T) {
 	channel := &biz.Channel{
 		Channel: &ent.Channel{

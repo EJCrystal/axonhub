@@ -142,7 +142,12 @@ func (svc *ChannelService) syncChannelModelsForChannel(ctx context.Context, ch *
 		}
 		manualCount = len(manualModels)
 
-		// Merge fetched models with manual models, removing duplicates
+		// Explicit per-key lists are user-managed. Channel sync only supplies the
+		// fallback for keys that still inherit the channel model list.
+		if current.Credentials.HasExplicitAPIKeyModels() {
+			fetchedModelIDs = current.Credentials.UnionEnabledAPIKeyModels(fetchedModelIDs, current.DisabledAPIKeys)
+		}
+
 		mergedModels := lo.Uniq(append(manualModels, fetchedModelIDs...))
 		totalCount = len(mergedModels)
 

@@ -74,6 +74,41 @@ import { ProxyType } from './channels-proxy-dialog';
 import { CopilotDeviceFlow } from './copilot-device-flow';
 import { ManualModelBadge } from './manual-model-badge';
 
+function sameModelSet(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false;
+  const rightSet = new Set(right);
+  return left.every((model) => rightSet.has(model));
+}
+
+function normalizeAPIKeyModels<T extends { apiKeys?: string[] | null; apiKeyModels?: { apiKey: string; models: string[] }[] | null }>(
+  credentials: T | undefined,
+  supportedModels: string[],
+  removedModels: ReadonlySet<string>
+): T | undefined {
+  if (!credentials?.apiKeyModels?.length) return credentials;
+  const keys = new Set((credentials.apiKeys || []).map((key) => key.trim()).filter(Boolean));
+  return {
+    ...credentials,
+    apiKeyModels: credentials.apiKeyModels.flatMap((item) => {
+      const models = item.models.filter((model) => !removedModels.has(model));
+      if (!keys.has(item.apiKey) || models.length === 0) return [];
+      return [{ ...item, models }];
+    }),
+  };
+}
+
+function unionAPIKeyModels(
+  credentials: { apiKeys?: string[] | null; apiKeyModels?: { apiKey: string; models: string[] }[] | null } | undefined,
+  supportedModels: string[],
+  disabledKeys: ReadonlySet<string> = new Set()
+): string[] {
+  const assignments = credentials?.apiKeyModels || [];
+  if (assignments.length === 0) return supportedModels;
+  const assigned = new Map(assignments.map((item) => [item.apiKey, item.models]));
+  const keys = (credentials?.apiKeys || []).filter((key) => !disabledKeys.has(key));
+  return [...new Set(keys.flatMap((key) => assigned.get(key) || supportedModels))];
+}
+
 interface Props {
   currentRow?: Channel;
   duplicateFromRow?: Channel;
@@ -737,6 +772,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
               // OAuth 类型的凭据存储在 apiKey 字段，不放入 apiKeys
               apiKey: currentRow.credentials?.apiKey || undefined,
               apiKeys: currentRow.credentials?.apiKeys || [],
+              apiKeyModels: currentRow.credentials?.apiKeyModels || [],
               managementApiKey: currentRow.credentials?.managementApiKey || undefined,
               gcp: {
                 region: currentRow.credentials?.gcp?.region || '',
@@ -763,6 +799,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                 // OAuth 类型的凭据存储在 apiKey 字段，不放入 apiKeys
                 apiKey: duplicateFromRow.credentials?.apiKey || undefined,
                 apiKeys: duplicateFromRow.credentials?.apiKeys || [],
+                apiKeyModels: duplicateFromRow.credentials?.apiKeyModels || [],
                 managementApiKey: duplicateFromRow.credentials?.managementApiKey || undefined,
                 gcp: {
                   region: duplicateFromRow.credentials?.gcp?.region || '',
@@ -794,6 +831,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   });
 
   const apiKeys = form.watch('credentials.apiKeys');
+  const apiKeyModels = form.watch('credentials.apiKeyModels') || [];
   const apiKeysCount = useMemo(() => (apiKeys || []).filter((k) => k.trim().length > 0).length, [apiKeys]);
   const isSubmitting = createChannel.isPending || duplicateChannel.isPending || updateChannelSettings.isPending;
 
@@ -811,6 +849,16 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
 
   const disableAPIKey = useDisableChannelAPIKey();
   const enableAPIKey = useEnableChannelAPIKey();
+
+  const updateAPIKeyModels = useCallback(
+    (apiKey: string, models: string[]) => {
+      const current = form.getValues('credentials.apiKeyModels') || [];
+      const next = current.filter((item) => item.apiKey !== apiKey);
+      next.push({ apiKey, models });
+      form.setValue('credentials.apiKeyModels', next, { shouldDirty: true });
+    },
+    [form]
+  );
 
   useEffect(() => {
     if (!open || !isDuplicate || !duplicateFromRow) return;
@@ -1320,11 +1368,18 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
             type: derivedChannelType,
           };
 
+      const originalModels = isEdit ? initialRow?.supportedModels || [] : [];
+      const removedModels = new Set(originalModels.filter((model) => !supportedModels.includes(model)));
+      const normalizedCredentials = normalizeAPIKeyModels(
+        valuesForSubmit.credentials,
+        supportedModels,
+        removedModels
+      );
       const dataWithModels = {
         ...valuesForSubmit,
-        supportedModels,
+        supportedModels: unionAPIKeyModels(normalizedCredentials, supportedModels, disabledKeySet),
         manualModels,
-        credentials: valuesForSubmit.credentials,
+        credentials: normalizedCredentials,
       };
       // The Command Code / Ollama quota cookie is a browser-session credential
       // that only belongs on its own channel type. Never let a
@@ -1793,6 +1848,11 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
         return;
       }
       form.setValue('credentials.apiKeys', validNextKeys, { shouldDirty: true, shouldTouch: true });
+      form.setValue(
+        'credentials.apiKeyModels',
+        (form.getValues('credentials.apiKeyModels') || []).filter((item) => !keysToRemoveSet.has(item.apiKey)),
+        { shouldDirty: true }
+      );
       setSelectedKeysToRemove(new Set());
       setConfirmRemoveSelectedOpen(false);
       setConfirmRemoveKey(null);
@@ -3280,8 +3340,12 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                           const isSavedKey = savedAPIKeySet.has(key);
                           const masked = key.length > 8 ? `${key.slice(0, 4)}****${key.slice(-4)}` : `****${key.slice(-4)}`;
 
+                          const assignedModels =
+                            apiKeyModels.find((item) => item.apiKey === key)?.models ?? supportedModels;
+
                           return (
-                            <div key={key} className='hover:bg-accent flex items-center justify-between gap-2 rounded-md p-2 text-sm'>
+                            <div key={key} className='hover:bg-accent flex flex-col gap-2 rounded-md p-2 text-sm'>
+                              <div className='flex min-w-0 items-center justify-between gap-2'>
                               <div className='flex min-w-0 items-center gap-2'>
                                 <Checkbox
                                   checked={isSelected}
@@ -3437,6 +3501,48 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                             {t('common.buttons.confirm')}
                                           </Button>
                                         </div>
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                )}
+                              </div>
+                              </div>
+                              <div className='flex flex-wrap items-center gap-1 pl-6'>
+                                {assignedModels.map((model) => (
+                                  <Badge
+                                    key={model}
+                                    variant='default'
+                                    className='cursor-pointer text-[10px]'
+                                    onClick={() => updateAPIKeyModels(key, assignedModels.filter((item) => item !== model))}
+                                  >
+                                    {model}
+                                    <X className='ml-1 h-3 w-3' />
+                                  </Badge>
+                                ))}
+                                {supportedModels.some((model) => !assignedModels.includes(model)) && (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button type='button' variant='outline' size='sm' className='h-5 px-2 text-[10px]'>
+                                        <Plus className='mr-1 h-3 w-3' />
+                                        {t('channels.dialogs.fields.apiKey.modelsPlaceholder')}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className='w-64 p-2' align='start'>
+                                      <div className='flex max-h-48 flex-col gap-1 overflow-auto'>
+                                        {supportedModels
+                                          .filter((model) => !assignedModels.includes(model))
+                                          .map((model) => (
+                                            <Button
+                                              key={model}
+                                              type='button'
+                                              variant='ghost'
+                                              size='sm'
+                                              className='h-7 justify-start px-2 text-xs'
+                                              onClick={() => updateAPIKeyModels(key, [...assignedModels, model])}
+                                            >
+                                              {model}
+                                            </Button>
+                                          ))}
                                       </div>
                                     </PopoverContent>
                                   </Popover>
