@@ -530,6 +530,44 @@ func (c *ChannelCredentials) UnionAPIKeyModels(fallback []string) []string {
 	return lo.Uniq(union)
 }
 
+// ApplyFetchedAPIKeyModels records a successful per-key model fetch.
+// Keys absent from fetched keep their previous assignment.
+func (c *ChannelCredentials) ApplyFetchedAPIKeyModels(fetched map[string][]string, disabledKeys []DisabledAPIKey) {
+	if c == nil || len(fetched) == 0 {
+		return
+	}
+
+	disabled := make(map[string]struct{}, len(disabledKeys))
+	for _, item := range disabledKeys {
+		if item.Key != "" && !item.IsExpired() {
+			disabled[item.Key] = struct{}{}
+		}
+	}
+
+	assigned := make(map[string][]string, len(c.APIKeyModels)+len(fetched))
+	for _, item := range c.APIKeyModels {
+		if len(item.Models) > 0 {
+			assigned[item.APIKey] = append([]string(nil), item.Models...)
+		}
+	}
+	for key, models := range fetched {
+		if _, ok := disabled[key]; ok {
+			continue
+		}
+		assigned[key] = lo.Uniq(models)
+	}
+
+	normalized := make([]APIKeyModels, 0, len(assigned))
+	for _, key := range c.GetAllAPIKeys() {
+		models, ok := assigned[key]
+		if !ok {
+			continue
+		}
+		normalized = append(normalized, APIKeyModels{APIKey: key, Models: models})
+	}
+	c.APIKeyModels = normalized
+}
+
 // ModelsForAPIKey returns the models explicitly assigned to one API key.
 // The second result is false when the key inherits the channel model list.
 func (c *ChannelCredentials) ModelsForAPIKey(apiKey string) ([]string, bool) {

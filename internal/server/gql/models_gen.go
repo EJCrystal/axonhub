@@ -467,9 +467,10 @@ type SignInPayload struct {
 }
 
 type SyncChannelModelsPayload struct {
-	ChannelID       objects.GUID `json:"channelID"`
-	SupportedModels []string     `json:"supportedModels"`
-	ManualModels    []string     `json:"manualModels"`
+	ChannelID       objects.GUID           `json:"channelID"`
+	SupportedModels []string               `json:"supportedModels"`
+	ManualModels    []string               `json:"manualModels"`
+	APIKeyModels    []objects.APIKeyModels `json:"apiKeyModels,omitempty"`
 }
 
 type SystemModelSettingOnboarding struct {

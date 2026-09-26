@@ -9,6 +9,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xregexp"
 )
 
@@ -70,27 +71,12 @@ func (svc *ChannelService) syncChannelModels(ctx context.Context) {
 func (svc *ChannelService) syncChannelModelsForChannel(ctx context.Context, ch *ent.Channel, patternOverride *string) (*ent.Channel, bool, error) {
 	modelFetcher := NewModelFetcher(svc.httpClient, svc)
 
-	result, err := modelFetcher.FetchModels(ctx, FetchModelsInput{
-		ChannelType: ch.Type.String(),
-		BaseURL:     ch.BaseURL,
-		ChannelID:   lo.ToPtr(ch.ID),
-	})
+	fetchedByKey, err := fetchModelsByAPIKey(ctx, modelFetcher, ch)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to fetch models: %w", err)
+		return nil, false, err
 	}
 
-	// Check if there was an error in the result
-	if result.Error != nil {
-		return nil, false, fmt.Errorf("model fetch returned error: %s", *result.Error)
-	}
-	if result.Fallback {
-		return nil, false, fmt.Errorf("model fetch returned fallback models")
-	}
-
-	// Extract model IDs from fetched models
-	fetchedModelIDs := lo.Map(result.Models, func(m ModelIdentify, _ int) string {
-		return m.ID
-	})
+	fetchedModelIDs := unionFetchedAPIKeyModels(ch.Credentials.GetAllAPIKeys(), fetchedByKey)
 
 	pattern := ch.AutoSyncModelPattern
 	if patternOverride != nil {
@@ -107,6 +93,9 @@ func (svc *ChannelService) syncChannelModelsForChannel(ctx context.Context, ch *
 		} else {
 			before := len(fetchedModelIDs)
 			fetchedModelIDs = xregexp.Filter(fetchedModelIDs, pattern)
+			for key, models := range fetchedByKey {
+				fetchedByKey[key] = xregexp.Filter(models, pattern)
+			}
 			log.Info(ctx, "filtered models by pattern",
 				log.Int("channel_id", ch.ID),
 				log.String("pattern", pattern),
@@ -142,11 +131,15 @@ func (svc *ChannelService) syncChannelModelsForChannel(ctx context.Context, ch *
 		}
 		manualCount = len(manualModels)
 
-		// Explicit per-key lists are user-managed. Channel sync only supplies the
-		// fallback for keys that still inherit the channel model list.
-		if current.Credentials.HasExplicitAPIKeyModels() {
-			fetchedModelIDs = current.Credentials.UnionEnabledAPIKeyModels(fetchedModelIDs, current.DisabledAPIKeys)
+		// A key that was fetched keeps only the models that key returned. Keys that
+		// could not be fetched keep their previous assignment instead of inheriting
+		// another key's models.
+		previousAPIKeyModels := append([]objects.APIKeyModels(nil), current.Credentials.APIKeyModels...)
+		if len(fetchedByKey) > 0 {
+			current.Credentials.ApplyFetchedAPIKeyModels(fetchedByKey, current.DisabledAPIKeys)
+			fetchedModelIDs = current.Credentials.UnionEnabledAPIKeyModels(current.SupportedModels, current.DisabledAPIKeys)
 		}
+		credentialsChanged := !sameAPIKeyModelAssignments(previousAPIKeyModels, current.Credentials.APIKeyModels)
 
 		mergedModels := lo.Uniq(append(manualModels, fetchedModelIDs...))
 		totalCount = len(mergedModels)
@@ -164,9 +157,10 @@ func (svc *ChannelService) syncChannelModelsForChannel(ctx context.Context, ch *
 		modelsChanged = len(addedModels) > 0 || len(removedModels) > 0
 		modelProtocolsChanged := modelsChanged && RemoveRemovedModelProtocolOverrides(current.Settings, mergedModels)
 
-		if modelsChanged {
+		if modelsChanged || credentialsChanged {
 			update := db.Channel.
 				UpdateOneID(ch.ID).
+				SetCredentials(current.Credentials).
 				SetSupportedModels(mergedModels)
 			if modelProtocolsChanged {
 				update.SetSettings(current.Settings)
@@ -221,4 +215,111 @@ func (svc *ChannelService) SyncChannelModels(ctx context.Context, channelID int,
 	}
 
 	return updated, nil
+}
+
+func fetchModelsByAPIKey(ctx context.Context, modelFetcher *ModelFetcher, ch *ent.Channel) (map[string][]string, error) {
+	keys := ch.Credentials.GetEnabledAPIKeys(ch.DisabledAPIKeys)
+	if len(keys) == 0 {
+		keys = []string{""}
+	}
+
+	fetched := make(map[string][]string, len(keys))
+	var firstErr error
+	for _, key := range keys {
+		input := FetchModelsInput{
+			ChannelType: ch.Type.String(),
+			BaseURL:     ch.BaseURL,
+			ChannelID:   lo.ToPtr(ch.ID),
+		}
+		if key != "" {
+			input.APIKey = lo.ToPtr(key)
+		}
+
+		result, err := modelFetcher.FetchModels(ctx, input)
+		if err != nil {
+			err = fmt.Errorf("failed to fetch models: %w", err)
+		} else if result.Error != nil {
+			err = fmt.Errorf("model fetch returned error: %s", *result.Error)
+		} else if result.Fallback {
+			err = fmt.Errorf("model fetch returned fallback models")
+		}
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			log.Warn(ctx, "failed to fetch models for api key",
+				log.Int("channel_id", ch.ID),
+				log.String("key_prefix", safeAPIKeyPrefix(key)),
+				log.Cause(err))
+			continue
+		}
+
+		fetched[key] = lo.Map(result.Models, func(m ModelIdentify, _ int) string { return m.ID })
+	}
+	if len(fetched) == 0 && firstErr != nil {
+		return nil, firstErr
+	}
+
+	return fetched, nil
+}
+
+func sameAPIKeyModelAssignments(left, right []objects.APIKeyModels) bool {
+	leftMap := apiKeyModelAssignmentMap(left)
+	rightMap := apiKeyModelAssignmentMap(right)
+	if len(leftMap) != len(rightMap) {
+		return false
+	}
+	for key, models := range leftMap {
+		if !sameStringSet(models, rightMap[key]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func apiKeyModelAssignmentMap(items []objects.APIKeyModels) map[string][]string {
+	assigned := make(map[string][]string, len(items))
+	for _, item := range items {
+		if len(item.Models) == 0 {
+			continue
+		}
+		assigned[item.APIKey] = item.Models
+	}
+
+	return assigned
+}
+
+func sameStringSet(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	seen := make(map[string]int, len(left))
+	for _, item := range left {
+		seen[item]++
+	}
+	for _, item := range right {
+		seen[item]--
+		if seen[item] < 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
+func unionFetchedAPIKeyModels(keys []string, fetched map[string][]string) []string {
+	if len(fetched) == 0 {
+		return nil
+	}
+	if len(keys) == 0 {
+		return append([]string(nil), fetched[""]...)
+	}
+
+	union := make([]string, 0)
+	for _, key := range keys {
+		union = append(union, fetched[key]...)
+	}
+
+	return lo.Uniq(union)
 }

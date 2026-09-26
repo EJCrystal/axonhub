@@ -1771,6 +1771,7 @@ type ComplexityRoot struct {
 	}
 
 	SyncChannelModelsPayload struct {
+		APIKeyModels    func(childComplexity int) int
 		ChannelID       func(childComplexity int) int
 		ManualModels    func(childComplexity int) int
 		SupportedModels func(childComplexity int) int
@@ -10212,6 +10213,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SyncChannelModelsPayload.SupportedModels(childComplexity), true
+
+	case "SyncChannelModelsPayload.apiKeyModels":
+		if e.complexity.SyncChannelModelsPayload.APIKeyModels == nil {
+			break
+		}
+
+		return e.complexity.SyncChannelModelsPayload.APIKeyModels(childComplexity), true
 
 	case "System.createdAt":
 		if e.complexity.System.CreatedAt == nil {
@@ -36218,6 +36226,8 @@ func (ec *executionContext) fieldContext_Mutation_syncChannelModels(ctx context.
 				return ec.fieldContext_SyncChannelModelsPayload_supportedModels(ctx, field)
 			case "manualModels":
 				return ec.fieldContext_SyncChannelModelsPayload_manualModels(ctx, field)
+			case "apiKeyModels":
+				return ec.fieldContext_SyncChannelModelsPayload_apiKeyModels(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SyncChannelModelsPayload", field.Name)
 		},
@@ -54932,6 +54942,41 @@ func (ec *executionContext) fieldContext_SyncChannelModelsPayload_manualModels(_
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SyncChannelModelsPayload_apiKeyModels(ctx context.Context, field graphql.CollectedField, obj *SyncChannelModelsPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SyncChannelModelsPayload_apiKeyModels,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKeyModels, nil
+		},
+		nil,
+		ec.marshalOChannelAPIKeyModels2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModelsᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SyncChannelModelsPayload_apiKeyModels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SyncChannelModelsPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "apiKey":
+				return ec.fieldContext_ChannelAPIKeyModels_apiKey(ctx, field)
+			case "models":
+				return ec.fieldContext_ChannelAPIKeyModels_models(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ChannelAPIKeyModels", field.Name)
 		},
 	}
 	return fc, nil
@@ -108320,6 +108365,8 @@ func (ec *executionContext) _SyncChannelModelsPayload(ctx context.Context, sel a
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "apiKeyModels":
+			out.Values[i] = ec._SyncChannelModelsPayload_apiKeyModels(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

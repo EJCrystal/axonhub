@@ -68,6 +68,7 @@ type SyncChannelModelsPayload {
   channelID: ID!
   supportedModels: [String!]!
   manualModels: [String!]!
+  apiKeyModels: [ChannelAPIKeyModels!]
 }
 
 input ReasoningEffortMappingInput {

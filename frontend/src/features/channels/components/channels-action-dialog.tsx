@@ -1647,40 +1647,51 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
       return;
     }
 
+    const keys = [...new Set((apiKeys || []).map((key) => key.trim()).filter((key) => key.length > 0))];
+    // OAuth providers have one credential, not a per-key model list.
+    let oauthKey = '';
+    if (oauthApiKey) {
+      if (oauthApiKey.trimStart().startsWith('{')) {
+        oauthKey = oauthApiKey;
+      } else {
+        oauthKey = parseOauthToken(oauthApiKey || '');
+      }
+    }
+    const fetchKeys = keys.length > 0 ? keys : [oauthKey];
+
     try {
-      // For OAuth-based providers (like Copilot), prefer oauthApiKey first
-      let firstApiKey = '';
-      if (oauthApiKey) {
-        // If it's OAuth JSON, send full JSON so backend detects isOAuthJSON
-        if (oauthApiKey.trimStart().startsWith('{')) {
-          firstApiKey = oauthApiKey;
-        } else {
-          const parsed = parseOauthToken(oauthApiKey || '');
-          if (parsed) {
-            firstApiKey = parsed;
-          }
+      const fetchedByKey = new Map<string, string[]>();
+      const errors: string[] = [];
+      for (const key of fetchKeys) {
+        const result = await fetchModels.mutateAsync({
+          channelType,
+          baseURL,
+          apiKey: key || undefined,
+          channelID: isEdit ? currentRow?.id : undefined,
+        });
+        if (result.error) {
+          errors.push(result.error);
+          continue;
         }
+        fetchedByKey.set(key, result.models.map((model) => model.id));
       }
 
-      // Fall back to apiKeys array if no OAuth token
-      if (!firstApiKey && apiKeys?.length) {
-        firstApiKey = apiKeys.find((key) => key.trim().length > 0)?.trim() || '';
-      }
-
-      const result = await fetchModels.mutateAsync({
-        channelType,
-        baseURL,
-        apiKey: firstApiKey || undefined,
-        channelID: isEdit ? currentRow?.id : undefined,
-      });
-
-      if (result.error) {
-        toast.error(result.error);
+      if (fetchedByKey.size === 0) {
+        if (errors[0]) toast.error(errors[0]);
         return;
       }
 
-      const models = result.models.map((m) => m.id);
-      if (models?.length) {
+      const models = [...new Set([...fetchedByKey.values()].flat())];
+      if (keys.length > 1) {
+        const currentAssignments = form.getValues('credentials.apiKeyModels') || [];
+        const nextAssignments = currentAssignments.filter((item) => !fetchedByKey.has(item.apiKey));
+        fetchedByKey.forEach((keyModels, key) => {
+          if (!key) return;
+          nextAssignments.push({ apiKey: key, models: keyModels });
+        });
+        form.setValue('credentials.apiKeyModels', nextAssignments, { shouldDirty: true });
+      }
+      if (models.length) {
         setFetchedModels(models);
         setUseFetchedModels(true);
         setShowFetchedModelsPanel(true);
@@ -1714,6 +1725,9 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     // leaves manualModels stale and makes the header count drift from the badges.
     setSupportedModels(result.supportedModels || []);
     setManualModels(result.manualModels || []);
+    if (result.apiKeyModels) {
+      form.setValue('credentials.apiKeyModels', result.apiKeyModels, { shouldDirty: false });
+    }
     return result.supportedModels || [];
   }, [currentRow, form, patternError, syncChannelModels]);
 
