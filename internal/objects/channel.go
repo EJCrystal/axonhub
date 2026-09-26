@@ -337,7 +337,7 @@ func (dk DisabledAPIKey) IsExpired() bool {
 // APIKeyModels records the upstream models accepted by one channel API key.
 type APIKeyModels struct {
 	APIKey string   `json:"apiKey"`
-	Models []string `json:"models,omitempty"`
+	Models []string `json:"models"`
 }
 
 type ChannelCredentials struct {
@@ -486,16 +486,16 @@ func (c *ChannelCredentials) UnionEnabledAPIKeyModels(fallback []string, disable
 
 	enabled := c.GetEnabledAPIKeys(disabledKeys)
 	assigned := make(map[string][]string, len(c.APIKeyModels))
+	present := make(map[string]struct{}, len(c.APIKeyModels))
 	for _, item := range c.APIKeyModels {
-		if len(item.Models) > 0 {
-			assigned[item.APIKey] = item.Models
-		}
+		present[item.APIKey] = struct{}{}
+		assigned[item.APIKey] = item.Models
 	}
 
 	union := make([]string, 0)
 	for _, key := range enabled {
-		if models, ok := assigned[key]; ok {
-			union = append(union, models...)
+		if _, ok := present[key]; ok {
+			union = append(union, assigned[key]...)
 			continue
 		}
 		union = append(union, fallback...)
@@ -512,16 +512,16 @@ func (c *ChannelCredentials) UnionAPIKeyModels(fallback []string) []string {
 	}
 
 	assigned := make(map[string][]string, len(c.APIKeyModels))
+	present := make(map[string]struct{}, len(c.APIKeyModels))
 	for _, item := range c.APIKeyModels {
-		if len(item.Models) > 0 {
-			assigned[item.APIKey] = item.Models
-		}
+		present[item.APIKey] = struct{}{}
+		assigned[item.APIKey] = item.Models
 	}
 
 	union := make([]string, 0)
 	for _, key := range c.GetAllAPIKeys() {
-		if models, ok := assigned[key]; ok {
-			union = append(union, models...)
+		if _, ok := present[key]; ok {
+			union = append(union, assigned[key]...)
 			continue
 		}
 		union = append(union, fallback...)
@@ -546,9 +546,7 @@ func (c *ChannelCredentials) ApplyFetchedAPIKeyModels(fetched map[string][]strin
 
 	assigned := make(map[string][]string, len(c.APIKeyModels)+len(fetched))
 	for _, item := range c.APIKeyModels {
-		if len(item.Models) > 0 {
-			assigned[item.APIKey] = append([]string(nil), item.Models...)
-		}
+		assigned[item.APIKey] = append([]string(nil), item.Models...)
 	}
 	for key, models := range fetched {
 		if _, ok := disabled[key]; ok {
@@ -578,9 +576,6 @@ func (c *ChannelCredentials) ModelsForAPIKey(apiKey string) ([]string, bool) {
 	for _, item := range c.APIKeyModels {
 		if item.APIKey != apiKey {
 			continue
-		}
-		if len(item.Models) == 0 {
-			return nil, false
 		}
 
 		return append([]string(nil), item.Models...), true
