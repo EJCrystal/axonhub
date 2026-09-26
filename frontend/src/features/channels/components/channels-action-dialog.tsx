@@ -397,6 +397,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   const [newModel, setNewModel] = useState('');
   const [selectedDefaultModels, setSelectedDefaultModels] = useState<string[]>([]);
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+  const [fetchedModelsByKey, setFetchedModelsByKey] = useState<Map<string, string[]>>(new Map());
   const [useFetchedModels, setUseFetchedModels] = useState(false);
   const providerRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const providerListRef = useRef<HTMLDivElement | null>(null);
@@ -1682,17 +1683,24 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
       }
 
       const models = [...new Set([...fetchedByKey.values()].flat())];
+      const currentSupportedModels = new Set(form.getValues('supportedModels') || []);
       if (keys.length > 0) {
         const currentAssignments = form.getValues('credentials.apiKeyModels') || [];
         const nextAssignments = currentAssignments.filter((item) => !fetchedByKey.has(item.apiKey));
         fetchedByKey.forEach((keyModels, key) => {
           if (!key) return;
-          nextAssignments.push({ apiKey: key, models: keyModels });
+          const previous = currentAssignments.find((item) => item.apiKey === key)?.models ?? [...currentSupportedModels];
+          const supported = new Set(keyModels);
+          nextAssignments.push({
+            apiKey: key,
+            models: previous.filter((model) => supported.has(model) && currentSupportedModels.has(model)),
+          });
         });
         form.setValue('credentials.apiKeyModels', nextAssignments, { shouldDirty: true });
       }
+      setFetchedModelsByKey(fetchedByKey);
       if (models.length) {
-        setSupportedModels(models);
+        setFetchedModels(models);
         setFetchedModels(models);
         setUseFetchedModels(true);
         setShowFetchedModelsPanel(true);
@@ -3355,8 +3363,15 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                           const isSavedKey = savedAPIKeySet.has(key);
                           const masked = key.length > 8 ? `${key.slice(0, 4)}****${key.slice(-4)}` : `****${key.slice(-4)}`;
 
-                          const assignedModels =
-                            apiKeyModels.find((item) => item.apiKey === key)?.models || [];
+                          const assignment = apiKeyModels.find((item) => item.apiKey === key);
+                          const fetchedForKey = fetchedModelsByKey.get(key);
+                          const assignedModels = (assignment?.models || []).filter(
+                            (model) =>
+                              supportedModels.includes(model) && (!fetchedForKey || fetchedForKey.includes(model))
+                          );
+                          const availableModels = (fetchedForKey || supportedModels).filter(
+                            (model) => supportedModels.includes(model) && !assignedModels.includes(model)
+                          );
 
                           return (
                             <div key={key} className='hover:bg-accent flex flex-col gap-2 rounded-md p-2 text-sm'>
@@ -3534,7 +3549,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                     <X className='ml-1 h-3 w-3' />
                                   </Badge>
                                 ))}
-                                {supportedModels.some((model) => !assignedModels.includes(model)) && (
+                                {availableModels.length > 0 && (
                                   <Popover>
                                     <PopoverTrigger asChild>
                                       <Button type='button' variant='outline' size='sm' className='h-5 px-2 text-[10px]'>
@@ -3544,9 +3559,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                     </PopoverTrigger>
                                     <PopoverContent className='w-64 p-2' align='start'>
                                       <div className='flex max-h-48 flex-col gap-1 overflow-auto'>
-                                        {supportedModels
-                                          .filter((model) => !assignedModels.includes(model))
-                                          .map((model) => (
+                                        {availableModels.map((model) => (
                                             <Button
                                               key={model}
                                               type='button'
@@ -3561,6 +3574,11 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                       </div>
                                     </PopoverContent>
                                   </Popover>
+                                )}
+                                {assignedModels.length === 0 && (
+                                  <span className='text-muted-foreground text-[10px]'>
+                                    {t('channels.dialogs.fields.apiKey.noModels')}
+                                  </span>
                                 )}
                               </div>
                             </div>
