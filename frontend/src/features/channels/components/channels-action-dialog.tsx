@@ -865,6 +865,27 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   // the latest values, including fields that are not otherwise registered.
   const apiKeyModels = useWatch({ control: form.control, name: 'credentials.apiKeyModels' }) || [];
   const apiKeyFetchedModels = useWatch({ control: form.control, name: 'credentials.apiKeyFetchedModels' }) || [];
+  // Keep a synchronous draft as the source of truth for the picker. These
+  // arrays are not rendered through a FormField, so relying only on RHF's
+  // resolver snapshot can drop a just-clicked assignment during submit.
+  const apiKeyModelsDraftRef = useRef<{ apiKey: string; models: string[] }[]>(apiKeyModels);
+  const apiKeyFetchedModelsDraftRef = useRef<{ apiKey: string; models: string[] }[]>(apiKeyFetchedModels);
+
+  useEffect(() => {
+    apiKeyModelsDraftRef.current = apiKeyModels;
+  }, [apiKeyModels]);
+
+  useEffect(() => {
+    apiKeyFetchedModelsDraftRef.current = apiKeyFetchedModels;
+  }, [apiKeyFetchedModels]);
+
+  useEffect(() => {
+    // Explicitly register both non-visual fields so RHF keeps them in its
+    // submitted value as well as in the synchronous draft above.
+    form.register('credentials.apiKeyModels');
+    form.register('credentials.apiKeyFetchedModels');
+  }, [form]);
+
   const apiKeysCount = useMemo(() => (apiKeys || []).filter((k) => k.trim().length > 0).length, [apiKeys]);
   const isSubmitting = createChannel.isPending || duplicateChannel.isPending || updateChannelSettings.isPending;
 
@@ -886,9 +907,10 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   const updateAPIKeyModels = useCallback(
     (apiKey: string, models: string[]) => {
       const normalizedAPIKey = apiKey.trim();
-      const current = form.getValues('credentials.apiKeyModels') || [];
+      const current = apiKeyModelsDraftRef.current;
       const next = current.filter((item) => item.apiKey.trim() !== normalizedAPIKey);
       next.push({ apiKey: normalizedAPIKey, models: [...new Set(models)] });
+      apiKeyModelsDraftRef.current = next;
       form.setValue('credentials.apiKeyModels', next, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
       if (models.length > 0) {
         setSupportedModels((previous) => [...new Set([...previous, ...models])]);
@@ -1421,13 +1443,15 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
           };
 
       const originalModels = isEdit ? initialRow?.supportedModels || [] : [];
-      const removedModels = new Set(originalModels.filter((model) => !supportedModels.includes(model)));
+      const explicitAPIKeyModels = apiKeyModelsDraftRef.current.flatMap((item) => item.models);
+      const effectiveSupportedModels = [...new Set([...supportedModels, ...explicitAPIKeyModels])];
+      const removedModels = new Set(originalModels.filter((model) => !effectiveSupportedModels.includes(model)));
       // RHF's resolver output can omit changes made through the per-key picker
       // because those nested arrays have no visible FormField. Merge the latest
       // subscribed values back into the payload before normalization so a newly
       // selected model cannot be silently saved as an empty assignment.
-      const latestAPIKeyModels = form.getValues('credentials.apiKeyModels');
-      const latestAPIKeyFetchedModels = form.getValues('credentials.apiKeyFetchedModels');
+      const latestAPIKeyModels = apiKeyModelsDraftRef.current;
+      const latestAPIKeyFetchedModels = apiKeyFetchedModelsDraftRef.current;
       const credentialsForSubmit = valuesForSubmit.credentials
         ? {
             ...valuesForSubmit.credentials,
@@ -1438,7 +1462,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
       const normalizedCredentials = normalizeAPIKeyModels(credentialsForSubmit, removedModels);
       const dataWithModels = {
         ...valuesForSubmit,
-        supportedModels: unionAPIKeyModels(normalizedCredentials, supportedModels, disabledKeySet),
+        supportedModels: unionAPIKeyModels(normalizedCredentials, effectiveSupportedModels, disabledKeySet),
         manualModels,
         credentials: normalizedCredentials,
       };
@@ -1742,9 +1766,9 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
         return;
       }
 
-      const currentFetchedModels = form.getValues('credentials.apiKeyFetchedModels') || [];
+      const currentFetchedModels = apiKeyFetchedModelsDraftRef.current;
       const nextFetchedModels = currentFetchedModels.filter((item) => !fetchedByKey.has(item.apiKey));
-      const currentAssignments = form.getValues('credentials.apiKeyModels') || [];
+      const currentAssignments = apiKeyModelsDraftRef.current;
       const nextAssignments = [...currentAssignments];
       const assignedKeys = new Set(currentAssignments.map((item) => item.apiKey));
       fetchedByKey.forEach((keyModels, key) => {
@@ -1755,6 +1779,8 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
           assignedKeys.add(key);
         }
       });
+      apiKeyFetchedModelsDraftRef.current = nextFetchedModels;
+      apiKeyModelsDraftRef.current = nextAssignments;
       form.setValue('credentials.apiKeyFetchedModels', nextFetchedModels, { shouldDirty: true });
       form.setValue('credentials.apiKeyModels', nextAssignments, { shouldDirty: true });
 
@@ -1794,9 +1820,11 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     setSupportedModels(result.supportedModels || []);
     setManualModels(result.manualModels || []);
     if (result.apiKeyModels) {
+      apiKeyModelsDraftRef.current = result.apiKeyModels;
       form.setValue('credentials.apiKeyModels', result.apiKeyModels, { shouldDirty: false });
     }
     if (result.apiKeyFetchedModels) {
+      apiKeyFetchedModelsDraftRef.current = result.apiKeyFetchedModels;
       form.setValue('credentials.apiKeyFetchedModels', result.apiKeyFetchedModels, { shouldDirty: false });
     }
     return result.supportedModels || [];
@@ -1933,14 +1961,16 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
         return;
       }
       form.setValue('credentials.apiKeys', validNextKeys, { shouldDirty: true, shouldTouch: true });
+      apiKeyModelsDraftRef.current = apiKeyModelsDraftRef.current.filter((item) => !keysToRemoveSet.has(item.apiKey));
       form.setValue(
         'credentials.apiKeyModels',
-        (form.getValues('credentials.apiKeyModels') || []).filter((item) => !keysToRemoveSet.has(item.apiKey)),
+        apiKeyModelsDraftRef.current,
         { shouldDirty: true }
       );
+      apiKeyFetchedModelsDraftRef.current = apiKeyFetchedModelsDraftRef.current.filter((item) => !keysToRemoveSet.has(item.apiKey));
       form.setValue(
         'credentials.apiKeyFetchedModels',
-        (form.getValues('credentials.apiKeyFetchedModels') || []).filter((item) => !keysToRemoveSet.has(item.apiKey)),
+        apiKeyFetchedModelsDraftRef.current,
         { shouldDirty: true }
       );
       setSelectedKeysToRemove(new Set());
@@ -2010,6 +2040,8 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
         onOpenChange={(state) => {
           if (!state) {
             form.reset();
+            apiKeyModelsDraftRef.current = form.getValues('credentials.apiKeyModels') || [];
+            apiKeyFetchedModelsDraftRef.current = form.getValues('credentials.apiKeyFetchedModels') || [];
             setSupportedModels(initialRow?.supportedModels || []);
             setManualModels(initialRow?.manualModels || []);
             setSelectedDefaultModels([]);
