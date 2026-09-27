@@ -916,13 +916,19 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   const updateAPIKeyModels = useCallback(
     (apiKey: string, models: string[]) => {
       const normalizedAPIKey = apiKey.trim();
+      const uniqueModels = [...new Set(models)];
       const current = apiKeyModelsDraftRef.current;
       const next = current.filter((item) => item.apiKey.trim() !== normalizedAPIKey);
-      next.push({ apiKey: normalizedAPIKey, models: [...new Set(models)] });
+      // An empty selection means "no explicit restriction": drop the entry so
+      // the key reverts to inheriting the channel list, instead of persisting an
+      // explicit empty list that the backend reads as "serves nothing".
+      if (uniqueModels.length > 0) {
+        next.push({ apiKey: normalizedAPIKey, models: uniqueModels });
+      }
       apiKeyModelsDraftRef.current = next;
       form.setValue('credentials.apiKeyModels', next, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-      if (models.length > 0) {
-        setSupportedModels((previous) => [...new Set([...previous, ...models])]);
+      if (uniqueModels.length > 0) {
+        setSupportedModels((previous) => [...new Set([...previous, ...uniqueModels])]);
       }
     },
     [form]
@@ -3505,12 +3511,16 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
 
                           const assignment = apiKeyModels.find((item) => item.apiKey.trim() === key);
                           const fetchedModelsForKey = apiKeyFetchedModels.find((item) => item.apiKey.trim() === key)?.models;
-                          // A key with no explicit assignment shows "not associated" and
-                          // inherits the channel list at routing time. Never echo the
-                          // channel supportedModels here: that made an untouched key look
-                          // like it explicitly supported models it never picked, and it
-                          // polluted the key with the whole channel list on the next add.
-                          const assignedModels = assignment?.models ?? [];
+                          // Explicit assignment wins. Otherwise show the channel-selected
+                          // models this key can actually serve (channel list ∩ its fetched
+                          // list) — never models it does not support. Display-only: an
+                          // unassigned key still inherits every channel model at routing;
+                          // editing from here turns the shown set into an explicit list.
+                          const assignedModels =
+                            assignment?.models ??
+                            (fetchedModelsForKey
+                              ? supportedModels.filter((model) => fetchedModelsForKey.includes(model))
+                              : []);
                           const selectableModels = fetchedModelsForKey || [];
 
                           return (
