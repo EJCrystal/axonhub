@@ -919,12 +919,13 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
       const uniqueModels = [...new Set(models)];
       const current = apiKeyModelsDraftRef.current;
       const next = current.filter((item) => item.apiKey.trim() !== normalizedAPIKey);
-      // An empty selection means "no explicit restriction": drop the entry so
-      // the key reverts to inheriting the channel list, instead of persisting an
-      // explicit empty list that the backend reads as "serves nothing".
-      if (uniqueModels.length > 0) {
-        next.push({ apiKey: normalizedAPIKey, models: uniqueModels });
-      }
+      // Once the user edits a key it becomes an explicit entry — including when
+      // the result is empty. Keep the empty entry (do NOT drop it): an explicit
+      // empty list means "this key serves nothing" and, crucially, it overrides
+      // the inherited-intersection display so a removed model does not reappear.
+      // Dropping it here would revert the key to inherit and the badge would pop
+      // back from the channel list.
+      next.push({ apiKey: normalizedAPIKey, models: uniqueModels });
       apiKeyModelsDraftRef.current = next;
       form.setValue('credentials.apiKeyModels', next, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
       if (uniqueModels.length > 0) {
