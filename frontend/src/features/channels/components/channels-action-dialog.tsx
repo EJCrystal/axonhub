@@ -102,25 +102,21 @@ function getInitialAPIKeyModels(credentials: {
   apiKeyModels?: { apiKey: string; models: string[] }[] | null;
   apiKeyFetchedModels?: { apiKey: string; models: string[] }[] | null;
 }): { apiKey: string; models: string[] }[] {
-  // Only seed real per-key assignments (a non-empty explicit model list).
-  //
-  // We must NOT fabricate an empty entry for every fetched key, and we must
-  // drop empty entries that older saves persisted. The backend treats an
-  // explicit empty per-key list as "this key serves nothing", so a key carrying
-  // an empty list stops inheriting the channel-level models. Seeding an empty
-  // entry for each fetched key therefore froze the channel model list: every
-  // key had an explicit (empty) assignment, no key inherited the channel
-  // fallback, and models added at the channel level silently vanished on save.
-  //
-  // A key with no entry inherits the channel list; the picker still renders it
-  // because rows are keyed off apiKeys, not this array.
-  return (credentials.apiKeyModels || [])
-    .map((item) => ({
-      ...item,
-      apiKey: item.apiKey.trim(),
-      models: [...new Set(item.models)],
-    }))
-    .filter((item) => item.apiKey.length > 0 && item.models.length > 0);
+  // Keep the saved per-key assignments verbatim, INCLUDING an explicit empty
+  // list. An empty list is a deliberate "this key serves nothing / I removed
+  // these" choice and must survive a reload — dropping it would revert the key
+  // to inheriting the channel list and resurrect a model the user just removed.
+  // We still do NOT fabricate entries for keys that have none: a key with no
+  // entry inherits the channel list, and the picker renders it off apiKeys.
+  const seen = new Set<string>();
+  const result: { apiKey: string; models: string[] }[] = [];
+  for (const item of credentials.apiKeyModels || []) {
+    const apiKey = item.apiKey.trim();
+    if (!apiKey || seen.has(apiKey)) continue;
+    seen.add(apiKey);
+    result.push({ ...item, apiKey, models: [...new Set(item.models || [])] });
+  }
+  return result;
 }
 
 function unionAPIKeyModels(
@@ -988,6 +984,59 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     [form]
   );
 
+  // Repair ONLY truly-orphaned channel models: a channel model that no enabled
+  // key currently serves (no enabled key has it in an explicit list, and no
+  // unassigned enabled key can serve it). Such a model is added to an enabled
+  // key that can serve it. Models already served by some key are left alone, so
+  // this never re-adds a model the user deliberately removed from one key while
+  // another key still serves it.
+  const repairOrphanedChannelModels = useCallback(
+    (channelModels: string[]) => {
+      if (channelModels.length === 0) return;
+      const allKeys = (form.getValues('credentials.apiKeys') || []).map((k) => k.trim()).filter(Boolean);
+      const enabledKeys = allKeys.filter((k) => !disabledKeySet.has(k));
+      const capabilityByKey = new Map(
+        apiKeyFetchedModelsDraftRef.current.map((i) => [i.apiKey.trim(), new Set(i.models)] as [string, Set<string>])
+      );
+      const explicitByKey = new Map(
+        apiKeyModelsDraftRef.current.map((i) => [i.apiKey.trim(), i.models] as [string, string[]])
+      );
+
+      const served = new Set<string>();
+      for (const key of enabledKeys) {
+        const explicit = explicitByKey.get(key);
+        if (explicit !== undefined) {
+          explicit.forEach((m) => served.add(m));
+        } else {
+          const cap = capabilityByKey.get(key);
+          channelModels.forEach((m) => {
+            if (!cap || cap.has(m)) served.add(m);
+          });
+        }
+      }
+
+      const orphaned = channelModels.filter((m) => !served.has(m));
+      if (orphaned.length === 0) return;
+
+      let changed = false;
+      const next = apiKeyModelsDraftRef.current.map((item) => {
+        const key = item.apiKey.trim();
+        if (disabledKeySet.has(key)) return item;
+        const cap = capabilityByKey.get(key);
+        if (!cap) return item;
+        const toAdd = orphaned.filter((m) => cap.has(m) && !item.models.includes(m));
+        if (toAdd.length === 0) return item;
+        changed = true;
+        return { ...item, models: [...item.models, ...toAdd] };
+      });
+      if (changed) {
+        apiKeyModelsDraftRef.current = next;
+        form.setValue('credentials.apiKeyModels', next, { shouldDirty: true });
+      }
+    },
+    [form, disabledKeySet]
+  );
+
   // Keep the channel-level model list in sync with explicit per-key choices.
   // This also repairs older saved channels whose supportedModels omitted a
   // model that is already present in apiKeyModels.
@@ -1016,8 +1065,8 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     if (isFetchingDisabledKeys) return;
     if (apiKeyModels.length === 0) return;
     hasAlignedModelsRef.current = true;
-    mergeModelsIntoSupportingKeys(supportedModels);
-  }, [open, isFetchingDisabledKeys, apiKeyModels, supportedModels, mergeModelsIntoSupportingKeys]);
+    repairOrphanedChannelModels(supportedModels);
+  }, [open, isFetchingDisabledKeys, apiKeyModels, supportedModels, repairOrphanedChannelModels]);
 
   useEffect(() => {
     if (!open || !isDuplicate || !duplicateFromRow) return;
