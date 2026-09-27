@@ -1739,7 +1739,13 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
       return;
     }
 
-    const keys = [...new Set((apiKeys || []).map((key) => key.trim()).filter((key) => key.length > 0))];
+    // A disabled key is inert: exclude it from fetch so it never contributes
+    // models, and the disabled row below hides its model list and picker.
+    const keys = [
+      ...new Set(
+        (apiKeys || []).map((key) => key.trim()).filter((key) => key.length > 0 && !disabledKeySet.has(key))
+      ),
+    ];
     // OAuth providers have one credential, not a per-key model list.
     let oauthKey = '';
     if (oauthApiKey) {
@@ -1834,7 +1840,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     } catch (_error) {
       // Error is already handled by the mutation
     }
-  }, [fetchModels, form, isEdit, currentRow, t]);
+  }, [fetchModels, form, isEdit, currentRow, t, disabledKeySet]);
 
   const handleSyncNow = useCallback(async () => {
     if (!currentRow) return [];
@@ -3671,6 +3677,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                 )}
                               </div>
                               </div>
+                              {!isDisabled && (
                               <div className='flex flex-wrap items-center gap-1 pl-6'>
                                 {assignedModels.length > 0 ? (
                                   assignedModels.map((model) => (
@@ -3729,6 +3736,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                   </Popover>
                                 )}
                               </div>
+                              )}
                             </div>
                           );
                         });
