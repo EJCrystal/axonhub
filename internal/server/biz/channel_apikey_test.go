@@ -17,6 +17,73 @@ import (
 	"github.com/looplj/axonhub/llm/auth"
 )
 
+func TestTraceStickyKeyProvider_SelectsOnlyKeysSupportingRequestModel(t *testing.T) {
+	keys := []string{"key-a", "key-b", "key-shared"}
+	ch := &Channel{
+		Channel: &ent.Channel{
+			Credentials: objects.ChannelCredentials{APIKeys: keys},
+		},
+		cachedEnabledAPIKeys: keys,
+		cachedAPIKeyModels: map[string][]string{
+			"key-a":      {"model-a"},
+			"key-b":      {"model-b"},
+			"key-shared": {"model-a", "model-b"},
+		},
+	}
+
+	provider := NewTraceStickyKeyProvider(ch)
+	ctx := contexts.WithChannelRequestModel(context.Background(), "model-a")
+
+	selected := map[string]bool{}
+	for i := range 30 {
+		traceCtx := contexts.WithTrace(ctx, &ent.Trace{TraceID: fmt.Sprintf("trace-%d", i)})
+		key := provider.Get(traceCtx)
+		require.Contains(t, []string{"key-a", "key-shared"}, key)
+		selected[key] = true
+	}
+
+	require.Len(t, selected, 2)
+}
+
+func TestTraceStickyKeyProvider_SameTraceDifferentModelsUseDifferentKeys(t *testing.T) {
+	keys := []string{"key-a", "key-b"}
+	ch := &Channel{
+		Channel:               &ent.Channel{Credentials: objects.ChannelCredentials{APIKeys: keys}},
+		cachedEnabledAPIKeys: keys,
+		cachedAPIKeyModels:   map[string][]string{"key-a": {"model-a"}, "key-b": {"model-b"}},
+	}
+	provider := NewTraceStickyKeyProvider(ch)
+	trace := &ent.Trace{TraceID: "trace-shared"}
+
+	modelA := contexts.WithTrace(contexts.WithChannelRequestModel(context.Background(), "model-a"), trace)
+	modelB := contexts.WithTrace(contexts.WithChannelRequestModel(context.Background(), "model-b"), trace)
+
+	require.Equal(t, "key-a", provider.Get(modelA))
+	require.Equal(t, "key-b", provider.Get(modelB))
+	require.Equal(t, "key-a", provider.Get(modelA))
+}
+
+func TestTraceStickyKeyProvider_NoMatchingKeyReturnsEmpty(t *testing.T) {
+	ch := &Channel{
+		Channel: &ent.Channel{Credentials: objects.ChannelCredentials{APIKeys: []string{"key-a", "key-b"}}},
+		cachedEnabledAPIKeys: []string{"key-a", "key-b"},
+		cachedAPIKeyModels:   map[string][]string{"key-a": {"model-a"}, "key-b": {"model-b"}},
+	}
+
+	provider := NewTraceStickyKeyProvider(ch)
+	require.Empty(t, provider.Get(contexts.WithChannelRequestModel(context.Background(), "model-c")))
+}
+
+func TestModelFilteredKeyProvider_RejectsUnsupportedModel(t *testing.T) {
+	ch := &Channel{
+		cachedAPIKeyModels: map[string][]string{"only-key": {"model-a"}},
+	}
+	provider := newModelFilteredKeyProvider(ch, []string{"only-key"})
+
+	require.Equal(t, "only-key", provider.Get(contexts.WithChannelRequestModel(context.Background(), "model-a")))
+	require.Empty(t, provider.Get(contexts.WithChannelRequestModel(context.Background(), "model-b")))
+}
+
 func TestTraceStickyKeyProvider_MultipleKeys_NoTrace(t *testing.T) {
 	keys := []string{"key-1", "key-2", "key-3"}
 	ch := &Channel{
@@ -501,6 +568,38 @@ func TestTraceStickyKeyProvider_KeyOrderIndependence(t *testing.T) {
 	key2 := provider2.Get(ctx)
 
 	require.Equal(t, key1, key2, "rendezvous hashing should be order-independent")
+}
+
+func TestChannelService_DisableAPIKeyRemovesItsModelsFromUnion(t *testing.T) {
+	svc, client := setupTestChannelService(t)
+	defer client.Close()
+
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	ch, err := client.Channel.Create().
+		SetType(channel.TypeOpenai).
+		SetName("Disable Key Models").
+		SetBaseURL("https://api.openai.com/v1").
+		SetCredentials(objects.ChannelCredentials{
+			APIKeys: []string{"key-a", "key-b"},
+			APIKeyModels: []objects.APIKeyModels{
+				{APIKey: "key-a", Models: []string{"model-a"}},
+				{APIKey: "key-b", Models: []string{"model-b"}},
+			},
+		}).
+		SetSupportedModels([]string{"model-a", "model-b"}).
+		SetDefaultTestModel("model-a").
+		Save(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, svc.DisableAPIKey(ctx, ch.ID, "key-b", 401, "unauthorized"))
+	disabled, err := client.Channel.Get(ctx, ch.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"model-a"}, disabled.SupportedModels)
+
+	require.NoError(t, svc.EnableAPIKey(ctx, ch.ID, "key-b"))
+	enabled, err := client.Channel.Get(ctx, ch.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"model-a", "model-b"}, enabled.SupportedModels)
 }
 
 // ==================== DeleteDisabledAPIKeys Tests ====================.

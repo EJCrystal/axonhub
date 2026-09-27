@@ -134,11 +134,21 @@ func buildChannel(c *ent.Channel, httpClient *httpclient.HttpClient) *Channel {
 		}
 	}
 
+	enabledAPIKeys := c.Credentials.GetEnabledAPIKeys(c.DisabledAPIKeys)
+	apiKeyModels := make(map[string][]string, len(enabledAPIKeys))
+	for _, apiKey := range enabledAPIKeys {
+		models, explicit := c.Credentials.ModelsForAPIKey(apiKey)
+		if explicit {
+			apiKeyModels[apiKey] = models
+		}
+	}
+
 	ch := &Channel{
 		Channel:              c,
 		HTTPClient:           httpClient,
 		cachedDisabledKeySet: disabledKeySet,
-		cachedEnabledAPIKeys: c.Credentials.GetEnabledAPIKeys(c.DisabledAPIKeys),
+		cachedEnabledAPIKeys: enabledAPIKeys,
+		cachedAPIKeyModels:   apiKeyModels,
 	}
 
 	// Precompute other caches
@@ -175,7 +185,7 @@ func getAPIKeyProvider(ch *Channel) auth.APIKeyProvider {
 	}
 
 	if len(enabled) == 1 {
-		return NewChannelAPIKeyContextProvider(auth.NewStaticKeyProvider(enabled[0]))
+		return NewChannelAPIKeyContextProvider(newModelFilteredKeyProvider(ch, enabled))
 	}
 
 	panic(fmt.Errorf("no enabled api key configured for channel %s", ch.Name))
@@ -611,6 +621,11 @@ func validateCommandCodeBaseURL(rawURL string) error {
 	}
 
 	return nil
+}
+
+// TestBuildChannel exposes channel cache construction to orchestrator tests.
+func (svc *ChannelService) TestBuildChannel(c *ent.Channel) (*Channel, error) {
+	return svc.buildChannelWithTransformer(c)
 }
 
 //nolint:maintidx // Checked.

@@ -74,6 +74,66 @@ import { ProxyType } from './channels-proxy-dialog';
 import { CopilotDeviceFlow } from './copilot-device-flow';
 import { ManualModelBadge } from './manual-model-badge';
 
+function normalizeAPIKeyModels<
+  T extends {
+    apiKeys?: string[] | null;
+    apiKeyModels?: { apiKey: string; models: string[] }[] | null;
+    apiKeyFetchedModels?: { apiKey: string; models: string[] }[] | null;
+  }
+>(
+  credentials: T | undefined,
+  removedModels: ReadonlySet<string>
+): T | undefined {
+  if (!credentials) return credentials;
+  const keys = new Set((credentials.apiKeys || []).map((key) => key.trim()).filter(Boolean));
+  return {
+    ...credentials,
+    apiKeyModels: credentials.apiKeyModels?.flatMap((item) => {
+      const apiKey = item.apiKey.trim();
+      const models = item.models.filter((model) => !removedModels.has(model));
+      if (!keys.has(apiKey)) return [];
+      return [{ ...item, apiKey, models: [...new Set(models)] }];
+    }),
+    apiKeyFetchedModels: credentials.apiKeyFetchedModels?.flatMap((item) => {
+      const apiKey = item.apiKey.trim();
+      if (!keys.has(apiKey)) return [];
+      return [{ ...item, apiKey, models: [...new Set(item.models)] }];
+    }),
+  };
+}
+
+function getInitialAPIKeyModels(credentials: {
+  apiKeyModels?: { apiKey: string; models: string[] }[] | null;
+  apiKeyFetchedModels?: { apiKey: string; models: string[] }[] | null;
+}): { apiKey: string; models: string[] }[] {
+  const assignments = (credentials.apiKeyModels || []).map((item) => ({
+    ...item,
+    apiKey: item.apiKey.trim(),
+    models: [...new Set(item.models)],
+  }));
+  const assignedKeys = new Set(assignments.map((item) => item.apiKey));
+  for (const item of credentials.apiKeyFetchedModels || []) {
+    const apiKey = item.apiKey.trim();
+    if (!assignedKeys.has(apiKey)) {
+      assignments.push({ apiKey, models: [] });
+      assignedKeys.add(apiKey);
+    }
+  }
+  return assignments;
+}
+
+function unionAPIKeyModels(
+  credentials: { apiKeys?: string[] | null; apiKeyModels?: { apiKey: string; models: string[] }[] | null } | undefined,
+  supportedModels: string[],
+  disabledKeys: ReadonlySet<string> = new Set()
+): string[] {
+  const assignments = credentials?.apiKeyModels || [];
+  if (assignments.length === 0) return supportedModels;
+  const assigned = new Map(assignments.map((item) => [item.apiKey, item.models]));
+  const keys = (credentials?.apiKeys || []).filter((key) => !disabledKeys.has(key));
+  return [...new Set(keys.flatMap((key) => (assigned.has(key) ? assigned.get(key)! : supportedModels)))];
+}
+
 interface Props {
   currentRow?: Channel;
   duplicateFromRow?: Channel;
@@ -737,6 +797,8 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
               // OAuth 类型的凭据存储在 apiKey 字段，不放入 apiKeys
               apiKey: currentRow.credentials?.apiKey || undefined,
               apiKeys: currentRow.credentials?.apiKeys || [],
+              apiKeyModels: getInitialAPIKeyModels(currentRow.credentials || {}),
+              apiKeyFetchedModels: currentRow.credentials?.apiKeyFetchedModels || [],
               managementApiKey: currentRow.credentials?.managementApiKey || undefined,
               gcp: {
                 region: currentRow.credentials?.gcp?.region || '',
@@ -763,6 +825,8 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                 // OAuth 类型的凭据存储在 apiKey 字段，不放入 apiKeys
                 apiKey: duplicateFromRow.credentials?.apiKey || undefined,
                 apiKeys: duplicateFromRow.credentials?.apiKeys || [],
+                apiKeyModels: getInitialAPIKeyModels(duplicateFromRow.credentials || {}),
+                apiKeyFetchedModels: duplicateFromRow.credentials?.apiKeyFetchedModels || [],
                 managementApiKey: duplicateFromRow.credentials?.managementApiKey || undefined,
                 gcp: {
                   region: duplicateFromRow.credentials?.gcp?.region || '',
@@ -778,6 +842,8 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
               policies: { stream: 'unlimited' },
               credentials: {
                 apiKeys: [],
+                apiKeyModels: [],
+                apiKeyFetchedModels: [],
                 managementApiKey: undefined,
                 gcp: {
                   region: '',
@@ -794,6 +860,8 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   });
 
   const apiKeys = form.watch('credentials.apiKeys');
+  const apiKeyModels = form.watch('credentials.apiKeyModels') || [];
+  const apiKeyFetchedModels = form.watch('credentials.apiKeyFetchedModels') || [];
   const apiKeysCount = useMemo(() => (apiKeys || []).filter((k) => k.trim().length > 0).length, [apiKeys]);
   const isSubmitting = createChannel.isPending || duplicateChannel.isPending || updateChannelSettings.isPending;
 
@@ -811,6 +879,35 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
 
   const disableAPIKey = useDisableChannelAPIKey();
   const enableAPIKey = useEnableChannelAPIKey();
+
+  const updateAPIKeyModels = useCallback(
+    (apiKey: string, models: string[]) => {
+      const normalizedAPIKey = apiKey.trim();
+      const current = form.getValues('credentials.apiKeyModels') || [];
+      const next = current.filter((item) => item.apiKey.trim() !== normalizedAPIKey);
+      next.push({ apiKey: normalizedAPIKey, models: [...new Set(models)] });
+      form.setValue('credentials.apiKeyModels', next, { shouldDirty: true });
+      if (models.length > 0) {
+        setSupportedModels((previous) => [...new Set([...previous, ...models])]);
+      }
+    },
+    [form]
+  );
+
+  // Keep the channel-level model list in sync with explicit per-key choices.
+  // This also repairs older saved channels whose supportedModels omitted a
+  // model that is already present in apiKeyModels.
+  useEffect(() => {
+    if (!open || apiKeyModels.length === 0) return;
+
+    const explicitlySelected = [...new Set(apiKeyModels.flatMap((item) => item.models))];
+    if (explicitlySelected.length === 0) return;
+
+    setSupportedModels((previous) => {
+      const missing = explicitlySelected.filter((model) => !previous.includes(model));
+      return missing.length > 0 ? [...previous, ...missing] : previous;
+    });
+  }, [apiKeyModels, open]);
 
   useEffect(() => {
     if (!open || !isDuplicate || !duplicateFromRow) return;
@@ -1320,11 +1417,17 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
             type: derivedChannelType,
           };
 
+      const originalModels = isEdit ? initialRow?.supportedModels || [] : [];
+      const removedModels = new Set(originalModels.filter((model) => !supportedModels.includes(model)));
+      const normalizedCredentials = normalizeAPIKeyModels(
+        valuesForSubmit.credentials,
+        removedModels
+      );
       const dataWithModels = {
         ...valuesForSubmit,
-        supportedModels,
+        supportedModels: unionAPIKeyModels(normalizedCredentials, supportedModels, disabledKeySet),
         manualModels,
-        credentials: valuesForSubmit.credentials,
+        credentials: normalizedCredentials,
       };
       // The Command Code / Ollama quota cookie is a browser-session credential
       // that only belongs on its own channel type. Never let a
@@ -1592,40 +1695,58 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
       return;
     }
 
+    const keys = [...new Set((apiKeys || []).map((key) => key.trim()).filter((key) => key.length > 0))];
+    // OAuth providers have one credential, not a per-key model list.
+    let oauthKey = '';
+    if (oauthApiKey) {
+      if (oauthApiKey.trimStart().startsWith('{')) {
+        oauthKey = oauthApiKey;
+      } else {
+        oauthKey = parseOauthToken(oauthApiKey || '');
+      }
+    }
+    const fetchKeys = keys.length > 0 ? keys : [oauthKey];
+
     try {
-      // For OAuth-based providers (like Copilot), prefer oauthApiKey first
-      let firstApiKey = '';
-      if (oauthApiKey) {
-        // If it's OAuth JSON, send full JSON so backend detects isOAuthJSON
-        if (oauthApiKey.trimStart().startsWith('{')) {
-          firstApiKey = oauthApiKey;
-        } else {
-          const parsed = parseOauthToken(oauthApiKey || '');
-          if (parsed) {
-            firstApiKey = parsed;
-          }
+      const fetchedByKey = new Map<string, string[]>();
+      const errors: string[] = [];
+      for (const key of fetchKeys) {
+        const result = await fetchModels.mutateAsync({
+          channelType,
+          baseURL,
+          apiKey: key || undefined,
+          channelID: isEdit ? currentRow?.id : undefined,
+        });
+        if (result.error) {
+          errors.push(result.error);
+          continue;
         }
+        fetchedByKey.set(key, result.models.map((model) => model.id));
       }
 
-      // Fall back to apiKeys array if no OAuth token
-      if (!firstApiKey && apiKeys?.length) {
-        firstApiKey = apiKeys.find((key) => key.trim().length > 0)?.trim() || '';
-      }
-
-      const result = await fetchModels.mutateAsync({
-        channelType,
-        baseURL,
-        apiKey: firstApiKey || undefined,
-        channelID: isEdit ? currentRow?.id : undefined,
-      });
-
-      if (result.error) {
-        toast.error(result.error);
+      if (fetchedByKey.size === 0) {
+        if (errors[0]) toast.error(errors[0]);
         return;
       }
 
-      const models = result.models.map((m) => m.id);
-      if (models?.length) {
+      const currentFetchedModels = form.getValues('credentials.apiKeyFetchedModels') || [];
+      const nextFetchedModels = currentFetchedModels.filter((item) => !fetchedByKey.has(item.apiKey));
+      const currentAssignments = form.getValues('credentials.apiKeyModels') || [];
+      const nextAssignments = [...currentAssignments];
+      const assignedKeys = new Set(currentAssignments.map((item) => item.apiKey));
+      fetchedByKey.forEach((keyModels, key) => {
+        if (!key) return;
+        nextFetchedModels.push({ apiKey: key, models: keyModels });
+        if (!assignedKeys.has(key)) {
+          nextAssignments.push({ apiKey: key, models: [] });
+          assignedKeys.add(key);
+        }
+      });
+      form.setValue('credentials.apiKeyFetchedModels', nextFetchedModels, { shouldDirty: true });
+      form.setValue('credentials.apiKeyModels', nextAssignments, { shouldDirty: true });
+
+      const models = [...new Set([...fetchedByKey.values()].flat())];
+      if (models.length) {
         setFetchedModels(models);
         setUseFetchedModels(true);
         setShowFetchedModelsPanel(true);
@@ -1652,13 +1773,19 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     const formPattern = form.getValues('autoSyncModelPattern') || '';
     const result = await syncChannelModels.mutateAsync({
       channelID: channelId,
-      pattern: formPattern.trim() ? formPattern : undefined,
+      pattern: formPattern,
     });
 
     // Sync is authoritative for both lists; refreshing only supportedModels
     // leaves manualModels stale and makes the header count drift from the badges.
     setSupportedModels(result.supportedModels || []);
     setManualModels(result.manualModels || []);
+    if (result.apiKeyModels) {
+      form.setValue('credentials.apiKeyModels', result.apiKeyModels, { shouldDirty: false });
+    }
+    if (result.apiKeyFetchedModels) {
+      form.setValue('credentials.apiKeyFetchedModels', result.apiKeyFetchedModels, { shouldDirty: false });
+    }
     return result.supportedModels || [];
   }, [currentRow, form, patternError, syncChannelModels]);
 
@@ -1793,6 +1920,16 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
         return;
       }
       form.setValue('credentials.apiKeys', validNextKeys, { shouldDirty: true, shouldTouch: true });
+      form.setValue(
+        'credentials.apiKeyModels',
+        (form.getValues('credentials.apiKeyModels') || []).filter((item) => !keysToRemoveSet.has(item.apiKey)),
+        { shouldDirty: true }
+      );
+      form.setValue(
+        'credentials.apiKeyFetchedModels',
+        (form.getValues('credentials.apiKeyFetchedModels') || []).filter((item) => !keysToRemoveSet.has(item.apiKey)),
+        { shouldDirty: true }
+      );
       setSelectedKeysToRemove(new Set());
       setConfirmRemoveSelectedOpen(false);
       setConfirmRemoveKey(null);
@@ -3280,8 +3417,14 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                           const isSavedKey = savedAPIKeySet.has(key);
                           const masked = key.length > 8 ? `${key.slice(0, 4)}****${key.slice(-4)}` : `****${key.slice(-4)}`;
 
+                          const assignment = apiKeyModels.find((item) => item.apiKey.trim() === key);
+                          const fetchedModelsForKey = apiKeyFetchedModels.find((item) => item.apiKey.trim() === key)?.models;
+                          const assignedModels = assignment?.models ?? (fetchedModelsForKey ? [] : supportedModels);
+                          const selectableModels = fetchedModelsForKey || [];
+
                           return (
-                            <div key={key} className='hover:bg-accent flex items-center justify-between gap-2 rounded-md p-2 text-sm'>
+                            <div key={key} className='hover:bg-accent flex flex-col gap-2 rounded-md p-2 text-sm'>
+                              <div className='flex min-w-0 items-center justify-between gap-2'>
                               <div className='flex min-w-0 items-center gap-2'>
                                 <Checkbox
                                   checked={isSelected}
@@ -3437,6 +3580,54 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                             {t('common.buttons.confirm')}
                                           </Button>
                                         </div>
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                )}
+                              </div>
+                              </div>
+                              <div className='flex flex-wrap items-center gap-1 pl-6'>
+                                {assignedModels.length > 0 ? (
+                                  assignedModels.map((model) => (
+                                    <Badge
+                                      key={model}
+                                      variant='default'
+                                      className='cursor-pointer text-[10px]'
+                                      onClick={() => updateAPIKeyModels(key, assignedModels.filter((item) => item !== model))}
+                                    >
+                                      {model}
+                                      <X className='ml-1 h-3 w-3' />
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className='text-muted-foreground text-xs'>
+                                    {t('channels.dialogs.fields.apiKey.noModelsAssigned')}
+                                  </span>
+                                )}
+                                {selectableModels.some((model) => !assignedModels.includes(model)) && (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button type='button' variant='outline' size='sm' className='h-5 px-2 text-[10px]'>
+                                        <Plus className='mr-1 h-3 w-3' />
+                                        {t('channels.dialogs.fields.apiKey.modelsPlaceholder')}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className='w-64 p-2' align='start'>
+                                      <div className='flex max-h-48 flex-col gap-1 overflow-auto'>
+                                        {selectableModels
+                                          .filter((model) => !assignedModels.includes(model))
+                                          .map((model) => (
+                                            <Button
+                                              key={model}
+                                              type='button'
+                                              variant='ghost'
+                                              size='sm'
+                                              className='h-7 justify-start px-2 text-xs'
+                                              onClick={() => updateAPIKeyModels(key, [...assignedModels, model])}
+                                            >
+                                              {model}
+                                            </Button>
+                                          ))}
                                       </div>
                                     </PopoverContent>
                                   </Popover>

@@ -722,9 +722,11 @@ func (r *mutationResolver) SyncChannelModels(ctx context.Context, channelID obje
 	}
 
 	return &SyncChannelModelsPayload{
-		ChannelID:       channelID,
-		SupportedModels: ch.SupportedModels,
-		ManualModels:    manualModels,
+		ChannelID:           channelID,
+		SupportedModels:     ch.SupportedModels,
+		ManualModels:        manualModels,
+		APIKeyModels:        lo.ToSlicePtr(ch.Credentials.APIKeyModels),
+		APIKeyFetchedModels: lo.ToSlicePtr(ch.Credentials.APIKeyFetchedModels),
 	}, nil
 }
 
