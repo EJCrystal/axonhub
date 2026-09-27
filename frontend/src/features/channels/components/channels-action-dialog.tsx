@@ -935,6 +935,58 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     [form]
   );
 
+  // When a model is added at the channel level, merge it into every ENABLED key
+  // that (a) already has its own explicit model list and (b) can serve it (per
+  // its fetched capability cache). Keys with no explicit list inherit all
+  // channel models automatically, so they are intentionally left untouched.
+  const mergeModelsIntoSupportingKeys = useCallback(
+    (models: string[]) => {
+      const additions = [...new Set(models)];
+      if (additions.length === 0) return;
+      const capabilityByKey = new Map(
+        apiKeyFetchedModelsDraftRef.current.map((item) => [item.apiKey.trim(), new Set(item.models)] as [string, Set<string>])
+      );
+      let changed = false;
+      const next = apiKeyModelsDraftRef.current.map((item) => {
+        const key = item.apiKey.trim();
+        if (disabledKeySet.has(key)) return item;
+        const capable = capabilityByKey.get(key);
+        if (!capable) return item;
+        const toAdd = additions.filter((model) => capable.has(model) && !item.models.includes(model));
+        if (toAdd.length === 0) return item;
+        changed = true;
+        return { ...item, models: [...item.models, ...toAdd] };
+      });
+      if (changed) {
+        apiKeyModelsDraftRef.current = next;
+        form.setValue('credentials.apiKeyModels', next, { shouldDirty: true });
+      }
+    },
+    [form, disabledKeySet]
+  );
+
+  // When a model leaves the channel list, drop it from every key's explicit list
+  // too, so it cannot linger and reappear through the channel union. A key whose
+  // list becomes empty reverts to inheriting the channel list.
+  const removeModelsFromKeys = useCallback(
+    (models: string[]) => {
+      const removals = new Set(models);
+      if (removals.size === 0) return;
+      let changed = false;
+      const next = apiKeyModelsDraftRef.current.flatMap((item) => {
+        const filtered = item.models.filter((model) => !removals.has(model));
+        if (filtered.length === item.models.length) return [item];
+        changed = true;
+        return filtered.length > 0 ? [{ ...item, models: filtered }] : [];
+      });
+      if (changed) {
+        apiKeyModelsDraftRef.current = next;
+        form.setValue('credentials.apiKeyModels', next, { shouldDirty: true });
+      }
+    },
+    [form]
+  );
+
   // Keep the channel-level model list in sync with explicit per-key choices.
   // This also repairs older saved channels whose supportedModels omitted a
   // model that is already present in apiKeyModels.
@@ -1651,9 +1703,11 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   };
 
   const addModel = () => {
-    if (newModel.trim() && !supportedModels.includes(newModel.trim())) {
-      setSupportedModels([...supportedModels, newModel.trim()]);
-      setManualModels([...manualModels, newModel.trim()]);
+    const model = newModel.trim();
+    if (model && !supportedModels.includes(model)) {
+      setSupportedModels([...supportedModels, model]);
+      setManualModels([...manualModels, model]);
+      mergeModelsIntoSupportingKeys([model]);
       setNewModel('');
     }
   };
@@ -1684,12 +1738,14 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
       if (combinedModels.size === prev.length) return prev;
       return [...combinedModels];
     });
+    mergeModelsIntoSupportingKeys(models);
     setNewModel('');
-  }, [newModel, supportedModels]);
+  }, [newModel, supportedModels, mergeModelsIntoSupportingKeys]);
 
   const removeModel = (model: string) => {
     setSupportedModels(supportedModels.filter((m) => m !== model));
     setManualModels(manualModels.filter((m) => m !== model));
+    removeModelsFromKeys([model]);
   };
 
   const isModelManual = (model: string): boolean => {
@@ -1711,6 +1767,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     const newModels = selectedDefaultModels.filter((model) => !supportedModels.includes(model));
     if (newModels.length > 0) {
       setSupportedModels((prev) => [...prev, ...newModels]);
+      mergeModelsIntoSupportingKeys(newModels);
       setSelectedDefaultModels([]);
     }
   };
@@ -1718,6 +1775,9 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   const handleClearAllSupportedModels = () => {
     setSupportedModels([]);
     setManualModels([]);
+    // Clearing the channel list also clears every per-key explicit list.
+    apiKeyModelsDraftRef.current = [];
+    form.setValue('credentials.apiKeyModels', [], { shouldDirty: true });
   };
   // Helper function to parse OAuth token from JSON string
   const parseOauthToken = (oauthApiKey: string): string => {
@@ -1947,30 +2007,25 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
 
   // Add or remove selected fetched models to supported models
   const addSelectedFetchedModels = useCallback(() => {
-    const modelsToRemove: string[] = [];
+    const modelsToAdd = selectedFetchedModels.filter((model) => !supportedModels.includes(model));
+    const modelsToRemove = selectedFetchedModels.filter((model) => supportedModels.includes(model));
 
-    setSupportedModels((prev) => {
-      const modelsToAdd: string[] = [];
-
-      selectedFetchedModels.forEach((model) => {
-        if (prev.includes(model)) {
-          modelsToRemove.push(model);
-        } else {
-          modelsToAdd.push(model);
-        }
-      });
-
-      const afterRemoval = prev.filter((m) => !modelsToRemove.includes(m));
-      return [...afterRemoval, ...modelsToAdd];
-    });
+    if (modelsToAdd.length > 0 || modelsToRemove.length > 0) {
+      setSupportedModels((prev) => [...prev.filter((m) => !modelsToRemove.includes(m)), ...modelsToAdd]);
+    }
 
     // Remove toggled-off models from manualModels
     if (modelsToRemove.length > 0) {
       setManualModels((prev) => prev.filter((m) => !modelsToRemove.includes(m)));
     }
 
+    // Keep per-key explicit lists in step with the channel list: added models
+    // join every enabled key that can serve them; removed models leave all keys.
+    mergeModelsIntoSupportingKeys(modelsToAdd);
+    removeModelsFromKeys(modelsToRemove);
+
     setSelectedFetchedModels([]);
-  }, [selectedFetchedModels]);
+  }, [selectedFetchedModels, supportedModels, mergeModelsIntoSupportingKeys, removeModelsFromKeys]);
 
   // Close panel handler
   const closeFetchedModelsPanel = useCallback(() => {
