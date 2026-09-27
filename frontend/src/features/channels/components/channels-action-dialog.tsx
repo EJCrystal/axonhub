@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { X, RefreshCw, Search, ChevronLeft, ChevronRight, PanelLeft, Plus, Trash2, Eye, EyeOff, Copy, Play, Info, Ban } from 'lucide-react';
@@ -859,9 +859,12 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
             },
   });
 
-  const apiKeys = form.watch('credentials.apiKeys');
-  const apiKeyModels = form.watch('credentials.apiKeyModels') || [];
-  const apiKeyFetchedModels = form.watch('credentials.apiKeyFetchedModels') || [];
+  const apiKeys = useWatch({ control: form.control, name: 'credentials.apiKeys' });
+  // These arrays are edited by the per-key model picker rather than a visible
+  // FormField. Subscribe explicitly so the picker and submit handler always see
+  // the latest values, including fields that are not otherwise registered.
+  const apiKeyModels = useWatch({ control: form.control, name: 'credentials.apiKeyModels' }) || [];
+  const apiKeyFetchedModels = useWatch({ control: form.control, name: 'credentials.apiKeyFetchedModels' }) || [];
   const apiKeysCount = useMemo(() => (apiKeys || []).filter((k) => k.trim().length > 0).length, [apiKeys]);
   const isSubmitting = createChannel.isPending || duplicateChannel.isPending || updateChannelSettings.isPending;
 
@@ -886,7 +889,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
       const current = form.getValues('credentials.apiKeyModels') || [];
       const next = current.filter((item) => item.apiKey.trim() !== normalizedAPIKey);
       next.push({ apiKey: normalizedAPIKey, models: [...new Set(models)] });
-      form.setValue('credentials.apiKeyModels', next, { shouldDirty: true });
+      form.setValue('credentials.apiKeyModels', next, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
       if (models.length > 0) {
         setSupportedModels((previous) => [...new Set([...previous, ...models])]);
       }
@@ -1419,10 +1422,20 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
 
       const originalModels = isEdit ? initialRow?.supportedModels || [] : [];
       const removedModels = new Set(originalModels.filter((model) => !supportedModels.includes(model)));
-      const normalizedCredentials = normalizeAPIKeyModels(
-        valuesForSubmit.credentials,
-        removedModels
-      );
+      // RHF's resolver output can omit changes made through the per-key picker
+      // because those nested arrays have no visible FormField. Merge the latest
+      // subscribed values back into the payload before normalization so a newly
+      // selected model cannot be silently saved as an empty assignment.
+      const latestAPIKeyModels = form.getValues('credentials.apiKeyModels');
+      const latestAPIKeyFetchedModels = form.getValues('credentials.apiKeyFetchedModels');
+      const credentialsForSubmit = valuesForSubmit.credentials
+        ? {
+            ...valuesForSubmit.credentials,
+            apiKeyModels: latestAPIKeyModels ?? valuesForSubmit.credentials.apiKeyModels,
+            apiKeyFetchedModels: latestAPIKeyFetchedModels ?? valuesForSubmit.credentials.apiKeyFetchedModels,
+          }
+        : valuesForSubmit.credentials;
+      const normalizedCredentials = normalizeAPIKeyModels(credentialsForSubmit, removedModels);
       const dataWithModels = {
         ...valuesForSubmit,
         supportedModels: unionAPIKeyModels(normalizedCredentials, supportedModels, disabledKeySet),
