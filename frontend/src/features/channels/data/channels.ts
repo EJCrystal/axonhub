@@ -2178,21 +2178,41 @@ export function useFetchModels() {
   const { handleError } = useErrorHandler();
 
   return useMutation({
-    mutationFn: async (input: { channelType: string; baseURL: string; apiKey?: string; channelID?: string }) => {
+    mutationFn: async (input: {
+      channelType: string;
+      baseURL: string;
+      apiKey?: string;
+      channelID?: string;
+      // When true the caller aggregates its own summary (e.g. a multi-key fetch
+      // that reports a single union count), so this hook stays silent.
+      suppressToast?: boolean;
+    }) => {
       try {
         const data = await graphqlRequest<{
           fetchModels: {
             models: Array<{ id: string }>;
             error?: string | null;
           };
-        }>(FETCH_MODELS_QUERY, { input });
+        }>(FETCH_MODELS_QUERY, {
+          input: {
+            channelType: input.channelType,
+            baseURL: input.baseURL,
+            apiKey: input.apiKey,
+            channelID: input.channelID,
+          },
+        });
         return data.fetchModels;
       } catch (error) {
-        handleError(error, { context: 'Fetch Models' });
+        if (!input.suppressToast) {
+          handleError(error, { context: 'Fetch Models' });
+        }
         throw error;
       }
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
+      if (variables.suppressToast) {
+        return;
+      }
       if (data.error) {
         toast.error(t('common.errors.internalServerError'));
       } else {
