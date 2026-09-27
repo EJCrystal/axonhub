@@ -80,19 +80,15 @@ function normalizeAPIKeyModels<
     apiKeyModels?: { apiKey: string; models: string[] }[] | null;
     apiKeyFetchedModels?: { apiKey: string; models: string[] }[] | null;
   }
->(
-  credentials: T | undefined,
-  removedModels: ReadonlySet<string>
-): T | undefined {
+>(credentials: T | undefined): T | undefined {
   if (!credentials) return credentials;
   const keys = new Set((credentials.apiKeys || []).map((key) => key.trim()).filter(Boolean));
   return {
     ...credentials,
     apiKeyModels: credentials.apiKeyModels?.flatMap((item) => {
       const apiKey = item.apiKey.trim();
-      const models = item.models.filter((model) => !removedModels.has(model));
       if (!keys.has(apiKey)) return [];
-      return [{ ...item, apiKey, models: [...new Set(models)] }];
+      return [{ ...item, apiKey, models: [...new Set(item.models)] }];
     }),
     apiKeyFetchedModels: credentials.apiKeyFetchedModels?.flatMap((item) => {
       const apiKey = item.apiKey.trim();
@@ -127,11 +123,19 @@ function unionAPIKeyModels(
   supportedModels: string[],
   disabledKeys: ReadonlySet<string> = new Set()
 ): string[] {
+  // The channel-level list is the authority for what the channel exposes; the
+  // backend derives the routing union from apiKeyModels on save. Recomputing
+  // that union here would drop any model that a key has not confirmed yet, so
+  // only ever add the explicit per-key picks on top of the channel list.
   const assignments = credentials?.apiKeyModels || [];
   if (assignments.length === 0) return supportedModels;
-  const assigned = new Map(assignments.map((item) => [item.apiKey, item.models]));
-  const keys = (credentials?.apiKeys || []).filter((key) => !disabledKeys.has(key));
-  return [...new Set(keys.flatMap((key) => (assigned.has(key) ? assigned.get(key)! : supportedModels)))];
+  const keys = new Set(
+    (credentials?.apiKeys || []).map((key) => key.trim()).filter((key) => key && !disabledKeys.has(key))
+  );
+  const explicit = assignments
+    .filter((item) => keys.has(item.apiKey.trim()))
+    .flatMap((item) => item.models);
+  return [...new Set([...supportedModels, ...explicit])];
 }
 
 interface Props {
@@ -1442,10 +1446,8 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
             type: derivedChannelType,
           };
 
-      const originalModels = isEdit ? initialRow?.supportedModels || [] : [];
       const explicitAPIKeyModels = apiKeyModelsDraftRef.current.flatMap((item) => item.models);
       const effectiveSupportedModels = [...new Set([...supportedModels, ...explicitAPIKeyModels])];
-      const removedModels = new Set(originalModels.filter((model) => !effectiveSupportedModels.includes(model)));
       // RHF's resolver output can omit changes made through the per-key picker
       // because those nested arrays have no visible FormField. Merge the latest
       // subscribed values back into the payload before normalization so a newly
@@ -1459,7 +1461,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
             apiKeyFetchedModels: latestAPIKeyFetchedModels ?? valuesForSubmit.credentials.apiKeyFetchedModels,
           }
         : valuesForSubmit.credentials;
-      const normalizedCredentials = normalizeAPIKeyModels(credentialsForSubmit, removedModels);
+      const normalizedCredentials = normalizeAPIKeyModels(credentialsForSubmit);
       const dataWithModels = {
         ...valuesForSubmit,
         supportedModels: unionAPIKeyModels(normalizedCredentials, effectiveSupportedModels, disabledKeySet),
