@@ -447,6 +447,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   const [showClearAllPopover, setShowClearAllPopover] = useState(false);
   const [applyPatternFilter, setApplyPatternFilter] = useState(false);
   const hasAutoSetDuplicateNameRef = useRef(false);
+  const hasAlignedModelsRef = useRef(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showCommandCodeAuthCookie, setShowCommandCodeAuthCookie] = useState(false);
   const [showOllamaAuthCookie, setShowOllamaAuthCookie] = useState(false);
@@ -1001,6 +1002,22 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
       return missing.length > 0 ? [...previous, ...missing] : previous;
     });
   }, [apiKeyModels, open]);
+
+  // On open, pull each channel model into every enabled key that already has an
+  // explicit list and can serve it (per its fetched capability), so a model
+  // already saved on the channel shows up under its supporting key without
+  // re-adding. Runs once per open, after per-key data and disabled state load.
+  useEffect(() => {
+    if (!open) {
+      hasAlignedModelsRef.current = false;
+      return;
+    }
+    if (hasAlignedModelsRef.current) return;
+    if (isFetchingDisabledKeys) return;
+    if (apiKeyModels.length === 0) return;
+    hasAlignedModelsRef.current = true;
+    mergeModelsIntoSupportingKeys(supportedModels);
+  }, [open, isFetchingDisabledKeys, apiKeyModels, supportedModels, mergeModelsIntoSupportingKeys]);
 
   useEffect(() => {
     if (!open || !isDuplicate || !duplicateFromRow) return;
