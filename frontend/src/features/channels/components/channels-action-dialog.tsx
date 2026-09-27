@@ -102,20 +102,25 @@ function getInitialAPIKeyModels(credentials: {
   apiKeyModels?: { apiKey: string; models: string[] }[] | null;
   apiKeyFetchedModels?: { apiKey: string; models: string[] }[] | null;
 }): { apiKey: string; models: string[] }[] {
-  const assignments = (credentials.apiKeyModels || []).map((item) => ({
-    ...item,
-    apiKey: item.apiKey.trim(),
-    models: [...new Set(item.models)],
-  }));
-  const assignedKeys = new Set(assignments.map((item) => item.apiKey));
-  for (const item of credentials.apiKeyFetchedModels || []) {
-    const apiKey = item.apiKey.trim();
-    if (!assignedKeys.has(apiKey)) {
-      assignments.push({ apiKey, models: [] });
-      assignedKeys.add(apiKey);
-    }
-  }
-  return assignments;
+  // Only seed real per-key assignments (a non-empty explicit model list).
+  //
+  // We must NOT fabricate an empty entry for every fetched key, and we must
+  // drop empty entries that older saves persisted. The backend treats an
+  // explicit empty per-key list as "this key serves nothing", so a key carrying
+  // an empty list stops inheriting the channel-level models. Seeding an empty
+  // entry for each fetched key therefore froze the channel model list: every
+  // key had an explicit (empty) assignment, no key inherited the channel
+  // fallback, and models added at the channel level silently vanished on save.
+  //
+  // A key with no entry inherits the channel list; the picker still renders it
+  // because rows are keyed off apiKeys, not this array.
+  return (credentials.apiKeyModels || [])
+    .map((item) => ({
+      ...item,
+      apiKey: item.apiKey.trim(),
+      models: [...new Set(item.models)],
+    }))
+    .filter((item) => item.apiKey.length > 0 && item.models.length > 0);
 }
 
 function unionAPIKeyModels(
@@ -1770,21 +1775,19 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
 
       const currentFetchedModels = apiKeyFetchedModelsDraftRef.current;
       const nextFetchedModels = currentFetchedModels.filter((item) => !fetchedByKey.has(item.apiKey));
-      const currentAssignments = apiKeyModelsDraftRef.current;
-      const nextAssignments = [...currentAssignments];
-      const assignedKeys = new Set(currentAssignments.map((item) => item.apiKey));
+      // Record the fetched capability cache only. Do NOT seed an empty
+      // apiKeyModels entry for freshly fetched keys: the backend reads an
+      // explicit empty per-key list as "serves nothing", which stops the key
+      // from inheriting the channel model list and silently drops channel-level
+      // models on save. A key with no assignment inherits the channel list, and
+      // the picker still lists it because rows are keyed off apiKeys. Explicit
+      // per-key picks continue to flow through updateAPIKeyModels.
       fetchedByKey.forEach((keyModels, key) => {
         if (!key) return;
         nextFetchedModels.push({ apiKey: key, models: keyModels });
-        if (!assignedKeys.has(key)) {
-          nextAssignments.push({ apiKey: key, models: [] });
-          assignedKeys.add(key);
-        }
       });
       apiKeyFetchedModelsDraftRef.current = nextFetchedModels;
-      apiKeyModelsDraftRef.current = nextAssignments;
       form.setValue('credentials.apiKeyFetchedModels', nextFetchedModels, { shouldDirty: true });
-      form.setValue('credentials.apiKeyModels', nextAssignments, { shouldDirty: true });
 
       const models = [...new Set([...fetchedByKey.values()].flat())];
       if (models.length) {
