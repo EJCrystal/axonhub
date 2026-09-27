@@ -24,6 +24,9 @@ type contextContainer struct {
 
 	// ChannelAPIKey stores the API key used for the channel request (not the user's API key)
 	ChannelAPIKey *string
+
+	// ChannelRequestModel stores the upstream model selected for the current channel attempt.
+	ChannelRequestModel *string
 }
 
 // getContainer retrieves the existing container from context, or creates a new one and stores it in the context if it doesn't exist.
