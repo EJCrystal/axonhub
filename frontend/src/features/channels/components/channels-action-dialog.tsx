@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { X, RefreshCw, Search, ChevronLeft, ChevronRight, PanelLeft, Plus, Trash2, Eye, EyeOff, Copy, Play, Info, Ban } from 'lucide-react';
+import { X, RefreshCw, Search, ChevronLeft, ChevronRight, PanelLeft, Plus, Trash2, Eye, EyeOff, Copy, Play, Info, Ban, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { copyTextToClipboard } from '@/lib/clipboard';
@@ -1752,25 +1752,55 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     const fetchKeys = keys.length > 0 ? keys : [oauthKey];
 
     try {
+      // Fetch every key at once, then report a single aggregated summary. Each
+      // call suppresses its own toast so the user never sees one message per
+      // key; we surface the union count and any per-key failures exactly once.
+      const settled = await Promise.allSettled(
+        fetchKeys.map(async (key) => {
+          const result = await fetchModels.mutateAsync({
+            channelType,
+            baseURL,
+            apiKey: key || undefined,
+            channelID: isEdit ? currentRow?.id : undefined,
+            suppressToast: true,
+          });
+          return { key, result };
+        })
+      );
+
       const fetchedByKey = new Map<string, string[]>();
-      const errors: string[] = [];
-      for (const key of fetchKeys) {
-        const result = await fetchModels.mutateAsync({
-          channelType,
-          baseURL,
-          apiKey: key || undefined,
-          channelID: isEdit ? currentRow?.id : undefined,
-        });
-        if (result.error) {
-          errors.push(result.error);
-          continue;
+      const failures: { key: string; reason: string }[] = [];
+      settled.forEach((outcome, index) => {
+        const key = fetchKeys[index];
+        if (outcome.status === 'fulfilled' && !outcome.value.result.error) {
+          fetchedByKey.set(key, outcome.value.result.models.map((model) => model.id));
+        } else {
+          const reason =
+            outcome.status === 'fulfilled'
+              ? outcome.value.result.error || t('common.errors.internalServerError')
+              : outcome.reason instanceof Error
+                ? outcome.reason.message
+                : t('common.errors.internalServerError');
+          failures.push({ key, reason });
         }
-        fetchedByKey.set(key, result.models.map((model) => model.id));
-      }
+      });
+
+      const maskKey = (key: string) =>
+        key.length > 8 ? `${key.slice(0, 4)}****${key.slice(-4)}` : t('channels.dialogs.fields.apiKey.thisCredential');
+      const failureDetail = failures.map((item) => `${maskKey(item.key)}: ${item.reason}`).join('; ');
+      const unionCount = new Set([...fetchedByKey.values()].flat()).size;
 
       if (fetchedByKey.size === 0) {
-        if (errors[0]) toast.error(errors[0]);
+        toast.error(t('channels.messages.fetchModelsAllFailed', { detail: failureDetail }));
         return;
+      }
+
+      if (failures.length > 0) {
+        toast.warning(t('channels.messages.fetchModelsPartial', { count: unionCount, detail: failureDetail }));
+      } else if (unionCount > 100) {
+        toast.success(t('channels.messages.fetchModelsSuccessLarge', { count: unionCount }));
+      } else {
+        toast.success(t('channels.messages.fetchModelsSuccess', { count: unionCount }));
       }
 
       const currentFetchedModels = apiKeyFetchedModelsDraftRef.current;
@@ -1804,7 +1834,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     } catch (_error) {
       // Error is already handled by the mutation
     }
-  }, [fetchModels, form, isEdit, currentRow]);
+  }, [fetchModels, form, isEdit, currentRow, t]);
 
   const handleSyncNow = useCallback(async () => {
     if (!currentRow) return [];
@@ -3469,7 +3499,12 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
 
                           const assignment = apiKeyModels.find((item) => item.apiKey.trim() === key);
                           const fetchedModelsForKey = apiKeyFetchedModels.find((item) => item.apiKey.trim() === key)?.models;
-                          const assignedModels = assignment?.models ?? (fetchedModelsForKey ? [] : supportedModels);
+                          // A key with no explicit assignment shows "not associated" and
+                          // inherits the channel list at routing time. Never echo the
+                          // channel supportedModels here: that made an untouched key look
+                          // like it explicitly supported models it never picked, and it
+                          // polluted the key with the whole channel list on the next add.
+                          const assignedModels = assignment?.models ?? [];
                           const selectableModels = fetchedModelsForKey || [];
 
                           return (
@@ -3654,30 +3689,41 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                     {t('channels.dialogs.fields.apiKey.noModelsAssigned')}
                                   </span>
                                 )}
-                                {selectableModels.some((model) => !assignedModels.includes(model)) && (
+                                {selectableModels.length > 0 && (
                                   <Popover>
                                     <PopoverTrigger asChild>
                                       <Button type='button' variant='outline' size='sm' className='h-5 px-2 text-[10px]'>
                                         <Plus className='mr-1 h-3 w-3' />
-                                        {t('channels.dialogs.fields.apiKey.modelsPlaceholder')}
+                                        {t('channels.dialogs.fields.apiKey.selectSupportedModels')}
                                       </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className='w-64 p-2' align='start'>
+                                      {/* Full cached model list for this key: click a model to
+                                          select it, click a selected one to remove it. */}
                                       <div className='flex max-h-48 flex-col gap-1 overflow-auto'>
-                                        {selectableModels
-                                          .filter((model) => !assignedModels.includes(model))
-                                          .map((model) => (
+                                        {selectableModels.map((model) => {
+                                          const selected = assignedModels.includes(model);
+                                          return (
                                             <Button
                                               key={model}
                                               type='button'
                                               variant='ghost'
                                               size='sm'
-                                              className='h-7 justify-start px-2 text-xs'
-                                              onClick={() => updateAPIKeyModels(key, [...assignedModels, model])}
+                                              className='h-7 justify-between px-2 text-xs'
+                                              onClick={() =>
+                                                updateAPIKeyModels(
+                                                  key,
+                                                  selected
+                                                    ? assignedModels.filter((item) => item !== model)
+                                                    : [...assignedModels, model]
+                                                )
+                                              }
                                             >
-                                              {model}
+                                              <span className='truncate'>{model}</span>
+                                              {selected && <Check className='ml-2 h-3 w-3 shrink-0' />}
                                             </Button>
-                                          ))}
+                                          );
+                                        })}
                                       </div>
                                     </PopoverContent>
                                   </Popover>
