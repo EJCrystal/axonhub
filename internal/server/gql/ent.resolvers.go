@@ -71,6 +71,20 @@ func (r *channelResolver) ID(ctx context.Context, obj *ent.Channel) (*objects.GU
 	}, nil
 }
 
+// SupportedModels is the resolver for the supportedModels field.
+//
+// The management UI shows a channel's full model catalog: the union of every
+// API key's per-key model list (UnionAPIKeyModels), independent of whether the
+// keys are enabled or disabled. The stored supported_models column stays the
+// servable set (union of ENABLED keys) that routing and /v1/models consume via
+// biz; only this read-side view widens it back to the catalog, so a channel
+// whose keys are partly or fully disabled still displays what it is configured
+// to serve. For channels without per-key assignments UnionAPIKeyModels returns
+// the stored list unchanged. See internal/objects/channel.go.
+func (r *channelResolver) SupportedModels(ctx context.Context, obj *ent.Channel) ([]string, error) {
+	return obj.Credentials.UnionAPIKeyModels(obj.SupportedModels), nil
+}
+
 // Policies is the resolver for the policies field.
 // It is used to return the default value if the field is not set.
 func (r *channelResolver) Policies(ctx context.Context, obj *ent.Channel) (*objects.ChannelPolicies, error) {

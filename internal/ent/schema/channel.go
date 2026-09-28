@@ -132,7 +132,13 @@ func (Channel) Fields() []ent.Field {
 			Annotations(
 				entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput),
 			),
-		field.Strings("supported_models"),
+		field.Strings("supported_models").
+			// Read side widens this to the full per-key catalog for the
+			// management UI (see channelResolver.SupportedModels). The stored
+			// column stays the servable set that routing / v1 models consume.
+			Annotations(
+				entgql.Directives(forceResolver()),
+			),
 		field.Strings("manual_models").Optional().Default([]string{}),
 		field.Bool("auto_sync_supported_models").Default(false),
 		field.String("auto_sync_model_pattern").Optional().Default("").

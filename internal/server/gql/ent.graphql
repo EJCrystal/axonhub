@@ -412,7 +412,7 @@ type Channel implements Node {
   baseURL: String
   name: String!
   status: ChannelStatus!
-  supportedModels: [String!]!
+  supportedModels: [String!]! @goField(forceResolver: true)
   manualModels: [String!]
   autoSyncSupportedModels: Boolean!
   """
