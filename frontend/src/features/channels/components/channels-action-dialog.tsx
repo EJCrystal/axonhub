@@ -124,6 +124,48 @@ function normalizeAPIKeyModels<
   };
 }
 
+// Persist the per-key "servable models" the picker shows (channel list ∩ the
+// key's fetched capability) as an explicit apiKeyModels entry on save. Routing
+// treats a key with NO explicit entry as inheriting the FULL channel list, so
+// such a key keeps getting offered models its upstream group rejects (e.g. a
+// key whose group only serves glm-5.3-flash still receives deepseek-v4.1-flash
+// and 404s with "not available for this group"). Materializing the displayed
+// intersection makes routing enforce exactly what the row shows.
+//
+// Only touch ENABLED keys that (a) have no explicit entry, (b) have a fetched
+// capability, and (c) can serve a STRICT, non-empty SUBSET of the channel list.
+// Keys that can serve every channel model keep inheriting (an explicit full
+// list would freeze them out of models added later). Keys with no fetched data
+// keep inheriting too — an empty list means "serves nothing", not "unknown", so
+// we never bench a key on the strength of missing capability data alone.
+function materializeServableAPIKeyModels<
+  T extends {
+    apiKeys?: string[] | null;
+    apiKeyModels?: { apiKey: string; models: string[] }[] | null;
+    apiKeyFetchedModels?: { apiKey: string; models: string[] }[] | null;
+  }
+>(credentials: T | undefined, supportedModels: string[], disabledKeys: ReadonlySet<string> = new Set()): T | undefined {
+  if (!credentials) return credentials;
+  const channelModels = [...new Set(supportedModels)];
+  if (channelModels.length === 0) return credentials;
+  const explicitKeys = new Set((credentials.apiKeyModels || []).map((item) => item.apiKey.trim()));
+  const fetchedByKey = new Map(
+    (credentials.apiKeyFetchedModels || []).map((item) => [item.apiKey.trim(), new Set(item.models)] as [string, Set<string>])
+  );
+  const additions: { apiKey: string; models: string[] }[] = [];
+  for (const rawKey of credentials.apiKeys || []) {
+    const apiKey = rawKey.trim();
+    if (!apiKey || disabledKeys.has(apiKey) || explicitKeys.has(apiKey)) continue;
+    const fetched = fetchedByKey.get(apiKey);
+    if (!fetched) continue;
+    const servable = channelModels.filter((model) => fetched.has(model));
+    if (servable.length === 0 || servable.length >= channelModels.length) continue;
+    additions.push({ apiKey, models: servable });
+  }
+  if (additions.length === 0) return credentials;
+  return { ...credentials, apiKeyModels: [...(credentials.apiKeyModels || []), ...additions] };
+}
+
 function getInitialAPIKeyModels(credentials: {
   apiKeyModels?: { apiKey: string; models: string[] }[] | null;
   apiKeyFetchedModels?: { apiKey: string; models: string[] }[] | null;
@@ -1638,7 +1680,16 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
             apiKeyFetchedModels: latestAPIKeyFetchedModels ?? valuesForSubmit.credentials.apiKeyFetchedModels,
           }
         : valuesForSubmit.credentials;
-      const normalizedCredentials = normalizeAPIKeyModels(credentialsForSubmit);
+      // Lock in what the per-key picker shows before saving: a key with no
+      // explicit list but a narrower fetched capability gets that servable
+      // intersection persisted, so routing stops handing it models it cannot
+      // serve. Runs before normalization so the new entries are cleaned too.
+      const materializedCredentials = materializeServableAPIKeyModels(
+        credentialsForSubmit,
+        supportedModels,
+        disabledKeySet
+      );
+      const normalizedCredentials = normalizeAPIKeyModels(materializedCredentials);
       const dataWithModels = {
         ...valuesForSubmit,
         supportedModels: unionAPIKeyModels(normalizedCredentials, effectiveSupportedModels, disabledKeySet),
