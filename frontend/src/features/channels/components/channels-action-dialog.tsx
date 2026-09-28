@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import { z } from 'zod';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { X, RefreshCw, Search, ChevronLeft, ChevronRight, PanelLeft, Plus, Trash2, Eye, EyeOff, Copy, Play, Info, Ban, Check } from 'lucide-react';
@@ -73,6 +73,32 @@ import { isValidModelPattern, matchesModelPattern } from '../utils/pattern';
 import { ProxyType } from './channels-proxy-dialog';
 import { CopilotDeviceFlow } from './copilot-device-flow';
 import { ManualModelBadge } from './manual-model-badge';
+
+// Walk a react-hook-form FieldErrors tree and return the first leaf that
+// carries a message, along with its dotted path. Used to surface a blocked
+// submit: several validated fields here (supportedModels, the per-key model
+// arrays, most of settings.*) are edited outside a visible FormField, so their
+// errors render nowhere and the submit button silently does nothing.
+function findFirstFieldError(
+  errors: Record<string, unknown> | undefined,
+  basePath = ''
+): { path: string; message: string } | null {
+  if (!errors || typeof errors !== 'object') return null;
+  const message = (errors as { message?: unknown }).message;
+  if (typeof message === 'string' && message.length > 0) {
+    return { path: basePath || 'form', message };
+  }
+  for (const [key, value] of Object.entries(errors)) {
+    // Skip RHF leaf metadata and the DOM ref (a node is circular / irrelevant).
+    if (key === 'ref' || key === 'type' || key === 'types' || key === 'message') continue;
+    if (!value || typeof value !== 'object') continue;
+    if ((value as { nodeType?: unknown }).nodeType) continue;
+    const path = basePath ? `${basePath}.${key}` : key;
+    const found = findFirstFieldError(value as Record<string, unknown>, path);
+    if (found) return found;
+  }
+  return null;
+}
 
 function normalizeAPIKeyModels<
   T extends {
@@ -1452,6 +1478,28 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     }
   }, [supportedModels, watchedDefaultTestModel, isEdit, isDuplicate, form]);
 
+  // Keep the RHF `supportedModels` field in lockstep with the state that drives
+  // the chips and the submit button. The field is seeded once from
+  // currentRow.supportedModels and nothing else writes it, so when the state
+  // later gains a model the saved channel lacked (via fetch, the per-key picker,
+  // or the apiKeyModels sync effect), the field stays frozen. If the saved list
+  // was empty, the button turns enabled while the stale field keeps failing the
+  // `min(1)` rule — and since that field has no on-screen message, clicking save
+  // does nothing. Syncing here also matches what onSubmit actually persists (it
+  // derives the model list from this state, not the frozen field).
+  useEffect(() => {
+    const current = (form.getValues('supportedModels') as string[] | undefined) || [];
+    const unchanged =
+      current.length === supportedModels.length && current.every((model, index) => model === supportedModels[index]);
+    if (unchanged) return;
+    form.setValue('supportedModels', supportedModels, {
+      shouldDirty: true,
+      // Only re-validate live after the first submit attempt so we clear the
+      // error as the user fixes it, without flashing errors on open.
+      shouldValidate: form.formState.isSubmitted,
+    });
+  }, [supportedModels, form]);
+
   const renderOAuthSection = useCallback(
     (oauth: ReturnType<typeof useOAuthFlow>, description: string) => (
       <div className='mt-3 space-y-2'>
@@ -1766,6 +1814,19 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     } catch (_error) {
       void _error;
     }
+  };
+
+  // handleSubmit runs the zod resolver before onSubmit; on failure onSubmit
+  // never fires. Without this callback that path is silent — the submit button
+  // appears dead because the offending field (often supportedModels or a
+  // per-key model array) renders no message. Surface the first error instead.
+  const onInvalid = (errors: FieldErrors<z.infer<typeof formSchema>>) => {
+    const firstError = findFirstFieldError(errors as Record<string, unknown>);
+    // Some schema messages are i18n keys (e.g. the OAuth credential errors),
+    // others are already human text. t() leaves an unknown key untouched, so it
+    // is safe to run every message through it.
+    const description = firstError ? `${firstError.path}: ${t(firstError.message)}` : undefined;
+    toast.error(t('common.errors.validationError'), description ? { description } : undefined);
   };
 
   const addModel = () => {
@@ -2287,7 +2348,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
               className={`flex min-h-0 flex-1 flex-col overflow-hidden py-1 transition-all duration-300 ${showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel ? 'pr-2' : 'pr-0'}`}
             >
               <Form {...form}>
-                <form id='channel-form' onSubmit={form.handleSubmit(onSubmit)} className='flex min-h-0 flex-1 flex-col space-y-6 p-0.5'>
+                <form id='channel-form' onSubmit={form.handleSubmit(onSubmit, onInvalid)} className='flex min-h-0 flex-1 flex-col space-y-6 p-0.5'>
                   {/* Provider Selection - Left Side */}
                   <div className='flex min-h-0 flex-1 flex-col gap-4 overflow-hidden md:flex-row md:gap-6'>
                     <div className='flex max-h-48 min-h-0 w-full flex-shrink-0 flex-col md:max-h-none md:w-60'>
