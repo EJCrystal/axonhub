@@ -602,6 +602,54 @@ func TestChannelService_DisableAPIKeyRemovesItsModelsFromUnion(t *testing.T) {
 	require.ElementsMatch(t, []string{"model-a", "model-b"}, enabled.SupportedModels)
 }
 
+func TestChannelService_CleanupExpiredDisabledAPIKeys_RestoresRecoveredKeyModels(t *testing.T) {
+	svc, client := setupTestChannelService(t)
+	defer client.Close()
+
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	ch, err := client.Channel.Create().
+		SetType(channel.TypeOpenai).
+		SetName("Recover Key Models").
+		SetBaseURL("https://api.openai.com/v1").
+		SetCredentials(objects.ChannelCredentials{
+			APIKeys: []string{"key-a", "key-b"},
+			APIKeyModels: []objects.APIKeyModels{
+				{APIKey: "key-a", Models: []string{"model-a"}},
+				{APIKey: "key-b", Models: []string{"model-b"}},
+			},
+		}).
+		SetSupportedModels([]string{"model-a", "model-b"}).
+		SetDefaultTestModel("model-a").
+		Save(ctx)
+	require.NoError(t, err)
+
+	// Temporarily disable key-b; supported_models narrows to key-a's list.
+	future := time.Now().Add(5 * time.Minute)
+	require.NoError(t, svc.DisableAPIKey(ctx, ch.ID, "key-b", 503, "temporary", &future))
+	disabled, err := client.Channel.Get(ctx, ch.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"model-a"}, disabled.SupportedModels)
+	require.Len(t, disabled.DisabledAPIKeys, 1)
+
+	// Simulate the temporary window elapsing, then run the periodic cleanup.
+	past := time.Now().Add(-time.Minute)
+	expired := disabled.DisabledAPIKeys
+	expired[0].ExpiresAt = &past
+	_, err = client.Channel.UpdateOneID(ch.ID).SetDisabledAPIKeys(expired).Save(ctx)
+	require.NoError(t, err)
+
+	cleaned, removed, err := svc.cleanupChannelExpiredDisabledAPIKeys(ctx, ch.ID)
+	require.NoError(t, err)
+	require.True(t, cleaned)
+	require.Equal(t, 1, removed)
+
+	// The recovered key's models must be restored, not left narrowed.
+	recovered, err := client.Channel.Get(ctx, ch.ID)
+	require.NoError(t, err)
+	require.Empty(t, recovered.DisabledAPIKeys)
+	require.ElementsMatch(t, []string{"model-a", "model-b"}, recovered.SupportedModels)
+}
+
 // ==================== DeleteDisabledAPIKeys Tests ====================.
 func TestChannelService_DeleteDisabledAPIKeys_SingleKey(t *testing.T) {
 	svc, client := setupTestChannelService(t)
