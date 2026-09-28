@@ -1467,16 +1467,15 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   const watchedDefaultTestModel = form.watch('defaultTestModel');
   useEffect(() => {
     if (supportedModels.length === 0) return;
-    if (!isEdit && !isDuplicate) {
-      if (!watchedDefaultTestModel || !supportedModels.includes(watchedDefaultTestModel)) {
-        form.setValue('defaultTestModel', supportedModels[0]);
-      }
-      return;
-    }
-    if (watchedDefaultTestModel && !supportedModels.includes(watchedDefaultTestModel)) {
+    // In every mode (create/edit/duplicate) guarantee the default test model is
+    // one of the supported models. The edit/duplicate path used to skip filling
+    // an EMPTY value, so a channel whose saved defaultTestModel was blank would
+    // silently fail the "please select a default test model" rule after models
+    // were added — with no on-screen message, the save just did nothing.
+    if (!watchedDefaultTestModel || !supportedModels.includes(watchedDefaultTestModel)) {
       form.setValue('defaultTestModel', supportedModels[0]);
     }
-  }, [supportedModels, watchedDefaultTestModel, isEdit, isDuplicate, form]);
+  }, [supportedModels, watchedDefaultTestModel, form]);
 
   // Keep the RHF `supportedModels` field in lockstep with the state that drives
   // the chips and the submit button. The field is seeded once from
