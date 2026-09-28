@@ -2,7 +2,9 @@ package orchestrator
 
 import (
 	"context"
+	"net/http"
 	"regexp"
+	"sync/atomic"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -58,6 +60,22 @@ type persistRequestExecutionMiddleware struct {
 
 	rawResponse      *httpclient.Response
 	upstreamModelIDs []string
+	headerObserver   *executionHeaderObserver
+}
+
+type executionHeaderObserver struct {
+	service     *biz.RequestService
+	executionID int
+	observed    atomic.Bool
+}
+
+func (o *executionHeaderObserver) observe(ctx context.Context, headers http.Header) {
+	o.observed.Store(true)
+	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := o.service.UpdateRequestExecutionResponseHeaders(persistCtx, o.executionID, headers); err != nil {
+		log.Warn(persistCtx, "Failed to save execution response headers", log.Cause(err))
+	}
 }
 
 func persistRequestExecution(outbound *PersistentOutboundTransformer) pipeline.Middleware {
@@ -77,7 +95,14 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 	m.upstreamModelIDs = nil
 
 	state := m.outbound.state
-	if state == nil || state.RequestExec != nil {
+	if state == nil {
+		return request, nil
+	}
+	if state.RequestExec != nil {
+		if m.headerObserver != nil {
+			m.headerObserver.observed.Store(false)
+			request.OnResponseHeaders = m.headerObserver.observe
+		}
 		return request, nil
 	}
 
@@ -121,6 +146,9 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 	}
 
 	state.RequestExec = requestExec
+	m.rawResponse = nil
+	m.headerObserver = &executionHeaderObserver{service: state.RequestService, executionID: requestExec.ID}
+	request.OnResponseHeaders = m.headerObserver.observe
 
 	return request, nil
 }
@@ -134,6 +162,9 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawResponse(ctx context.Co
 		format = m.outbound.APIFormat()
 	}
 	m.upstreamModelIDs = modelmetadata.Observe(m.upstreamModelIDs, modelmetadata.ResponseModel(response, format))
+	if response != nil && m.headerObserver != nil && !m.headerObserver.observed.Load() {
+		m.headerObserver.observe(ctx, response.Headers)
+	}
 	return response, nil
 }
 

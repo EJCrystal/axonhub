@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
@@ -81,11 +82,16 @@ var (
 )
 
 func isExternalResponseBodyMarker(body objects.JSONRawMessage) bool {
-	return bytes.Equal(bytes.TrimSpace(body), ExternalResponseBodyMarker)
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, body); err != nil {
+		return false
+	}
+
+	return bytes.Equal(compact.Bytes(), ExternalResponseBodyMarker)
 }
 
 func isExternalResponseChunksMarker(chunks []objects.JSONRawMessage) bool {
-	return len(chunks) == 1 && bytes.Equal(bytes.TrimSpace(chunks[0]), []byte(`{"_ext":1}`))
+	return len(chunks) == 1 && isExternalResponseBodyMarker(chunks[0])
 }
 
 func sanitizeLoadedResponseBody(body objects.JSONRawMessage) objects.JSONRawMessage {
@@ -240,6 +246,7 @@ func (s *RequestService) CreateRequest(
 
 	if httpRequest != nil {
 		mut = mut.SetClientIP(httpRequest.ClientIP)
+		mut = mut.SetUserAgent(httpRequest.UserAgent)
 	}
 
 	if llmRequest.ReasoningEffort != "" {
@@ -297,6 +304,10 @@ func (s *RequestService) CreateRequest(
 			// Continue anyway, don't fail the request creation
 		}
 	}
+
+	// Let the downstream response-header middleware associate the eventual
+	// HTTP response with this persisted request row.
+	contexts.NotifyRequestRecord(ctx, req.ID)
 
 	return req, nil
 }
@@ -466,6 +477,35 @@ type LatencyMetrics struct {
 	LatencyMs           *int64
 	FirstTokenLatencyMs *int64
 	ReasoningDurationMs *int64
+}
+
+func (s *RequestService) UpdateRequestResponseHeaders(ctx context.Context, requestID int, headers http.Header) error {
+	data, err := s.responseHeadersForStorage(ctx, headers)
+	if err != nil || data == nil {
+		return err
+	}
+	_, err = s.entFromContext(ctx).Request.UpdateOneID(requestID).SetResponseHeaders(data).Save(ctx)
+	return err
+}
+
+func (s *RequestService) UpdateRequestExecutionResponseHeaders(ctx context.Context, executionID int, headers http.Header) error {
+	data, err := s.responseHeadersForStorage(ctx, headers)
+	if err != nil || data == nil {
+		return err
+	}
+	_, err = s.entFromContext(ctx).RequestExecution.UpdateOneID(executionID).SetResponseHeaders(data).Save(ctx)
+	return err
+}
+
+func (s *RequestService) responseHeadersForStorage(ctx context.Context, headers http.Header) (objects.JSONRawMessage, error) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+	policy, err := s.SystemService.StoragePolicy(authz.WithSystemBypass(ctx, "response-header-storage-policy"))
+	if err == nil && !policy.StoreResponseBody {
+		return nil, nil
+	}
+	return xjson.Marshal(httpclient.MaskSensitiveHeaders(headers))
 }
 
 // UpdateRequestFinalized persists a terminal response and its final request status.

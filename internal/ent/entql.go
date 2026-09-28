@@ -409,6 +409,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			request.FieldFormat:                     {Type: field.TypeString, Column: request.FieldFormat},
 			request.FieldRequestHeaders:             {Type: field.TypeJSON, Column: request.FieldRequestHeaders},
 			request.FieldRequestBody:                {Type: field.TypeJSON, Column: request.FieldRequestBody},
+			request.FieldResponseHeaders:            {Type: field.TypeJSON, Column: request.FieldResponseHeaders},
 			request.FieldResponseBody:               {Type: field.TypeJSON, Column: request.FieldResponseBody},
 			request.FieldResponseChunks:             {Type: field.TypeJSON, Column: request.FieldResponseChunks},
 			request.FieldChannelID:                  {Type: field.TypeInt, Column: request.FieldChannelID},
@@ -416,6 +417,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			request.FieldStatus:                     {Type: field.TypeEnum, Column: request.FieldStatus},
 			request.FieldStream:                     {Type: field.TypeBool, Column: request.FieldStream},
 			request.FieldClientIP:                   {Type: field.TypeString, Column: request.FieldClientIP},
+			request.FieldUserAgent:                  {Type: field.TypeString, Column: request.FieldUserAgent},
 			request.FieldMetricsLatencyMs:           {Type: field.TypeInt64, Column: request.FieldMetricsLatencyMs},
 			request.FieldMetricsFirstTokenLatencyMs: {Type: field.TypeInt64, Column: request.FieldMetricsFirstTokenLatencyMs},
 			request.FieldMetricsReasoningDurationMs: {Type: field.TypeInt64, Column: request.FieldMetricsReasoningDurationMs},
@@ -451,6 +453,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			requestexecution.FieldReasoningEffort:            {Type: field.TypeString, Column: requestexecution.FieldReasoningEffort},
 			requestexecution.FieldChannelAPIKeySuffix:        {Type: field.TypeString, Column: requestexecution.FieldChannelAPIKeySuffix},
 			requestexecution.FieldRequestBody:                {Type: field.TypeJSON, Column: requestexecution.FieldRequestBody},
+			requestexecution.FieldResponseHeaders:            {Type: field.TypeJSON, Column: requestexecution.FieldResponseHeaders},
 			requestexecution.FieldResponseBody:               {Type: field.TypeJSON, Column: requestexecution.FieldResponseBody},
 			requestexecution.FieldResponseChunks:             {Type: field.TypeJSON, Column: requestexecution.FieldResponseChunks},
 			requestexecution.FieldErrorMessage:               {Type: field.TypeString, Column: requestexecution.FieldErrorMessage},
@@ -3323,6 +3326,11 @@ func (f *RequestFilter) WhereRequestBody(p entql.BytesP) {
 	f.Where(p.Field(request.FieldRequestBody))
 }
 
+// WhereResponseHeaders applies the entql json.RawMessage predicate on the response_headers field.
+func (f *RequestFilter) WhereResponseHeaders(p entql.BytesP) {
+	f.Where(p.Field(request.FieldResponseHeaders))
+}
+
 // WhereResponseBody applies the entql json.RawMessage predicate on the response_body field.
 func (f *RequestFilter) WhereResponseBody(p entql.BytesP) {
 	f.Where(p.Field(request.FieldResponseBody))
@@ -3356,6 +3364,11 @@ func (f *RequestFilter) WhereStream(p entql.BoolP) {
 // WhereClientIP applies the entql string predicate on the client_ip field.
 func (f *RequestFilter) WhereClientIP(p entql.StringP) {
 	f.Where(p.Field(request.FieldClientIP))
+}
+
+// WhereUserAgent applies the entql string predicate on the user_agent field.
+func (f *RequestFilter) WhereUserAgent(p entql.StringP) {
+	f.Where(p.Field(request.FieldUserAgent))
 }
 
 // WhereMetricsLatencyMs applies the entql int64 predicate on the metrics_latency_ms field.
@@ -3604,6 +3617,11 @@ func (f *RequestExecutionFilter) WhereChannelAPIKeySuffix(p entql.StringP) {
 // WhereRequestBody applies the entql json.RawMessage predicate on the request_body field.
 func (f *RequestExecutionFilter) WhereRequestBody(p entql.BytesP) {
 	f.Where(p.Field(requestexecution.FieldRequestBody))
+}
+
+// WhereResponseHeaders applies the entql json.RawMessage predicate on the response_headers field.
+func (f *RequestExecutionFilter) WhereResponseHeaders(p entql.BytesP) {
+	f.Where(p.Field(requestexecution.FieldResponseHeaders))
 }
 
 // WhereResponseBody applies the entql json.RawMessage predicate on the response_body field.

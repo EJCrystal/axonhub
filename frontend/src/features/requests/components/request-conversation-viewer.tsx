@@ -412,38 +412,6 @@ export function RequestConversationViewer({ body, format, className }: RequestCo
   const rootRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const virtualizerRef = useRef<ReturnType<typeof useVirtualizer<HTMLDivElement, HTMLDivElement>> | null>(null);
-  useEffect(() => {
-    let scroller: HTMLElement | null = null;
-    let node: HTMLElement | null = rootRef.current;
-    while (node) {
-      const style = getComputedStyle(node);
-      if (/(auto|scroll|overlay)/.test(style.overflowY)) {
-        scroller = node;
-        break;
-      }
-      node = node.parentElement;
-    }
-    const target = scroller ?? window;
-    const onScroll = () => {
-      const top = scroller ? scroller.scrollTop : window.scrollY;
-      setShowBackTop(top > 400);
-    };
-    target.addEventListener('scroll', onScroll, { passive: true });
-    return () => target.removeEventListener('scroll', onScroll);
-  }, []);
-
-  const scrollToTop = useCallback(() => {
-    let node: HTMLElement | null = rootRef.current;
-    while (node) {
-      const style = getComputedStyle(node);
-      if (/(auto|scroll|overlay)/.test(style.overflowY)) {
-        node.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
-      }
-      node = node.parentElement;
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
 
   const toolCallByCallId = useMemo(() => {
     const map = new Map<string, number>();
@@ -473,11 +441,34 @@ export function RequestConversationViewer({ body, format, className }: RequestCo
     });
   }, [data, search, roleFilter, showSystem]);
 
+  // The message list owns its own scroll container, so the back-to-top control
+  // has to watch and drive that element rather than an ancestor.
+  useEffect(() => {
+    const scroller = messagesScrollRef.current;
+    if (!scroller) return;
+    const onScroll = () => setShowBackTop(scroller.scrollTop > 400);
+    onScroll();
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    return () => scroller.removeEventListener('scroll', onScroll);
+    // Re-runs when the list appears or is emptied, because the scroll container is
+    // unmounted while no message matches the current filter.
+  }, [visibleMessages.length]);
+
+  const scrollToTop = useCallback(() => {
+    messagesScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // A long conversation can hold dozens of messages with tens of thousands of
+  // characters each. Rendering every card at once blocks the main thread, so only
+  // the messages near the viewport are mounted.
   const virtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
     count: visibleMessages.length,
     getScrollElement: () => messagesScrollRef.current,
     estimateSize: () => 180,
     overscan: 6,
+    // Key by message index: filtering remounts the list, and a positional key would
+    // let a recycled row reuse another message's measured height.
+    getItemKey: useCallback((index: number) => visibleMessages[index]?.index ?? index, [visibleMessages]),
   });
   virtualizerRef.current = virtualizer;
 
