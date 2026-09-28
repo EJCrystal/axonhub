@@ -530,7 +530,13 @@ func (svc *ChannelService) cleanupChannelExpiredDisabledAPIKeys(ctx context.Cont
 		return false, 0, nil
 	}
 
-	update := entClient.Channel.UpdateOneID(ch.ID).SetDisabledAPIKeys(active)
+	update := entClient.Channel.UpdateOneID(ch.ID).
+		SetDisabledAPIKeys(active).
+		// Recovering an expired temporary disable must widen supported_models
+		// back to the enabled-key union, mirroring EnableAPIKey. Without this the
+		// models a recovered key serves stay dropped from the channel list (and
+		// from routing) until a manual enable / save / sync recomputes them.
+		SetSupportedModels(unionEnabledAPIKeyModels(ch.Credentials, ch.SupportedModels, active))
 	update = applyRecoveredChannelStatus(ctx, update, ch, ch.Credentials, active)
 	if _, err := update.Save(ctx); err != nil {
 		return false, 0, fmt.Errorf("failed to update channel: %w", err)
