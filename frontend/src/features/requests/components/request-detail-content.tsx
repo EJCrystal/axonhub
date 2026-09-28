@@ -27,8 +27,6 @@ import { generateRequestCurl, generateExecutionCurl } from '../utils/curl-genera
 import { getVideoLastFrameURL, isVideoRequestFormat } from '../utils/video-display';
 import { getExecutionModelAuditVerdict, getUpstreamModelAudit, MODEL_AUDIT_VERDICT_CLASS } from '../utils/upstream-model-audit';
 
-const JSON_VIEWER_EXPAND_DEPTH = 2;
-
 // The detail page renders whole request and response payloads. Expanding every
 // level eagerly produces hundreds of thousands of characters of DOM for a large
 // conversation and freezes the page, so open only the first levels by default.
