@@ -80,6 +80,11 @@ func ChannelID(v int) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldChannelID, v))
 }
 
+// ChannelAPIKeyIndex applies equality check predicate on the "channel_api_key_index" field. It's identical to ChannelAPIKeyIndexEQ.
+func ChannelAPIKeyIndex(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldChannelAPIKeyIndex, v))
+}
+
 // DataStorageID applies equality check predicate on the "data_storage_id" field. It's identical to DataStorageIDEQ.
 func DataStorageID(v int) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldDataStorageID, v))
@@ -93,11 +98,6 @@ func ExternalID(v string) predicate.RequestExecution {
 // ModelID applies equality check predicate on the "model_id" field. It's identical to ModelIDEQ.
 func ModelID(v string) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldModelID, v))
-}
-
-// OutboundModelID applies equality check predicate on the "outbound_model_id" field. It's identical to OutboundModelIDEQ.
-func OutboundModelID(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldEQ(FieldOutboundModelID, v))
 }
 
 // UpstreamModelID applies equality check predicate on the "upstream_model_id" field. It's identical to UpstreamModelIDEQ.
@@ -330,6 +330,56 @@ func ChannelIDNotNil() predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldNotNull(FieldChannelID))
 }
 
+// ChannelAPIKeyIndexEQ applies the EQ predicate on the "channel_api_key_index" field.
+func ChannelAPIKeyIndexEQ(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldChannelAPIKeyIndex, v))
+}
+
+// ChannelAPIKeyIndexNEQ applies the NEQ predicate on the "channel_api_key_index" field.
+func ChannelAPIKeyIndexNEQ(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldChannelAPIKeyIndex, v))
+}
+
+// ChannelAPIKeyIndexIn applies the In predicate on the "channel_api_key_index" field.
+func ChannelAPIKeyIndexIn(vs ...int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldChannelAPIKeyIndex, vs...))
+}
+
+// ChannelAPIKeyIndexNotIn applies the NotIn predicate on the "channel_api_key_index" field.
+func ChannelAPIKeyIndexNotIn(vs ...int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldChannelAPIKeyIndex, vs...))
+}
+
+// ChannelAPIKeyIndexGT applies the GT predicate on the "channel_api_key_index" field.
+func ChannelAPIKeyIndexGT(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldChannelAPIKeyIndex, v))
+}
+
+// ChannelAPIKeyIndexGTE applies the GTE predicate on the "channel_api_key_index" field.
+func ChannelAPIKeyIndexGTE(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldChannelAPIKeyIndex, v))
+}
+
+// ChannelAPIKeyIndexLT applies the LT predicate on the "channel_api_key_index" field.
+func ChannelAPIKeyIndexLT(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldChannelAPIKeyIndex, v))
+}
+
+// ChannelAPIKeyIndexLTE applies the LTE predicate on the "channel_api_key_index" field.
+func ChannelAPIKeyIndexLTE(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldChannelAPIKeyIndex, v))
+}
+
+// ChannelAPIKeyIndexIsNil applies the IsNil predicate on the "channel_api_key_index" field.
+func ChannelAPIKeyIndexIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldChannelAPIKeyIndex))
+}
+
+// ChannelAPIKeyIndexNotNil applies the NotNil predicate on the "channel_api_key_index" field.
+func ChannelAPIKeyIndexNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldChannelAPIKeyIndex))
+}
+
 // DataStorageIDEQ applies the EQ predicate on the "data_storage_id" field.
 func DataStorageIDEQ(v int) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldDataStorageID, v))
@@ -500,81 +550,6 @@ func ModelIDContainsFold(v string) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldContainsFold(FieldModelID, v))
 }
 
-// OutboundModelIDEQ applies the EQ predicate on the "outbound_model_id" field.
-func OutboundModelIDEQ(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldEQ(FieldOutboundModelID, v))
-}
-
-// OutboundModelIDNEQ applies the NEQ predicate on the "outbound_model_id" field.
-func OutboundModelIDNEQ(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldNEQ(FieldOutboundModelID, v))
-}
-
-// OutboundModelIDIn applies the In predicate on the "outbound_model_id" field.
-func OutboundModelIDIn(vs ...string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldIn(FieldOutboundModelID, vs...))
-}
-
-// OutboundModelIDNotIn applies the NotIn predicate on the "outbound_model_id" field.
-func OutboundModelIDNotIn(vs ...string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldNotIn(FieldOutboundModelID, vs...))
-}
-
-// OutboundModelIDGT applies the GT predicate on the "outbound_model_id" field.
-func OutboundModelIDGT(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldGT(FieldOutboundModelID, v))
-}
-
-// OutboundModelIDGTE applies the GTE predicate on the "outbound_model_id" field.
-func OutboundModelIDGTE(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldGTE(FieldOutboundModelID, v))
-}
-
-// OutboundModelIDLT applies the LT predicate on the "outbound_model_id" field.
-func OutboundModelIDLT(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldLT(FieldOutboundModelID, v))
-}
-
-// OutboundModelIDLTE applies the LTE predicate on the "outbound_model_id" field.
-func OutboundModelIDLTE(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldLTE(FieldOutboundModelID, v))
-}
-
-// OutboundModelIDContains applies the Contains predicate on the "outbound_model_id" field.
-func OutboundModelIDContains(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldContains(FieldOutboundModelID, v))
-}
-
-// OutboundModelIDHasPrefix applies the HasPrefix predicate on the "outbound_model_id" field.
-func OutboundModelIDHasPrefix(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldHasPrefix(FieldOutboundModelID, v))
-}
-
-// OutboundModelIDHasSuffix applies the HasSuffix predicate on the "outbound_model_id" field.
-func OutboundModelIDHasSuffix(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldHasSuffix(FieldOutboundModelID, v))
-}
-
-// OutboundModelIDIsNil applies the IsNil predicate on the "outbound_model_id" field.
-func OutboundModelIDIsNil() predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldIsNull(FieldOutboundModelID))
-}
-
-// OutboundModelIDNotNil applies the NotNil predicate on the "outbound_model_id" field.
-func OutboundModelIDNotNil() predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldNotNull(FieldOutboundModelID))
-}
-
-// OutboundModelIDEqualFold applies the EqualFold predicate on the "outbound_model_id" field.
-func OutboundModelIDEqualFold(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldEqualFold(FieldOutboundModelID, v))
-}
-
-// OutboundModelIDContainsFold applies the ContainsFold predicate on the "outbound_model_id" field.
-func OutboundModelIDContainsFold(v string) predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldContainsFold(FieldOutboundModelID, v))
-}
-
 // UpstreamModelIDEQ applies the EQ predicate on the "upstream_model_id" field.
 func UpstreamModelIDEQ(v string) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldUpstreamModelID, v))
@@ -648,16 +623,6 @@ func UpstreamModelIDEqualFold(v string) predicate.RequestExecution {
 // UpstreamModelIDContainsFold applies the ContainsFold predicate on the "upstream_model_id" field.
 func UpstreamModelIDContainsFold(v string) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldContainsFold(FieldUpstreamModelID, v))
-}
-
-// UpstreamModelIdsIsNil applies the IsNil predicate on the "upstream_model_ids" field.
-func UpstreamModelIdsIsNil() predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldIsNull(FieldUpstreamModelIds))
-}
-
-// UpstreamModelIdsNotNil applies the NotNil predicate on the "upstream_model_ids" field.
-func UpstreamModelIdsNotNil() predicate.RequestExecution {
-	return predicate.RequestExecution(sql.FieldNotNull(FieldUpstreamModelIds))
 }
 
 // FormatEQ applies the EQ predicate on the "format" field.

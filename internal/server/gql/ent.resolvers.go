@@ -493,11 +493,7 @@ func (r *queryResolver) Requests(ctx context.Context, after *entgql.Cursor[int],
 		orderBy.Field = ent.DefaultRequestOrder.Field
 	}
 
-	query := r.client.Request.Query()
-	if requestModelAuditSelected(ctx) {
-		query = withModelAuditExecutions(query)
-	}
-	return query.Paginate(ctx, after, first, before, last,
+	return r.client.Request.Query().Paginate(ctx, after, first, before, last,
 		ent.WithRequestOrder(orderBy),
 		ent.WithRequestFilter(where.Filter),
 	)
@@ -719,6 +715,25 @@ func (r *requestExecutionResolver) ChannelID(ctx context.Context, obj *ent.Reque
 		Type: ent.TypeChannel,
 		ID:   obj.ChannelID,
 	}, nil
+}
+
+// ChannelAPIKeyIndex is the resolver for the channelAPIKeyIndex field.
+func (r *requestExecutionResolver) ChannelAPIKeyIndex(ctx context.Context, obj *ent.RequestExecution) (*int, error) {
+	if obj.ChannelAPIKeyIndex == nil || obj.ChannelID == 0 {
+		return nil, nil
+	}
+
+	// Mirrors ChannelAPIKeySuffix: the position is only disclosed when the
+	// caller may read the channel it belongs to.
+	ch, err := getNilableChannel(ctx, r.client, obj.ChannelID)
+	if err != nil {
+		return nil, err
+	}
+	if ch == nil {
+		return nil, nil
+	}
+
+	return obj.ChannelAPIKeyIndex, nil
 }
 
 // DataStorageID is the resolver for the dataStorageID field.

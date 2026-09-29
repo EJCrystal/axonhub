@@ -59,7 +59,6 @@ func createUpstreamModelTestExecution(t *testing.T, ctx context.Context, client 
 		SetProjectID(req.ProjectID).
 		SetChannelID(req.ChannelID).
 		SetModelID(model).
-		SetOutboundModelID(model).
 		SetRequestBody([]byte(`{}`)).
 		SetFormat(string(format)).
 		SetStatus(requestexecution.StatusPending).
@@ -82,6 +81,7 @@ func TestUpstreamModelPersistence_NonStreamingAttempts(t *testing.T) {
 	attempts := []struct {
 		name          string
 		body          string
+		contentType   string
 		responseModel string
 		format        llm.APIFormat
 		wantModel     string
@@ -91,6 +91,10 @@ func TestUpstreamModelPersistence_NonStreamingAttempts(t *testing.T) {
 		{name: "retry reports its own model", format: llm.APIFormatOpenAIChatCompletion, body: `{"model":"model-b","choices":[]}`, responseModel: "model-b", wantModel: "model-b"},
 		{name: "synthetic image model remains unknown", format: llm.APIFormatOpenAIImageGeneration, body: `{"created":123,"data":[]}`, responseModel: "requested-image-model"},
 		{name: "image modelVersion takes precedence over synthesized model", format: llm.APIFormatGeminiContents, body: `{"modelVersion":"reported-image-version","candidates":[]}`, responseModel: "requested-image-model", wantModel: "reported-image-version"},
+		// Some relays answer a non-streaming request with a JSON body labelled as an
+		// event stream. The name is conclusively present, so it must still be recorded.
+		{name: "relay labels a JSON body as an event stream", format: llm.APIFormatOpenAIChatCompletion, contentType: "text/event-stream", body: `{"model":"model-a","choices":[]}`, responseModel: "model-a", wantModel: "model-a"},
+		{name: "relay sends a malformed media type", format: llm.APIFormatOpenAIChatCompletion, contentType: "application/json; x=", body: `{"model":"model-a","choices":[]}`, responseModel: "model-a", wantModel: "model-a"},
 	}
 
 	for _, attempt := range attempts {
@@ -100,6 +104,7 @@ func TestUpstreamModelPersistence_NonStreamingAttempts(t *testing.T) {
 			require.NoError(t, err)
 			_, err = middleware.OnOutboundRawResponse(ctx, &httpclient.Response{
 				StatusCode: http.StatusOK,
+				Headers:    http.Header{"Content-Type": {attempt.contentType}},
 				Body:       []byte(attempt.body),
 			})
 			require.NoError(t, err)
@@ -120,11 +125,6 @@ func TestUpstreamModelPersistence_NonStreamingAttempts(t *testing.T) {
 			saved, err := client.RequestExecution.Get(ctx, state.RequestExec.ID)
 			require.NoError(t, err)
 			require.Equal(t, attempt.wantModel, saved.UpstreamModelID)
-			if attempt.wantModel != "" {
-				require.Equal(t, []string{attempt.wantModel}, saved.UpstreamModelIds)
-			} else {
-				require.Empty(t, saved.UpstreamModelIds)
-			}
 			require.Equal(t, wantStatus, saved.Status)
 			require.Empty(t, saved.ResponseBody)
 		})
@@ -230,14 +230,29 @@ func TestUpstreamModelPersistence_StreamingTerminations(t *testing.T) {
 			saved, err := client.RequestExecution.Get(ctx, execution.ID)
 			require.NoError(t, err)
 			require.Equal(t, tt.wantModel, saved.UpstreamModelID)
-			if tt.wantModel != "" {
-				require.Equal(t, []string{tt.wantModel}, saved.UpstreamModelIds)
-			} else {
-				require.Empty(t, saved.UpstreamModelIds)
-			}
 			require.Equal(t, tt.wantStatus, saved.Status)
 			require.Empty(t, saved.ResponseBody, "metadata must survive disabled body storage")
 			require.Empty(t, saved.ResponseChunks, "metadata must survive disabled chunk storage")
 		})
 	}
+}
+
+// Streams keep the first reported name even if later chunks report a different one.
+func TestUpstreamModelPersistence_KeepsOnlyFirstReportedName(t *testing.T) {
+	ctx, client, state := newUpstreamModelPersistenceTest(t)
+	execution := createUpstreamModelTestExecution(t, ctx, client, state.Request, "sent-model", llm.APIFormatOpenAIChatCompletion, true)
+	events := []*httpclient.StreamEvent{
+		{Data: []byte("{\"model\":\"first-model\",\"choices\":[]}")},
+		{Data: []byte("{\"model\":\"second-model\",\"choices\":[]}")},
+		{Data: []byte("[DONE]")},
+	}
+	outbound := &mockTransformer{apiFormat: llm.APIFormatOpenAIChatCompletion, aggregatedResponse: []byte("{\"id\":\"resp\"}")}
+	stream := NewOutboundPersistentStream(ctx, &sliceEventStream{events: events}, state.Request, execution, state.RequestService, state.UsageLogService, outbound, nil, state)
+	for stream.Next() {
+		_ = stream.Current()
+	}
+	require.NoError(t, stream.Close())
+	saved, err := client.RequestExecution.Get(ctx, execution.ID)
+	require.NoError(t, err)
+	require.Equal(t, "first-model", saved.UpstreamModelID, "a later reported name must not overwrite the first")
 }

@@ -88,6 +88,20 @@ func (_c *RequestExecutionCreate) SetNillableChannelID(v *int) *RequestExecution
 	return _c
 }
 
+// SetChannelAPIKeyIndex sets the "channel_api_key_index" field.
+func (_c *RequestExecutionCreate) SetChannelAPIKeyIndex(v int) *RequestExecutionCreate {
+	_c.mutation.SetChannelAPIKeyIndex(v)
+	return _c
+}
+
+// SetNillableChannelAPIKeyIndex sets the "channel_api_key_index" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableChannelAPIKeyIndex(v *int) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetChannelAPIKeyIndex(*v)
+	}
+	return _c
+}
+
 // SetDataStorageID sets the "data_storage_id" field.
 func (_c *RequestExecutionCreate) SetDataStorageID(v int) *RequestExecutionCreate {
 	_c.mutation.SetDataStorageID(v)
@@ -122,20 +136,6 @@ func (_c *RequestExecutionCreate) SetModelID(v string) *RequestExecutionCreate {
 	return _c
 }
 
-// SetOutboundModelID sets the "outbound_model_id" field.
-func (_c *RequestExecutionCreate) SetOutboundModelID(v string) *RequestExecutionCreate {
-	_c.mutation.SetOutboundModelID(v)
-	return _c
-}
-
-// SetNillableOutboundModelID sets the "outbound_model_id" field if the given value is not nil.
-func (_c *RequestExecutionCreate) SetNillableOutboundModelID(v *string) *RequestExecutionCreate {
-	if v != nil {
-		_c.SetOutboundModelID(*v)
-	}
-	return _c
-}
-
 // SetUpstreamModelID sets the "upstream_model_id" field.
 func (_c *RequestExecutionCreate) SetUpstreamModelID(v string) *RequestExecutionCreate {
 	_c.mutation.SetUpstreamModelID(v)
@@ -147,12 +147,6 @@ func (_c *RequestExecutionCreate) SetNillableUpstreamModelID(v *string) *Request
 	if v != nil {
 		_c.SetUpstreamModelID(*v)
 	}
-	return _c
-}
-
-// SetUpstreamModelIds sets the "upstream_model_ids" field.
-func (_c *RequestExecutionCreate) SetUpstreamModelIds(v []string) *RequestExecutionCreate {
-	_c.mutation.SetUpstreamModelIds(v)
 	return _c
 }
 
@@ -438,11 +432,6 @@ func (_c *RequestExecutionCreate) check() error {
 	if _, ok := _c.mutation.ModelID(); !ok {
 		return &ValidationError{Name: "model_id", err: errors.New(`ent: missing required field "RequestExecution.model_id"`)}
 	}
-	if v, ok := _c.mutation.OutboundModelID(); ok {
-		if err := requestexecution.OutboundModelIDValidator(v); err != nil {
-			return &ValidationError{Name: "outbound_model_id", err: fmt.Errorf(`ent: validator failed for field "RequestExecution.outbound_model_id": %w`, err)}
-		}
-	}
 	if _, ok := _c.mutation.Format(); !ok {
 		return &ValidationError{Name: "format", err: errors.New(`ent: missing required field "RequestExecution.format"`)}
 	}
@@ -510,6 +499,10 @@ func (_c *RequestExecutionCreate) createSpec() (*RequestExecution, *sqlgraph.Cre
 		_spec.SetField(requestexecution.FieldProjectID, field.TypeInt, value)
 		_node.ProjectID = value
 	}
+	if value, ok := _c.mutation.ChannelAPIKeyIndex(); ok {
+		_spec.SetField(requestexecution.FieldChannelAPIKeyIndex, field.TypeInt, value)
+		_node.ChannelAPIKeyIndex = &value
+	}
 	if value, ok := _c.mutation.ExternalID(); ok {
 		_spec.SetField(requestexecution.FieldExternalID, field.TypeString, value)
 		_node.ExternalID = value
@@ -518,17 +511,9 @@ func (_c *RequestExecutionCreate) createSpec() (*RequestExecution, *sqlgraph.Cre
 		_spec.SetField(requestexecution.FieldModelID, field.TypeString, value)
 		_node.ModelID = value
 	}
-	if value, ok := _c.mutation.OutboundModelID(); ok {
-		_spec.SetField(requestexecution.FieldOutboundModelID, field.TypeString, value)
-		_node.OutboundModelID = value
-	}
 	if value, ok := _c.mutation.UpstreamModelID(); ok {
 		_spec.SetField(requestexecution.FieldUpstreamModelID, field.TypeString, value)
 		_node.UpstreamModelID = value
-	}
-	if value, ok := _c.mutation.UpstreamModelIds(); ok {
-		_spec.SetField(requestexecution.FieldUpstreamModelIds, field.TypeJSON, value)
-		_node.UpstreamModelIds = value
 	}
 	if value, ok := _c.mutation.Format(); ok {
 		_spec.SetField(requestexecution.FieldFormat, field.TypeString, value)
@@ -746,24 +731,6 @@ func (u *RequestExecutionUpsert) UpdateUpstreamModelID() *RequestExecutionUpsert
 // ClearUpstreamModelID clears the value of the "upstream_model_id" field.
 func (u *RequestExecutionUpsert) ClearUpstreamModelID() *RequestExecutionUpsert {
 	u.SetNull(requestexecution.FieldUpstreamModelID)
-	return u
-}
-
-// SetUpstreamModelIds sets the "upstream_model_ids" field.
-func (u *RequestExecutionUpsert) SetUpstreamModelIds(v []string) *RequestExecutionUpsert {
-	u.Set(requestexecution.FieldUpstreamModelIds, v)
-	return u
-}
-
-// UpdateUpstreamModelIds sets the "upstream_model_ids" field to the value that was provided on create.
-func (u *RequestExecutionUpsert) UpdateUpstreamModelIds() *RequestExecutionUpsert {
-	u.SetExcluded(requestexecution.FieldUpstreamModelIds)
-	return u
-}
-
-// ClearUpstreamModelIds clears the value of the "upstream_model_ids" field.
-func (u *RequestExecutionUpsert) ClearUpstreamModelIds() *RequestExecutionUpsert {
-	u.SetNull(requestexecution.FieldUpstreamModelIds)
 	return u
 }
 
@@ -1018,14 +985,14 @@ func (u *RequestExecutionUpsertOne) UpdateNewValues() *RequestExecutionUpsertOne
 		if _, exists := u.create.mutation.ChannelID(); exists {
 			s.SetIgnore(requestexecution.FieldChannelID)
 		}
+		if _, exists := u.create.mutation.ChannelAPIKeyIndex(); exists {
+			s.SetIgnore(requestexecution.FieldChannelAPIKeyIndex)
+		}
 		if _, exists := u.create.mutation.DataStorageID(); exists {
 			s.SetIgnore(requestexecution.FieldDataStorageID)
 		}
 		if _, exists := u.create.mutation.ModelID(); exists {
 			s.SetIgnore(requestexecution.FieldModelID)
-		}
-		if _, exists := u.create.mutation.OutboundModelID(); exists {
-			s.SetIgnore(requestexecution.FieldOutboundModelID)
 		}
 		if _, exists := u.create.mutation.Format(); exists {
 			s.SetIgnore(requestexecution.FieldFormat)
@@ -1126,27 +1093,6 @@ func (u *RequestExecutionUpsertOne) UpdateUpstreamModelID() *RequestExecutionUps
 func (u *RequestExecutionUpsertOne) ClearUpstreamModelID() *RequestExecutionUpsertOne {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearUpstreamModelID()
-	})
-}
-
-// SetUpstreamModelIds sets the "upstream_model_ids" field.
-func (u *RequestExecutionUpsertOne) SetUpstreamModelIds(v []string) *RequestExecutionUpsertOne {
-	return u.Update(func(s *RequestExecutionUpsert) {
-		s.SetUpstreamModelIds(v)
-	})
-}
-
-// UpdateUpstreamModelIds sets the "upstream_model_ids" field to the value that was provided on create.
-func (u *RequestExecutionUpsertOne) UpdateUpstreamModelIds() *RequestExecutionUpsertOne {
-	return u.Update(func(s *RequestExecutionUpsert) {
-		s.UpdateUpstreamModelIds()
-	})
-}
-
-// ClearUpstreamModelIds clears the value of the "upstream_model_ids" field.
-func (u *RequestExecutionUpsertOne) ClearUpstreamModelIds() *RequestExecutionUpsertOne {
-	return u.Update(func(s *RequestExecutionUpsert) {
-		s.ClearUpstreamModelIds()
 	})
 }
 
@@ -1604,14 +1550,14 @@ func (u *RequestExecutionUpsertBulk) UpdateNewValues() *RequestExecutionUpsertBu
 			if _, exists := b.mutation.ChannelID(); exists {
 				s.SetIgnore(requestexecution.FieldChannelID)
 			}
+			if _, exists := b.mutation.ChannelAPIKeyIndex(); exists {
+				s.SetIgnore(requestexecution.FieldChannelAPIKeyIndex)
+			}
 			if _, exists := b.mutation.DataStorageID(); exists {
 				s.SetIgnore(requestexecution.FieldDataStorageID)
 			}
 			if _, exists := b.mutation.ModelID(); exists {
 				s.SetIgnore(requestexecution.FieldModelID)
-			}
-			if _, exists := b.mutation.OutboundModelID(); exists {
-				s.SetIgnore(requestexecution.FieldOutboundModelID)
 			}
 			if _, exists := b.mutation.Format(); exists {
 				s.SetIgnore(requestexecution.FieldFormat)
@@ -1713,27 +1659,6 @@ func (u *RequestExecutionUpsertBulk) UpdateUpstreamModelID() *RequestExecutionUp
 func (u *RequestExecutionUpsertBulk) ClearUpstreamModelID() *RequestExecutionUpsertBulk {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearUpstreamModelID()
-	})
-}
-
-// SetUpstreamModelIds sets the "upstream_model_ids" field.
-func (u *RequestExecutionUpsertBulk) SetUpstreamModelIds(v []string) *RequestExecutionUpsertBulk {
-	return u.Update(func(s *RequestExecutionUpsert) {
-		s.SetUpstreamModelIds(v)
-	})
-}
-
-// UpdateUpstreamModelIds sets the "upstream_model_ids" field to the value that was provided on create.
-func (u *RequestExecutionUpsertBulk) UpdateUpstreamModelIds() *RequestExecutionUpsertBulk {
-	return u.Update(func(s *RequestExecutionUpsert) {
-		s.UpdateUpstreamModelIds()
-	})
-}
-
-// ClearUpstreamModelIds clears the value of the "upstream_model_ids" field.
-func (u *RequestExecutionUpsertBulk) ClearUpstreamModelIds() *RequestExecutionUpsertBulk {
-	return u.Update(func(s *RequestExecutionUpsert) {
-		s.ClearUpstreamModelIds()
 	})
 }
 

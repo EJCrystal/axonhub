@@ -3752,7 +3752,7 @@ func (_q *RequestQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				selectedFields = append(selectedFields, request.FieldAPIKeyID)
 				fieldSeen[request.FieldAPIKeyID] = struct{}{}
 			}
-		case "projectID", "modelAudit":
+		case "projectID":
 			if _, ok := fieldSeen[request.FieldProjectID]; !ok {
 				selectedFields = append(selectedFields, request.FieldProjectID)
 				fieldSeen[request.FieldProjectID] = struct{}{}
@@ -4031,6 +4031,11 @@ func (_q *RequestExecutionQuery) collectField(ctx context.Context, oneNode bool,
 				selectedFields = append(selectedFields, requestexecution.FieldChannelID)
 				fieldSeen[requestexecution.FieldChannelID] = struct{}{}
 			}
+		case "channelAPIKeyIndex":
+			if _, ok := fieldSeen[requestexecution.FieldChannelAPIKeyIndex]; !ok {
+				selectedFields = append(selectedFields, requestexecution.FieldChannelAPIKeyIndex)
+				fieldSeen[requestexecution.FieldChannelAPIKeyIndex] = struct{}{}
+			}
 		case "dataStorageID":
 			if _, ok := fieldSeen[requestexecution.FieldDataStorageID]; !ok {
 				selectedFields = append(selectedFields, requestexecution.FieldDataStorageID)
@@ -4046,20 +4051,10 @@ func (_q *RequestExecutionQuery) collectField(ctx context.Context, oneNode bool,
 				selectedFields = append(selectedFields, requestexecution.FieldModelID)
 				fieldSeen[requestexecution.FieldModelID] = struct{}{}
 			}
-		case "outboundModelID":
-			if _, ok := fieldSeen[requestexecution.FieldOutboundModelID]; !ok {
-				selectedFields = append(selectedFields, requestexecution.FieldOutboundModelID)
-				fieldSeen[requestexecution.FieldOutboundModelID] = struct{}{}
-			}
 		case "upstreamModelID":
 			if _, ok := fieldSeen[requestexecution.FieldUpstreamModelID]; !ok {
 				selectedFields = append(selectedFields, requestexecution.FieldUpstreamModelID)
 				fieldSeen[requestexecution.FieldUpstreamModelID] = struct{}{}
-			}
-		case "upstreamModelIds":
-			if _, ok := fieldSeen[requestexecution.FieldUpstreamModelIds]; !ok {
-				selectedFields = append(selectedFields, requestexecution.FieldUpstreamModelIds)
-				fieldSeen[requestexecution.FieldUpstreamModelIds] = struct{}{}
 			}
 		case "format":
 			if _, ok := fieldSeen[requestexecution.FieldFormat]; !ok {

@@ -3,16 +3,14 @@ import type { TFunction } from 'i18next';
 interface ModelAuditExecution {
   status?: 'pending' | 'processing' | 'completed' | 'failed' | 'canceled';
   modelID?: string | null;
-  outboundModelID?: string | null;
   upstreamModelID?: string | null;
-  upstreamModelIds?: readonly string[] | null;
 }
 
-type ModelAuditStatus = 'matched' | 'mismatched' | 'unknown' | 'conflicting';
+type ModelAuditStatus = 'matched' | 'mismatched' | 'unknown';
 
-export type ModelAuditVerdictTone = 'success' | 'danger' | 'muted';
+type ModelAuditVerdictTone = 'success' | 'danger' | 'pending' | 'muted';
 
-export interface ModelAuditVerdict {
+interface ModelAuditVerdict {
   tone: ModelAuditVerdictTone;
   message: string;
 }
@@ -20,67 +18,65 @@ export interface ModelAuditVerdict {
 export const MODEL_AUDIT_VERDICT_CLASS: Record<ModelAuditVerdictTone, string> = {
   success: 'font-mono text-xs text-emerald-600 dark:text-emerald-400',
   danger: 'text-xs font-medium text-destructive',
+  pending: 'text-xs font-medium text-sky-700 dark:text-sky-300',
   muted: 'text-muted-foreground text-xs',
 };
 
-// Detail-page audit. List rows use the backend's full execution-set summary.
-export function getUpstreamModelAudit(executions: readonly ModelAuditExecution[]) {
+interface ModelAuditSummary {
+  status: ModelAuditStatus;
+  matchedUpstreamIds: string[];
+  mismatchedModelIds: string[];
+  unknownCount: number;
+  comparedCount: number;
+}
+
+// Compares the upstream-reported name with the channel model used for routing
+// and pricing. Provider transformations can legitimately change the wire model.
+// The list only sees the first 10 executions; executions outside that window
+// are not part of the verdict.
+export function getUpstreamModelAudit(executions: readonly ModelAuditExecution[]): ModelAuditSummary {
   const matchedUpstreamIds = new Set<string>();
-  const upstreamModelIds = new Set<string>();
   const mismatchedModelIds = new Set<string>();
-  const conflictingModelIds = new Set<string>();
   let unknownCount = 0;
-  let conflictCount = 0;
+  let hasBlockingUnknown = false;
 
   for (const execution of executions) {
-    // Routing modelID is not evidence of what was sent after body overrides.
-    const sentModel = execution.outboundModelID;
-    const reportedModels = Array.from(
-      new Set([execution.upstreamModelID, ...(execution.upstreamModelIds ?? [])].filter((model): model is string => Boolean(model?.trim())))
-    );
-    for (const model of reportedModels) upstreamModelIds.add(model);
-    if (reportedModels.length > 1) {
-      conflictCount++;
-      for (const model of reportedModels) conflictingModelIds.add(model);
-    }
-    if (!sentModel?.trim() || reportedModels.length === 0) {
+    const channelModel = execution.modelID?.trim() ?? '';
+    const reportedModel = execution.upstreamModelID?.trim() ?? '';
+    if (!channelModel || !reportedModel) {
       unknownCount++;
+      if (execution.status !== 'failed' && execution.status !== 'canceled') hasBlockingUnknown = true;
       continue;
     }
-    // Compare within this execution before deduplicating the display values.
-    for (const model of reportedModels) {
-      if (model !== sentModel) mismatchedModelIds.add(model);
-      else matchedUpstreamIds.add(model);
+    if (reportedModel !== channelModel) {
+      mismatchedModelIds.add(reportedModel);
+    } else if (execution.status === 'completed') {
+      matchedUpstreamIds.add(reportedModel);
     }
   }
 
   const status: ModelAuditStatus =
-    conflictCount > 0
-      ? 'conflicting'
-      : mismatchedModelIds.size > 0
-        ? 'mismatched'
-        : executions.length === 0 || executions.length === unknownCount
-          ? 'unknown'
-          : 'matched';
+    mismatchedModelIds.size > 0
+      ? 'mismatched'
+      : executions.length === 0 || hasBlockingUnknown || (unknownCount > 0 && matchedUpstreamIds.size === 0)
+        ? 'unknown'
+        : 'matched';
 
   return {
     status,
     matchedUpstreamIds: Array.from(matchedUpstreamIds),
-    upstreamModelIds: Array.from(upstreamModelIds),
     mismatchedModelIds: Array.from(mismatchedModelIds),
-    conflictingModelIds: Array.from(conflictingModelIds),
     unknownCount,
     comparedCount: executions.length - unknownCount,
-    conflictCount,
   };
 }
 
-// List tooltips use the complete backend summary, never the paginated executions.
-export function getRequestModelAuditTooltip(
-  modelAudit: ReturnType<typeof getUpstreamModelAudit>,
-  t: TFunction
-) {
+export function getRequestModelAuditTooltip(modelAudit: ModelAuditSummary, requestStatus: ModelAuditExecution['status'], t: TFunction) {
+  if (requestStatus === 'pending' || requestStatus === 'processing') return t('requests.tooltips.upstreamModelRequestProcessing');
+  if (requestStatus === 'failed' || requestStatus === 'canceled') return t('requests.tooltips.upstreamModelRequestFailed');
+
   if (modelAudit.status === 'matched') {
+    if (modelAudit.matchedUpstreamIds.length === 0) return t('requests.tooltips.upstreamModelUnknown');
     return t(
       modelAudit.unknownCount > 0 ? 'requests.tooltips.upstreamModelMatchedAfterRetries' : 'requests.tooltips.upstreamModelMatching',
       { model: modelAudit.matchedUpstreamIds.join(', '), unknown: modelAudit.unknownCount }
@@ -90,8 +86,6 @@ export function getRequestModelAuditTooltip(
   let tooltip = t('requests.tooltips.upstreamModelUnknown');
   if (modelAudit.status === 'mismatched') {
     tooltip = t('requests.tooltips.upstreamModelMismatch', { model: modelAudit.mismatchedModelIds.join(', ') });
-  } else if (modelAudit.status === 'conflicting') {
-    tooltip = t('requests.tooltips.upstreamModelConflict', { model: modelAudit.conflictingModelIds.join(', ') });
   }
   if (modelAudit.unknownCount > 0 && modelAudit.comparedCount > 0) {
     const partial = t('requests.tooltips.upstreamModelPartial', { compared: modelAudit.comparedCount, unknown: modelAudit.unknownCount });
@@ -100,23 +94,40 @@ export function getRequestModelAuditTooltip(
   return tooltip;
 }
 
-// One verdict per execution row. The audit only compares model names; whether
-// the execution succeeded belongs to the status badge and the error block.
+// One verdict per execution row. Lifecycle decides the tone, so a failed retry
+// that happens to match can never render as a green success conclusion.
 export function getExecutionModelAuditVerdict(
-  modelAudit: ReturnType<typeof getUpstreamModelAudit>,
+  execution: ModelAuditExecution,
   t: TFunction
 ): ModelAuditVerdict {
-  if (modelAudit.status === 'conflicting') {
-    return { tone: 'danger', message: t('requests.detail.upstreamModelConflict') };
+  const { status: executionStatus } = execution;
+  const channelModel = execution.modelID?.trim() ?? '';
+  const reportedModel = execution.upstreamModelID?.trim() ?? '';
+  const canCompare = channelModel !== '' && reportedModel !== '';
+
+  if (executionStatus === 'pending' || executionStatus === 'processing') {
+    return { tone: 'pending', message: t('requests.tooltips.upstreamModelRequestProcessing') };
   }
-  if (modelAudit.status === 'mismatched') {
+
+  if (canCompare && channelModel !== reportedModel) {
     return {
       tone: 'danger',
-      message: t('requests.detail.upstreamModelMismatch', { model: modelAudit.mismatchedModelIds.join(', ') }),
+      message: t('requests.detail.upstreamModelMismatch', { model: reportedModel }),
     };
   }
 
-  if (modelAudit.status === 'matched') {
+  const failed = executionStatus === 'failed' || executionStatus === 'canceled';
+  if (failed) {
+    if (!canCompare) {
+      return { tone: 'danger', message: t('requests.tooltips.upstreamModelRequestFailed') };
+    }
+    return {
+      tone: 'muted',
+      message: t('requests.detail.upstreamModelMatchedButFailed', { model: reportedModel }),
+    };
+  }
+
+  if (canCompare) {
     return { tone: 'success', message: t('requests.detail.upstreamModelMatched') };
   }
 

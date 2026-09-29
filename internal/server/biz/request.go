@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,7 +23,6 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
-	"github.com/looplj/axonhub/internal/pkg/modelmetadata"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/pkg/xjson"
 	"github.com/looplj/axonhub/llm"
@@ -391,18 +391,28 @@ func (s *RequestService) CreateRequestExecution(
 		SetRequestHeaders(requestHeadersBytes).
 		SetPassThroughApplied(passThroughApplied)
 
-	if outboundModel := modelmetadata.SentModel(&channelRequest, format); outboundModel != "" {
-		mut = mut.SetOutboundModelID(outboundModel)
-	}
-
 	if reasoningEffort := extractOutboundReasoningEffort(channelRequest, format); reasoningEffort != nil {
 		mut = mut.SetReasoningEffort(*reasoningEffort)
 	}
 
+	// Record which channel credential served this execution. Both facts are read
+	// from the key actually sent upstream, which is known here while the
+	// credentials are still at hand.
 	if apiKey, ok := contexts.GetChannelAPIKey(ctx); ok {
 		runes := []rune(apiKey)
 		if len(runes) > 4 {
 			mut = mut.SetChannelAPIKeySuffix(string(runes[len(runes)-4:]))
+		}
+
+		// The 1-based position is derived here rather than resolved from the
+		// stored suffix later: a lookup would drift as soon as keys are
+		// reordered or removed, and it cannot tell two keys with the same last-4
+		// characters apart. Single-key and OAuth channels have nothing to
+		// disambiguate, so they stay null.
+		if allKeys := channel.Credentials.GetAllAPIKeys(); len(allKeys) > 1 {
+			if idx := slices.Index(allKeys, apiKey); idx >= 0 {
+				mut = mut.SetChannelAPIKeyIndex(idx + 1)
+			}
 		}
 	}
 
@@ -806,7 +816,7 @@ func (s *RequestService) UpdateRequestExecutionFinalized(
 	externalId string,
 	responseBody any,
 	metrics *LatencyMetrics,
-	upstreamModelIDs []string,
+	upstreamModelID string,
 ) error {
 	// Decide whether to store the final response body for execution
 	storeResponseBody := true
@@ -838,8 +848,8 @@ func (s *RequestService) UpdateRequestExecutionFinalized(
 		SetStatus(status).
 		SetExternalID(externalId)
 
-	if len(upstreamModelIDs) > 0 {
-		upd = upd.SetUpstreamModelID(upstreamModelIDs[0]).SetUpstreamModelIds(upstreamModelIDs)
+	if upstreamModelID != "" {
+		upd = upd.SetUpstreamModelID(upstreamModelID)
 	}
 	if errorMessage != "" {
 		upd = upd.SetErrorMessage(errorMessage)
@@ -928,7 +938,7 @@ func (s *RequestService) UpdateRequestExecutionStatus(
 	errorMsg string,
 	errorInfo *ExecutionErrorInfo,
 ) error {
-	return s.UpdateRequestExecutionStatusWithMetrics(ctx, executionID, status, errorMsg, errorInfo, nil, nil)
+	return s.UpdateRequestExecutionStatusWithMetrics(ctx, executionID, status, errorMsg, errorInfo, nil, "")
 }
 
 // UpdateRequestExecutionStatusWithMetrics is UpdateRequestExecutionStatus plus the latency
@@ -941,15 +951,15 @@ func (s *RequestService) UpdateRequestExecutionStatusWithMetrics(
 	errorMsg string,
 	errorInfo *ExecutionErrorInfo,
 	metrics *LatencyMetrics,
-	upstreamModelIDs []string,
+	upstreamModelID string,
 ) error {
 	client := s.entFromContext(ctx)
 
 	upd := client.RequestExecution.UpdateOneID(executionID).
 		SetStatus(status)
 	// A later status-only update must not clear metadata captured at finalization.
-	if len(upstreamModelIDs) > 0 {
-		upd = upd.SetUpstreamModelID(upstreamModelIDs[0]).SetUpstreamModelIds(upstreamModelIDs)
+	if upstreamModelID != "" {
+		upd = upd.SetUpstreamModelID(upstreamModelID)
 	}
 	if errorMsg != "" {
 		upd = upd.SetErrorMessage(errorMsg)
