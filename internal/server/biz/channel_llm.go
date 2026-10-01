@@ -33,6 +33,7 @@ import (
 	geminioai "github.com/looplj/axonhub/llm/transformer/gemini/openai"
 	"github.com/looplj/axonhub/llm/transformer/jina"
 	"github.com/looplj/axonhub/llm/transformer/longcat"
+	"github.com/looplj/axonhub/llm/transformer/minimax"
 	"github.com/looplj/axonhub/llm/transformer/modelscope"
 	"github.com/looplj/axonhub/llm/transformer/moonshot"
 	"github.com/looplj/axonhub/llm/transformer/nanogpt"
@@ -471,6 +472,13 @@ func (svc *ChannelService) buildNonDefaultEndpointOutbound(
 		llm.APIFormatOpenAISpeech.String(),
 		llm.APIFormatOpenAITranscription.String(),
 		llm.APIFormatOpenAITranslation.String():
+		if c.Type == channel.TypeMinimax && ep.APIFormat == llm.APIFormatOpenAIImageGeneration.String() {
+			return minimax.NewOutboundTransformerWithConfig(&minimax.Config{
+				BaseURL:        baseURL,
+				EndpointPath:   ep.Path,
+				APIKeyProvider: apiKeyProvider(),
+			})
+		}
 		if (c.Type == channel.TypeCodex || c.Type == channel.TypeFenno) &&
 			(ep.APIFormat == llm.APIFormatOpenAIImageGeneration.String() ||
 				ep.APIFormat == llm.APIFormatOpenAIImageEdit.String()) {
@@ -1124,6 +1132,18 @@ func (svc *ChannelService) buildChannelWithTransformer(c *ent.Channel, apiKeyOve
 		ch.Outbound = transformer
 
 		return ch, nil
+	case channel.TypeBailianResponses:
+		transformer, err := responses.NewOutboundTransformerWithConfig(&responses.Config{
+			BaseURL:        c.BaseURL,
+			APIKeyProvider: getAPIKeyProvider(ch),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create outbound transformer: %w", err)
+		}
+
+		ch.Outbound = transformer
+
+		return ch, nil
 	case channel.TypeBailianAnthropic, channel.TypeMoonshotCoding:
 		transformer, err := anthropic.NewOutboundTransformerWithConfig(&anthropic.Config{
 			Type:           anthropic.PlatformDirect,
@@ -1244,7 +1264,7 @@ func (svc *ChannelService) buildChannelWithTransformer(c *ent.Channel, apiKeyOve
 		})
 
 		return ch, nil
-	case channel.TypeOpenai, channel.TypeZenmux, channel.TypeAtlascloud, channel.TypeDeepinfra, channel.TypeQiniu, channel.TypeMinimax,
+	case channel.TypeOpenai, channel.TypeZenmux, channel.TypeAtlascloud, channel.TypeDeepinfra, channel.TypeQiniu,
 		channel.TypePpio, channel.TypeSiliconflow,
 		channel.TypeVercel, channel.TypeAihubmix, channel.TypeBurncloud, channel.TypeGithub,
 		channel.TypeEvolink, channel.TypeGroq:
@@ -1267,6 +1287,16 @@ func (svc *ChannelService) buildChannelWithTransformer(c *ent.Channel, apiKeyOve
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ZenMux video outbound transformer: %w", err)
+		}
+		ch.Outbound = transformer
+		return ch, nil
+	case channel.TypeMinimax:
+		transformer, err := minimax.NewOutboundTransformerWithConfig(&minimax.Config{
+			BaseURL:        c.BaseURL,
+			APIKeyProvider: getAPIKeyProvider(ch),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create MiniMax outbound transformer: %w", err)
 		}
 		ch.Outbound = transformer
 		return ch, nil

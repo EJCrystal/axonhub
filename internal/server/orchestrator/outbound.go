@@ -515,6 +515,13 @@ func (p *PersistentOutboundTransformer) APIFormat() llm.APIFormat {
 	return p.wrapped.APIFormat()
 }
 
+// SupportsCodexResponseHeaders reports whether the selected outbound transformer
+// owns the Codex response-header contract.
+func (p *PersistentOutboundTransformer) SupportsCodexResponseHeaders() bool {
+	supports, ok := p.wrapped.(interface{ SupportsCodexResponseHeaders() bool })
+	return ok && supports.SupportsCodexResponseHeaders()
+}
+
 func (p *PersistentOutboundTransformer) TransformError(ctx context.Context, rawErr *httpclient.Error) *llm.ResponseError {
 	return p.wrapped.TransformError(ctx, rawErr)
 }
@@ -567,6 +574,10 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 		llmRequest = transformedRequest
 	}
 	llmRequest = filterResponseCustomToolMessagesForNonResponsesOutbound(llmRequest, outboundFormat)
+
+	if llmRequest.Stream == nil && outboundFormat == llm.APIFormatAnthropicMessage {
+		llmRequest.Stream = lo.ToPtr(false)
+	}
 
 	if shouldForceStreamingForCandidate(candidate, llmRequest) {
 		streamPtr := lo.ToPtr(true)
