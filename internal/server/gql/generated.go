@@ -834,6 +834,28 @@ type ComplexityRoot struct {
 		User    func(childComplexity int) int
 	}
 
+	IntelligenceEvaluatePayload struct {
+		ChannelID    func(childComplexity int) int
+		FailedCount  func(childComplexity int) int
+		Model        func(childComplexity int) int
+		Results      func(childComplexity int) int
+		SuccessCount func(childComplexity int) int
+		Total        func(childComplexity int) int
+	}
+
+	IntelligenceKeyResult struct {
+		DurationMs   func(childComplexity int) int
+		Error        func(childComplexity int) int
+		InputTokens  func(childComplexity int) int
+		KeyPrefix    func(childComplexity int) int
+		Label        func(childComplexity int) int
+		OutputTokens func(childComplexity int) int
+		Quality      func(childComplexity int) int
+		Reason       func(childComplexity int) int
+		Success      func(childComplexity int) int
+		TaskID       func(childComplexity int) int
+	}
+
 	Model struct {
 		AssociatedChannelCount func(childComplexity int) int
 		CreatedAt              func(childComplexity int) int
@@ -1048,6 +1070,7 @@ type ComplexityRoot struct {
 		EnableAllChannelAPIKeys               func(childComplexity int, channelID objects.GUID) int
 		EnableChannelAPIKey                   func(childComplexity int, channelID objects.GUID, key string) int
 		EnableSelectedChannelAPIKeys          func(childComplexity int, channelID objects.GUID, keys []string) int
+		EvaluateChannelIntelligence           func(childComplexity int, input IntelligenceEvaluateInput) int
 		LoadAPIKeyProfileTemplate             func(childComplexity int, input LoadAPIKeyProfileTemplateInput) int
 		PreviewPromptProtectionRule           func(childComplexity int, input PromptProtectionRulePreviewInput) int
 		RefreshProvidersCatalog               func(childComplexity int) int
@@ -2276,6 +2299,7 @@ type MutationResolver interface {
 	TestChannel(ctx context.Context, input TestChannelInput) (*TestChannelPayload, error)
 	TestChannelAPIKeys(ctx context.Context, channelID objects.GUID, modelID *string) (*TestChannelAPIKeysPayload, error)
 	TestChannelAPIKey(ctx context.Context, channelID objects.GUID, key string, modelID *string) (*TestAPIKeyResult, error)
+	EvaluateChannelIntelligence(ctx context.Context, input IntelligenceEvaluateInput) (*IntelligenceEvaluatePayload, error)
 	BulkImportChannels(ctx context.Context, input BulkImportChannelsInput) (*biz.BulkImportChannelsResult, error)
 	BulkUpdateChannelOrdering(ctx context.Context, input BulkUpdateChannelOrderingInput) (*BulkUpdateChannelOrderingResult, error)
 	BulkUpdateChannelAutoDisable(ctx context.Context, input biz.BulkUpdateChannelAutoDisableInput) (*BulkUpdateChannelAutoDisablePayload, error)
@@ -5348,6 +5372,104 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.InitializeSystemPayload.User(childComplexity), true
 
+	case "IntelligenceEvaluatePayload.channelID":
+		if e.complexity.IntelligenceEvaluatePayload.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceEvaluatePayload.ChannelID(childComplexity), true
+	case "IntelligenceEvaluatePayload.failedCount":
+		if e.complexity.IntelligenceEvaluatePayload.FailedCount == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceEvaluatePayload.FailedCount(childComplexity), true
+	case "IntelligenceEvaluatePayload.model":
+		if e.complexity.IntelligenceEvaluatePayload.Model == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceEvaluatePayload.Model(childComplexity), true
+	case "IntelligenceEvaluatePayload.results":
+		if e.complexity.IntelligenceEvaluatePayload.Results == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceEvaluatePayload.Results(childComplexity), true
+	case "IntelligenceEvaluatePayload.successCount":
+		if e.complexity.IntelligenceEvaluatePayload.SuccessCount == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceEvaluatePayload.SuccessCount(childComplexity), true
+	case "IntelligenceEvaluatePayload.total":
+		if e.complexity.IntelligenceEvaluatePayload.Total == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceEvaluatePayload.Total(childComplexity), true
+
+	case "IntelligenceKeyResult.durationMs":
+		if e.complexity.IntelligenceKeyResult.DurationMs == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.DurationMs(childComplexity), true
+	case "IntelligenceKeyResult.error":
+		if e.complexity.IntelligenceKeyResult.Error == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.Error(childComplexity), true
+	case "IntelligenceKeyResult.inputTokens":
+		if e.complexity.IntelligenceKeyResult.InputTokens == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.InputTokens(childComplexity), true
+	case "IntelligenceKeyResult.keyPrefix":
+		if e.complexity.IntelligenceKeyResult.KeyPrefix == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.KeyPrefix(childComplexity), true
+	case "IntelligenceKeyResult.label":
+		if e.complexity.IntelligenceKeyResult.Label == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.Label(childComplexity), true
+	case "IntelligenceKeyResult.outputTokens":
+		if e.complexity.IntelligenceKeyResult.OutputTokens == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.OutputTokens(childComplexity), true
+	case "IntelligenceKeyResult.quality":
+		if e.complexity.IntelligenceKeyResult.Quality == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.Quality(childComplexity), true
+	case "IntelligenceKeyResult.reason":
+		if e.complexity.IntelligenceKeyResult.Reason == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.Reason(childComplexity), true
+	case "IntelligenceKeyResult.success":
+		if e.complexity.IntelligenceKeyResult.Success == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.Success(childComplexity), true
+	case "IntelligenceKeyResult.taskID":
+		if e.complexity.IntelligenceKeyResult.TaskID == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.TaskID(childComplexity), true
+
 	case "Model.associatedChannelCount":
 		if e.complexity.Model.AssociatedChannelCount == nil {
 			break
@@ -6594,6 +6716,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.EnableSelectedChannelAPIKeys(childComplexity, args["channelID"].(objects.GUID), args["keys"].([]string)), true
+	case "Mutation.evaluateChannelIntelligence":
+		if e.complexity.Mutation.EvaluateChannelIntelligence == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_evaluateChannelIntelligence_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.EvaluateChannelIntelligence(childComplexity, args["input"].(IntelligenceEvaluateInput)), true
 	case "Mutation.loadApiKeyProfileTemplate":
 		if e.complexity.Mutation.LoadAPIKeyProfileTemplate == nil {
 			break
@@ -11979,6 +12112,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputGetChannelProbeDataInput,
 		ec.unmarshalInputHeaderEntryInput,
 		ec.unmarshalInputInitializeSystemInput,
+		ec.unmarshalInputIntelligenceEvaluateInput,
 		ec.unmarshalInputLoadApiKeyProfileTemplateInput,
 		ec.unmarshalInputModelAssociationInput,
 		ec.unmarshalInputModelAssociationWhenInput,
@@ -13215,6 +13349,17 @@ func (ec *executionContext) field_Mutation_enableSelectedChannelAPIKeys_args(ctx
 		return nil, err
 	}
 	args["keys"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_evaluateChannelIntelligence_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNIntelligenceEvaluateInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceEvaluateInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -30123,6 +30268,492 @@ func (ec *executionContext) fieldContext_InitializeSystemPayload_token(_ context
 	return fc, nil
 }
 
+func (ec *executionContext) _IntelligenceEvaluatePayload_channelID(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceEvaluatePayload_channelID,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceEvaluatePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceEvaluatePayload_model(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceEvaluatePayload_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceEvaluatePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceEvaluatePayload_total(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceEvaluatePayload_total,
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceEvaluatePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceEvaluatePayload_successCount(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceEvaluatePayload_successCount,
+		func(ctx context.Context) (any, error) {
+			return obj.SuccessCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_successCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceEvaluatePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceEvaluatePayload_failedCount(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceEvaluatePayload_failedCount,
+		func(ctx context.Context) (any, error) {
+			return obj.FailedCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_failedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceEvaluatePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceEvaluatePayload_results(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceEvaluatePayload_results,
+		func(ctx context.Context) (any, error) {
+			return obj.Results, nil
+		},
+		nil,
+		ec.marshalNIntelligenceKeyResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceKeyResultᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_results(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceEvaluatePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "keyPrefix":
+				return ec.fieldContext_IntelligenceKeyResult_keyPrefix(ctx, field)
+			case "success":
+				return ec.fieldContext_IntelligenceKeyResult_success(ctx, field)
+			case "quality":
+				return ec.fieldContext_IntelligenceKeyResult_quality(ctx, field)
+			case "label":
+				return ec.fieldContext_IntelligenceKeyResult_label(ctx, field)
+			case "reason":
+				return ec.fieldContext_IntelligenceKeyResult_reason(ctx, field)
+			case "taskID":
+				return ec.fieldContext_IntelligenceKeyResult_taskID(ctx, field)
+			case "durationMs":
+				return ec.fieldContext_IntelligenceKeyResult_durationMs(ctx, field)
+			case "inputTokens":
+				return ec.fieldContext_IntelligenceKeyResult_inputTokens(ctx, field)
+			case "outputTokens":
+				return ec.fieldContext_IntelligenceKeyResult_outputTokens(ctx, field)
+			case "error":
+				return ec.fieldContext_IntelligenceKeyResult_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type IntelligenceKeyResult", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_keyPrefix(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_keyPrefix,
+		func(ctx context.Context) (any, error) {
+			return obj.KeyPrefix, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_keyPrefix(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_success(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_success,
+		func(ctx context.Context) (any, error) {
+			return obj.Success, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_quality(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_quality,
+		func(ctx context.Context) (any, error) {
+			return obj.Quality, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_quality(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_label(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_label,
+		func(ctx context.Context) (any, error) {
+			return obj.Label, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_reason(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_reason,
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_taskID(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_taskID,
+		func(ctx context.Context) (any, error) {
+			return obj.TaskID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_taskID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_durationMs(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_durationMs,
+		func(ctx context.Context) (any, error) {
+			return obj.DurationMs, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_durationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_inputTokens(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_inputTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.InputTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_inputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_outputTokens(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_outputTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.OutputTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_outputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_error(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_error,
+		func(ctx context.Context) (any, error) {
+			return obj.Error, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Model_id(ctx context.Context, field graphql.CollectedField, obj *ent.Model) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -34064,6 +34695,61 @@ func (ec *executionContext) fieldContext_Mutation_testChannelAPIKey(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_testChannelAPIKey_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_evaluateChannelIntelligence(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_evaluateChannelIntelligence,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().EvaluateChannelIntelligence(ctx, fc.Args["input"].(IntelligenceEvaluateInput))
+		},
+		nil,
+		ec.marshalNIntelligenceEvaluatePayload2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceEvaluatePayload,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_evaluateChannelIntelligence(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelID":
+				return ec.fieldContext_IntelligenceEvaluatePayload_channelID(ctx, field)
+			case "model":
+				return ec.fieldContext_IntelligenceEvaluatePayload_model(ctx, field)
+			case "total":
+				return ec.fieldContext_IntelligenceEvaluatePayload_total(ctx, field)
+			case "successCount":
+				return ec.fieldContext_IntelligenceEvaluatePayload_successCount(ctx, field)
+			case "failedCount":
+				return ec.fieldContext_IntelligenceEvaluatePayload_failedCount(ctx, field)
+			case "results":
+				return ec.fieldContext_IntelligenceEvaluatePayload_results(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type IntelligenceEvaluatePayload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_evaluateChannelIntelligence_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -74269,6 +74955,61 @@ func (ec *executionContext) unmarshalInputInitializeSystemInput(ctx context.Cont
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputIntelligenceEvaluateInput(ctx context.Context, obj any) (IntelligenceEvaluateInput, error) {
+	var it IntelligenceEvaluateInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"channelID", "modelID", "keys", "prompt", "baseURL"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "channelID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelID"))
+			data, err := ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ChannelID = data
+		case "modelID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ModelID = data
+		case "keys":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("keys"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Keys = data
+		case "prompt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("prompt"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Prompt = data
+		case "baseURL":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("baseURL"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BaseURL = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLoadApiKeyProfileTemplateInput(ctx context.Context, obj any) (LoadAPIKeyProfileTemplateInput, error) {
 	var it LoadAPIKeyProfileTemplateInput
 	asMap := map[string]any{}
@@ -98913,6 +99654,151 @@ func (ec *executionContext) _InitializeSystemPayload(ctx context.Context, sel as
 	return out
 }
 
+var intelligenceEvaluatePayloadImplementors = []string{"IntelligenceEvaluatePayload"}
+
+func (ec *executionContext) _IntelligenceEvaluatePayload(ctx context.Context, sel ast.SelectionSet, obj *IntelligenceEvaluatePayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, intelligenceEvaluatePayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("IntelligenceEvaluatePayload")
+		case "channelID":
+			out.Values[i] = ec._IntelligenceEvaluatePayload_channelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._IntelligenceEvaluatePayload_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._IntelligenceEvaluatePayload_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "successCount":
+			out.Values[i] = ec._IntelligenceEvaluatePayload_successCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "failedCount":
+			out.Values[i] = ec._IntelligenceEvaluatePayload_failedCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "results":
+			out.Values[i] = ec._IntelligenceEvaluatePayload_results(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var intelligenceKeyResultImplementors = []string{"IntelligenceKeyResult"}
+
+func (ec *executionContext) _IntelligenceKeyResult(ctx context.Context, sel ast.SelectionSet, obj *IntelligenceKeyResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, intelligenceKeyResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("IntelligenceKeyResult")
+		case "keyPrefix":
+			out.Values[i] = ec._IntelligenceKeyResult_keyPrefix(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "success":
+			out.Values[i] = ec._IntelligenceKeyResult_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "quality":
+			out.Values[i] = ec._IntelligenceKeyResult_quality(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "label":
+			out.Values[i] = ec._IntelligenceKeyResult_label(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reason":
+			out.Values[i] = ec._IntelligenceKeyResult_reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "taskID":
+			out.Values[i] = ec._IntelligenceKeyResult_taskID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "durationMs":
+			out.Values[i] = ec._IntelligenceKeyResult_durationMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inputTokens":
+			out.Values[i] = ec._IntelligenceKeyResult_inputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "outputTokens":
+			out.Values[i] = ec._IntelligenceKeyResult_outputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._IntelligenceKeyResult_error(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var modelImplementors = []string{"Model", "Node"}
 
 func (ec *executionContext) _Model(ctx context.Context, sel ast.SelectionSet, obj *ent.Model) graphql.Marshaler {
@@ -100191,6 +101077,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "testChannelAPIKey":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_testChannelAPIKey(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "evaluateChannelIntelligence":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_evaluateChannelIntelligence(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -115883,6 +116776,79 @@ func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.Selec
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNIntelligenceEvaluateInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceEvaluateInput(ctx context.Context, v any) (IntelligenceEvaluateInput, error) {
+	res, err := ec.unmarshalInputIntelligenceEvaluateInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNIntelligenceEvaluatePayload2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceEvaluatePayload(ctx context.Context, sel ast.SelectionSet, v IntelligenceEvaluatePayload) graphql.Marshaler {
+	return ec._IntelligenceEvaluatePayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNIntelligenceEvaluatePayload2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceEvaluatePayload(ctx context.Context, sel ast.SelectionSet, v *IntelligenceEvaluatePayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._IntelligenceEvaluatePayload(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNIntelligenceKeyResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceKeyResultᚄ(ctx context.Context, sel ast.SelectionSet, v []*IntelligenceKeyResult) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNIntelligenceKeyResult2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceKeyResult(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNIntelligenceKeyResult2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceKeyResult(ctx context.Context, sel ast.SelectionSet, v *IntelligenceKeyResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._IntelligenceKeyResult(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNJSONRawMessage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐJSONRawMessage(ctx context.Context, v any) (objects.JSONRawMessage, error) {

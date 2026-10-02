@@ -15,6 +15,7 @@ type ChannelsDialogType =
   | 'status'
   | 'test'
   | 'testHistory'
+  | 'intelligence'
   | 'bulkImport'
   | 'archive'
   | 'bulkOrdering'

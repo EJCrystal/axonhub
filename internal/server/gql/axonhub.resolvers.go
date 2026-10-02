@@ -371,6 +371,46 @@ func (r *mutationResolver) TestChannelAPIKey(ctx context.Context, channelID obje
 	}, nil
 }
 
+// EvaluateChannelIntelligence is the resolver for the evaluateChannelIntelligence field.
+func (r *mutationResolver) EvaluateChannelIntelligence(ctx context.Context, input IntelligenceEvaluateInput) (*IntelligenceEvaluatePayload, error) {
+	// Set test source context so the generation requests are recorded as tests.
+	ctx = contexts.WithSource(ctx, request.SourceTest)
+
+	result, err := r.TestChannelOrchestrator.EvaluateChannelIntelligence(ctx, input.ChannelID, input.ModelID, input.Keys, input.Prompt, input.BaseURL)
+	if err != nil {
+		if httpclient.IsNotFoundErr(err) {
+			return nil, fmt.Errorf("URL not found, please check if the URL is correct and try again")
+		}
+
+		return nil, fmt.Errorf("failed to evaluate channel intelligence: %w", err)
+	}
+
+	results := make([]*IntelligenceKeyResult, len(result.Results))
+	for i, item := range result.Results {
+		results[i] = &IntelligenceKeyResult{
+			KeyPrefix:    item.KeyPrefix,
+			Success:      item.Success,
+			Quality:      item.Quality,
+			Label:        item.Label,
+			Reason:       item.Reason,
+			TaskID:       item.TaskID,
+			DurationMs:   item.DurationMs,
+			InputTokens:  item.InputTokens,
+			OutputTokens: item.OutputTokens,
+			Error:        item.Error,
+		}
+	}
+
+	return &IntelligenceEvaluatePayload{
+		ChannelID:    result.ChannelID,
+		Model:        result.Model,
+		Total:        result.Total,
+		SuccessCount: result.SuccessCount,
+		FailedCount:  result.FailedCount,
+		Results:      results,
+	}, nil
+}
+
 // BulkImportChannels is the resolver for the bulkImportChannels field.
 func (r *mutationResolver) BulkImportChannels(ctx context.Context, input BulkImportChannelsInput) (*biz.BulkImportChannelsResult, error) {
 	result, err := r.channelService.BulkImportChannels(ctx, input.Channels)

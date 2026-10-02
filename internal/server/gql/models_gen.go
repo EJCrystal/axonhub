@@ -350,6 +350,36 @@ type InitializeSystemPayload struct {
 	Token   *string   `json:"token,omitempty"`
 }
 
+type IntelligenceEvaluateInput struct {
+	ChannelID objects.GUID `json:"channelID"`
+	ModelID   *string      `json:"modelID,omitempty"`
+	Keys      []string     `json:"keys,omitempty"`
+	Prompt    *string      `json:"prompt,omitempty"`
+	BaseURL   *string      `json:"baseURL,omitempty"`
+}
+
+type IntelligenceEvaluatePayload struct {
+	ChannelID    objects.GUID             `json:"channelID"`
+	Model        string                   `json:"model"`
+	Total        int                      `json:"total"`
+	SuccessCount int                      `json:"successCount"`
+	FailedCount  int                      `json:"failedCount"`
+	Results      []*IntelligenceKeyResult `json:"results"`
+}
+
+type IntelligenceKeyResult struct {
+	KeyPrefix    string  `json:"keyPrefix"`
+	Success      bool    `json:"success"`
+	Quality      string  `json:"quality"`
+	Label        string  `json:"label"`
+	Reason       string  `json:"reason"`
+	TaskID       string  `json:"taskID"`
+	DurationMs   int     `json:"durationMs"`
+	InputTokens  int     `json:"inputTokens"`
+	OutputTokens int     `json:"outputTokens"`
+	Error        *string `json:"error,omitempty"`
+}
+
 type LoadAPIKeyProfileTemplateInput struct {
 	TemplateID objects.GUID `json:"templateID"`
 	APIKeyID   objects.GUID `json:"apiKeyID"`

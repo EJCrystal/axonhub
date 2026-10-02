@@ -406,6 +406,41 @@ type TestChannelPayload {
   error: String
 }
 
+input IntelligenceEvaluateInput {
+  channelID: ID!
+  modelID: String
+  # Restricts the evaluation to specific API keys. Omit to evaluate every
+  # enabled key on the channel.
+  keys: [String!]
+  # Overrides the generation prompt. Omit to use the published pelican task.
+  prompt: String
+  # Overrides the detection endpoint, e.g. a self-hosted deployment.
+  baseURL: String
+}
+
+type IntelligenceKeyResult {
+  keyPrefix: String!
+  success: Boolean!
+  # Response quality reported by the detection service: normal, degraded or unknown.
+  quality: String!
+  label: String!
+  reason: String!
+  taskID: String!
+  durationMs: Int!
+  inputTokens: Int!
+  outputTokens: Int!
+  error: String
+}
+
+type IntelligenceEvaluatePayload {
+  channelID: ID!
+  model: String!
+  total: Int!
+  successCount: Int!
+  failedCount: Int!
+  results: [IntelligenceKeyResult!]!
+}
+
 type TestAPIKeyResult {
   keyPrefix: String!
   success: Boolean!
@@ -970,6 +1005,7 @@ type Mutation {
   testChannel(input: TestChannelInput!): TestChannelPayload!
   testChannelAPIKeys(channelID: ID!, modelID: String): TestChannelAPIKeysPayload!
   testChannelAPIKey(channelID: ID!, key: String!, modelID: String): TestAPIKeyResult!
+  evaluateChannelIntelligence(input: IntelligenceEvaluateInput!): IntelligenceEvaluatePayload!
   bulkImportChannels(input: BulkImportChannelsInput!): BulkImportChannelsResult!
   bulkUpdateChannelOrdering(
     input: BulkUpdateChannelOrderingInput!
