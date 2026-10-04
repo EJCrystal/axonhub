@@ -19,6 +19,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
+	"github.com/looplj/axonhub/internal/ent/intelligencerun"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
@@ -57,6 +58,7 @@ const (
 	TypeChannelOverrideTemplate  = "ChannelOverrideTemplate"
 	TypeChannelProbe             = "ChannelProbe"
 	TypeDataStorage              = "DataStorage"
+	TypeIntelligenceRun          = "IntelligenceRun"
 	TypeInvitation               = "Invitation"
 	TypeModel                    = "Model"
 	TypeOIDCIdentity             = "OIDCIdentity"
@@ -9083,6 +9085,1220 @@ func (m *DataStorageMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown DataStorage edge %s", name)
+}
+
+// IntelligenceRunMutation represents an operation that mutates the IntelligenceRun nodes in the graph.
+type IntelligenceRunMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	created_at      *time.Time
+	updated_at      *time.Time
+	deleted_at      *int
+	adddeleted_at   *int
+	channel_id      *int
+	addchannel_id   *int
+	channel_name    *string
+	model_id        *string
+	trigger         *string
+	status          *intelligencerun.Status
+	total_keys      *int
+	addtotal_keys   *int
+	success_keys    *int
+	addsuccess_keys *int
+	failed_keys     *int
+	addfailed_keys  *int
+	duration_ms     *int
+	addduration_ms  *int
+	results         *[]objects.IntelligenceKeyResult
+	appendresults   []objects.IntelligenceKeyResult
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*IntelligenceRun, error)
+	predicates      []predicate.IntelligenceRun
+}
+
+var _ ent.Mutation = (*IntelligenceRunMutation)(nil)
+
+// intelligencerunOption allows management of the mutation configuration using functional options.
+type intelligencerunOption func(*IntelligenceRunMutation)
+
+// newIntelligenceRunMutation creates new mutation for the IntelligenceRun entity.
+func newIntelligenceRunMutation(c config, op Op, opts ...intelligencerunOption) *IntelligenceRunMutation {
+	m := &IntelligenceRunMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeIntelligenceRun,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withIntelligenceRunID sets the ID field of the mutation.
+func withIntelligenceRunID(id int) intelligencerunOption {
+	return func(m *IntelligenceRunMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *IntelligenceRun
+		)
+		m.oldValue = func(ctx context.Context) (*IntelligenceRun, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().IntelligenceRun.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withIntelligenceRun sets the old IntelligenceRun of the mutation.
+func withIntelligenceRun(node *IntelligenceRun) intelligencerunOption {
+	return func(m *IntelligenceRunMutation) {
+		m.oldValue = func(context.Context) (*IntelligenceRun, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m IntelligenceRunMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m IntelligenceRunMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *IntelligenceRunMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *IntelligenceRunMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().IntelligenceRun.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *IntelligenceRunMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *IntelligenceRunMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *IntelligenceRunMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *IntelligenceRunMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *IntelligenceRunMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *IntelligenceRunMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *IntelligenceRunMutation) SetDeletedAt(i int) {
+	m.deleted_at = &i
+	m.adddeleted_at = nil
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *IntelligenceRunMutation) DeletedAt() (r int, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldDeletedAt(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// AddDeletedAt adds i to the "deleted_at" field.
+func (m *IntelligenceRunMutation) AddDeletedAt(i int) {
+	if m.adddeleted_at != nil {
+		*m.adddeleted_at += i
+	} else {
+		m.adddeleted_at = &i
+	}
+}
+
+// AddedDeletedAt returns the value that was added to the "deleted_at" field in this mutation.
+func (m *IntelligenceRunMutation) AddedDeletedAt() (r int, exists bool) {
+	v := m.adddeleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *IntelligenceRunMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	m.adddeleted_at = nil
+}
+
+// SetChannelID sets the "channel_id" field.
+func (m *IntelligenceRunMutation) SetChannelID(i int) {
+	m.channel_id = &i
+	m.addchannel_id = nil
+}
+
+// ChannelID returns the value of the "channel_id" field in the mutation.
+func (m *IntelligenceRunMutation) ChannelID() (r int, exists bool) {
+	v := m.channel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelID returns the old "channel_id" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldChannelID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelID: %w", err)
+	}
+	return oldValue.ChannelID, nil
+}
+
+// AddChannelID adds i to the "channel_id" field.
+func (m *IntelligenceRunMutation) AddChannelID(i int) {
+	if m.addchannel_id != nil {
+		*m.addchannel_id += i
+	} else {
+		m.addchannel_id = &i
+	}
+}
+
+// AddedChannelID returns the value that was added to the "channel_id" field in this mutation.
+func (m *IntelligenceRunMutation) AddedChannelID() (r int, exists bool) {
+	v := m.addchannel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChannelID resets all changes to the "channel_id" field.
+func (m *IntelligenceRunMutation) ResetChannelID() {
+	m.channel_id = nil
+	m.addchannel_id = nil
+}
+
+// SetChannelName sets the "channel_name" field.
+func (m *IntelligenceRunMutation) SetChannelName(s string) {
+	m.channel_name = &s
+}
+
+// ChannelName returns the value of the "channel_name" field in the mutation.
+func (m *IntelligenceRunMutation) ChannelName() (r string, exists bool) {
+	v := m.channel_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelName returns the old "channel_name" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldChannelName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelName: %w", err)
+	}
+	return oldValue.ChannelName, nil
+}
+
+// ResetChannelName resets all changes to the "channel_name" field.
+func (m *IntelligenceRunMutation) ResetChannelName() {
+	m.channel_name = nil
+}
+
+// SetModelID sets the "model_id" field.
+func (m *IntelligenceRunMutation) SetModelID(s string) {
+	m.model_id = &s
+}
+
+// ModelID returns the value of the "model_id" field in the mutation.
+func (m *IntelligenceRunMutation) ModelID() (r string, exists bool) {
+	v := m.model_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelID returns the old "model_id" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldModelID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelID: %w", err)
+	}
+	return oldValue.ModelID, nil
+}
+
+// ResetModelID resets all changes to the "model_id" field.
+func (m *IntelligenceRunMutation) ResetModelID() {
+	m.model_id = nil
+}
+
+// SetTrigger sets the "trigger" field.
+func (m *IntelligenceRunMutation) SetTrigger(s string) {
+	m.trigger = &s
+}
+
+// Trigger returns the value of the "trigger" field in the mutation.
+func (m *IntelligenceRunMutation) Trigger() (r string, exists bool) {
+	v := m.trigger
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTrigger returns the old "trigger" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldTrigger(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTrigger is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTrigger requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTrigger: %w", err)
+	}
+	return oldValue.Trigger, nil
+}
+
+// ResetTrigger resets all changes to the "trigger" field.
+func (m *IntelligenceRunMutation) ResetTrigger() {
+	m.trigger = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *IntelligenceRunMutation) SetStatus(i intelligencerun.Status) {
+	m.status = &i
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *IntelligenceRunMutation) Status() (r intelligencerun.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldStatus(ctx context.Context) (v intelligencerun.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *IntelligenceRunMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetTotalKeys sets the "total_keys" field.
+func (m *IntelligenceRunMutation) SetTotalKeys(i int) {
+	m.total_keys = &i
+	m.addtotal_keys = nil
+}
+
+// TotalKeys returns the value of the "total_keys" field in the mutation.
+func (m *IntelligenceRunMutation) TotalKeys() (r int, exists bool) {
+	v := m.total_keys
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalKeys returns the old "total_keys" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldTotalKeys(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalKeys is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalKeys requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalKeys: %w", err)
+	}
+	return oldValue.TotalKeys, nil
+}
+
+// AddTotalKeys adds i to the "total_keys" field.
+func (m *IntelligenceRunMutation) AddTotalKeys(i int) {
+	if m.addtotal_keys != nil {
+		*m.addtotal_keys += i
+	} else {
+		m.addtotal_keys = &i
+	}
+}
+
+// AddedTotalKeys returns the value that was added to the "total_keys" field in this mutation.
+func (m *IntelligenceRunMutation) AddedTotalKeys() (r int, exists bool) {
+	v := m.addtotal_keys
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalKeys resets all changes to the "total_keys" field.
+func (m *IntelligenceRunMutation) ResetTotalKeys() {
+	m.total_keys = nil
+	m.addtotal_keys = nil
+}
+
+// SetSuccessKeys sets the "success_keys" field.
+func (m *IntelligenceRunMutation) SetSuccessKeys(i int) {
+	m.success_keys = &i
+	m.addsuccess_keys = nil
+}
+
+// SuccessKeys returns the value of the "success_keys" field in the mutation.
+func (m *IntelligenceRunMutation) SuccessKeys() (r int, exists bool) {
+	v := m.success_keys
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSuccessKeys returns the old "success_keys" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldSuccessKeys(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSuccessKeys is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSuccessKeys requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSuccessKeys: %w", err)
+	}
+	return oldValue.SuccessKeys, nil
+}
+
+// AddSuccessKeys adds i to the "success_keys" field.
+func (m *IntelligenceRunMutation) AddSuccessKeys(i int) {
+	if m.addsuccess_keys != nil {
+		*m.addsuccess_keys += i
+	} else {
+		m.addsuccess_keys = &i
+	}
+}
+
+// AddedSuccessKeys returns the value that was added to the "success_keys" field in this mutation.
+func (m *IntelligenceRunMutation) AddedSuccessKeys() (r int, exists bool) {
+	v := m.addsuccess_keys
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSuccessKeys resets all changes to the "success_keys" field.
+func (m *IntelligenceRunMutation) ResetSuccessKeys() {
+	m.success_keys = nil
+	m.addsuccess_keys = nil
+}
+
+// SetFailedKeys sets the "failed_keys" field.
+func (m *IntelligenceRunMutation) SetFailedKeys(i int) {
+	m.failed_keys = &i
+	m.addfailed_keys = nil
+}
+
+// FailedKeys returns the value of the "failed_keys" field in the mutation.
+func (m *IntelligenceRunMutation) FailedKeys() (r int, exists bool) {
+	v := m.failed_keys
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailedKeys returns the old "failed_keys" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldFailedKeys(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailedKeys is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailedKeys requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailedKeys: %w", err)
+	}
+	return oldValue.FailedKeys, nil
+}
+
+// AddFailedKeys adds i to the "failed_keys" field.
+func (m *IntelligenceRunMutation) AddFailedKeys(i int) {
+	if m.addfailed_keys != nil {
+		*m.addfailed_keys += i
+	} else {
+		m.addfailed_keys = &i
+	}
+}
+
+// AddedFailedKeys returns the value that was added to the "failed_keys" field in this mutation.
+func (m *IntelligenceRunMutation) AddedFailedKeys() (r int, exists bool) {
+	v := m.addfailed_keys
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFailedKeys resets all changes to the "failed_keys" field.
+func (m *IntelligenceRunMutation) ResetFailedKeys() {
+	m.failed_keys = nil
+	m.addfailed_keys = nil
+}
+
+// SetDurationMs sets the "duration_ms" field.
+func (m *IntelligenceRunMutation) SetDurationMs(i int) {
+	m.duration_ms = &i
+	m.addduration_ms = nil
+}
+
+// DurationMs returns the value of the "duration_ms" field in the mutation.
+func (m *IntelligenceRunMutation) DurationMs() (r int, exists bool) {
+	v := m.duration_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDurationMs returns the old "duration_ms" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldDurationMs(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDurationMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDurationMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDurationMs: %w", err)
+	}
+	return oldValue.DurationMs, nil
+}
+
+// AddDurationMs adds i to the "duration_ms" field.
+func (m *IntelligenceRunMutation) AddDurationMs(i int) {
+	if m.addduration_ms != nil {
+		*m.addduration_ms += i
+	} else {
+		m.addduration_ms = &i
+	}
+}
+
+// AddedDurationMs returns the value that was added to the "duration_ms" field in this mutation.
+func (m *IntelligenceRunMutation) AddedDurationMs() (r int, exists bool) {
+	v := m.addduration_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDurationMs resets all changes to the "duration_ms" field.
+func (m *IntelligenceRunMutation) ResetDurationMs() {
+	m.duration_ms = nil
+	m.addduration_ms = nil
+}
+
+// SetResults sets the "results" field.
+func (m *IntelligenceRunMutation) SetResults(okr []objects.IntelligenceKeyResult) {
+	m.results = &okr
+	m.appendresults = nil
+}
+
+// Results returns the value of the "results" field in the mutation.
+func (m *IntelligenceRunMutation) Results() (r []objects.IntelligenceKeyResult, exists bool) {
+	v := m.results
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResults returns the old "results" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldResults(ctx context.Context) (v []objects.IntelligenceKeyResult, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResults is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResults requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResults: %w", err)
+	}
+	return oldValue.Results, nil
+}
+
+// AppendResults adds okr to the "results" field.
+func (m *IntelligenceRunMutation) AppendResults(okr []objects.IntelligenceKeyResult) {
+	m.appendresults = append(m.appendresults, okr...)
+}
+
+// AppendedResults returns the list of values that were appended to the "results" field in this mutation.
+func (m *IntelligenceRunMutation) AppendedResults() ([]objects.IntelligenceKeyResult, bool) {
+	if len(m.appendresults) == 0 {
+		return nil, false
+	}
+	return m.appendresults, true
+}
+
+// ClearResults clears the value of the "results" field.
+func (m *IntelligenceRunMutation) ClearResults() {
+	m.results = nil
+	m.appendresults = nil
+	m.clearedFields[intelligencerun.FieldResults] = struct{}{}
+}
+
+// ResultsCleared returns if the "results" field was cleared in this mutation.
+func (m *IntelligenceRunMutation) ResultsCleared() bool {
+	_, ok := m.clearedFields[intelligencerun.FieldResults]
+	return ok
+}
+
+// ResetResults resets all changes to the "results" field.
+func (m *IntelligenceRunMutation) ResetResults() {
+	m.results = nil
+	m.appendresults = nil
+	delete(m.clearedFields, intelligencerun.FieldResults)
+}
+
+// Where appends a list predicates to the IntelligenceRunMutation builder.
+func (m *IntelligenceRunMutation) Where(ps ...predicate.IntelligenceRun) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the IntelligenceRunMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *IntelligenceRunMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.IntelligenceRun, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *IntelligenceRunMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *IntelligenceRunMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (IntelligenceRun).
+func (m *IntelligenceRunMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *IntelligenceRunMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.created_at != nil {
+		fields = append(fields, intelligencerun.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, intelligencerun.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, intelligencerun.FieldDeletedAt)
+	}
+	if m.channel_id != nil {
+		fields = append(fields, intelligencerun.FieldChannelID)
+	}
+	if m.channel_name != nil {
+		fields = append(fields, intelligencerun.FieldChannelName)
+	}
+	if m.model_id != nil {
+		fields = append(fields, intelligencerun.FieldModelID)
+	}
+	if m.trigger != nil {
+		fields = append(fields, intelligencerun.FieldTrigger)
+	}
+	if m.status != nil {
+		fields = append(fields, intelligencerun.FieldStatus)
+	}
+	if m.total_keys != nil {
+		fields = append(fields, intelligencerun.FieldTotalKeys)
+	}
+	if m.success_keys != nil {
+		fields = append(fields, intelligencerun.FieldSuccessKeys)
+	}
+	if m.failed_keys != nil {
+		fields = append(fields, intelligencerun.FieldFailedKeys)
+	}
+	if m.duration_ms != nil {
+		fields = append(fields, intelligencerun.FieldDurationMs)
+	}
+	if m.results != nil {
+		fields = append(fields, intelligencerun.FieldResults)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *IntelligenceRunMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case intelligencerun.FieldCreatedAt:
+		return m.CreatedAt()
+	case intelligencerun.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case intelligencerun.FieldDeletedAt:
+		return m.DeletedAt()
+	case intelligencerun.FieldChannelID:
+		return m.ChannelID()
+	case intelligencerun.FieldChannelName:
+		return m.ChannelName()
+	case intelligencerun.FieldModelID:
+		return m.ModelID()
+	case intelligencerun.FieldTrigger:
+		return m.Trigger()
+	case intelligencerun.FieldStatus:
+		return m.Status()
+	case intelligencerun.FieldTotalKeys:
+		return m.TotalKeys()
+	case intelligencerun.FieldSuccessKeys:
+		return m.SuccessKeys()
+	case intelligencerun.FieldFailedKeys:
+		return m.FailedKeys()
+	case intelligencerun.FieldDurationMs:
+		return m.DurationMs()
+	case intelligencerun.FieldResults:
+		return m.Results()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *IntelligenceRunMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case intelligencerun.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case intelligencerun.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case intelligencerun.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case intelligencerun.FieldChannelID:
+		return m.OldChannelID(ctx)
+	case intelligencerun.FieldChannelName:
+		return m.OldChannelName(ctx)
+	case intelligencerun.FieldModelID:
+		return m.OldModelID(ctx)
+	case intelligencerun.FieldTrigger:
+		return m.OldTrigger(ctx)
+	case intelligencerun.FieldStatus:
+		return m.OldStatus(ctx)
+	case intelligencerun.FieldTotalKeys:
+		return m.OldTotalKeys(ctx)
+	case intelligencerun.FieldSuccessKeys:
+		return m.OldSuccessKeys(ctx)
+	case intelligencerun.FieldFailedKeys:
+		return m.OldFailedKeys(ctx)
+	case intelligencerun.FieldDurationMs:
+		return m.OldDurationMs(ctx)
+	case intelligencerun.FieldResults:
+		return m.OldResults(ctx)
+	}
+	return nil, fmt.Errorf("unknown IntelligenceRun field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *IntelligenceRunMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case intelligencerun.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case intelligencerun.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case intelligencerun.FieldDeletedAt:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case intelligencerun.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelID(v)
+		return nil
+	case intelligencerun.FieldChannelName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelName(v)
+		return nil
+	case intelligencerun.FieldModelID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelID(v)
+		return nil
+	case intelligencerun.FieldTrigger:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTrigger(v)
+		return nil
+	case intelligencerun.FieldStatus:
+		v, ok := value.(intelligencerun.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case intelligencerun.FieldTotalKeys:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalKeys(v)
+		return nil
+	case intelligencerun.FieldSuccessKeys:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSuccessKeys(v)
+		return nil
+	case intelligencerun.FieldFailedKeys:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailedKeys(v)
+		return nil
+	case intelligencerun.FieldDurationMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDurationMs(v)
+		return nil
+	case intelligencerun.FieldResults:
+		v, ok := value.([]objects.IntelligenceKeyResult)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResults(v)
+		return nil
+	}
+	return fmt.Errorf("unknown IntelligenceRun field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *IntelligenceRunMutation) AddedFields() []string {
+	var fields []string
+	if m.adddeleted_at != nil {
+		fields = append(fields, intelligencerun.FieldDeletedAt)
+	}
+	if m.addchannel_id != nil {
+		fields = append(fields, intelligencerun.FieldChannelID)
+	}
+	if m.addtotal_keys != nil {
+		fields = append(fields, intelligencerun.FieldTotalKeys)
+	}
+	if m.addsuccess_keys != nil {
+		fields = append(fields, intelligencerun.FieldSuccessKeys)
+	}
+	if m.addfailed_keys != nil {
+		fields = append(fields, intelligencerun.FieldFailedKeys)
+	}
+	if m.addduration_ms != nil {
+		fields = append(fields, intelligencerun.FieldDurationMs)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *IntelligenceRunMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case intelligencerun.FieldDeletedAt:
+		return m.AddedDeletedAt()
+	case intelligencerun.FieldChannelID:
+		return m.AddedChannelID()
+	case intelligencerun.FieldTotalKeys:
+		return m.AddedTotalKeys()
+	case intelligencerun.FieldSuccessKeys:
+		return m.AddedSuccessKeys()
+	case intelligencerun.FieldFailedKeys:
+		return m.AddedFailedKeys()
+	case intelligencerun.FieldDurationMs:
+		return m.AddedDurationMs()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *IntelligenceRunMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case intelligencerun.FieldDeletedAt:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDeletedAt(v)
+		return nil
+	case intelligencerun.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChannelID(v)
+		return nil
+	case intelligencerun.FieldTotalKeys:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalKeys(v)
+		return nil
+	case intelligencerun.FieldSuccessKeys:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSuccessKeys(v)
+		return nil
+	case intelligencerun.FieldFailedKeys:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFailedKeys(v)
+		return nil
+	case intelligencerun.FieldDurationMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDurationMs(v)
+		return nil
+	}
+	return fmt.Errorf("unknown IntelligenceRun numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *IntelligenceRunMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(intelligencerun.FieldResults) {
+		fields = append(fields, intelligencerun.FieldResults)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *IntelligenceRunMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *IntelligenceRunMutation) ClearField(name string) error {
+	switch name {
+	case intelligencerun.FieldResults:
+		m.ClearResults()
+		return nil
+	}
+	return fmt.Errorf("unknown IntelligenceRun nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *IntelligenceRunMutation) ResetField(name string) error {
+	switch name {
+	case intelligencerun.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case intelligencerun.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case intelligencerun.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case intelligencerun.FieldChannelID:
+		m.ResetChannelID()
+		return nil
+	case intelligencerun.FieldChannelName:
+		m.ResetChannelName()
+		return nil
+	case intelligencerun.FieldModelID:
+		m.ResetModelID()
+		return nil
+	case intelligencerun.FieldTrigger:
+		m.ResetTrigger()
+		return nil
+	case intelligencerun.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case intelligencerun.FieldTotalKeys:
+		m.ResetTotalKeys()
+		return nil
+	case intelligencerun.FieldSuccessKeys:
+		m.ResetSuccessKeys()
+		return nil
+	case intelligencerun.FieldFailedKeys:
+		m.ResetFailedKeys()
+		return nil
+	case intelligencerun.FieldDurationMs:
+		m.ResetDurationMs()
+		return nil
+	case intelligencerun.FieldResults:
+		m.ResetResults()
+		return nil
+	}
+	return fmt.Errorf("unknown IntelligenceRun field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *IntelligenceRunMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *IntelligenceRunMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *IntelligenceRunMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *IntelligenceRunMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *IntelligenceRunMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *IntelligenceRunMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *IntelligenceRunMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown IntelligenceRun unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *IntelligenceRunMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown IntelligenceRun edge %s", name)
 }
 
 // InvitationMutation represents an operation that mutates the Invitation nodes in the graph.

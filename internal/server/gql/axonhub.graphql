@@ -437,6 +437,30 @@ type IntelligenceKeyResult {
   error: String
 }
 
+input IntelligenceTargetInput {
+  channelID: ID!
+  modelID: String!
+}
+
+type IntelligenceTarget {
+  channelID: ID!
+  channelName: String!
+  modelID: String!
+}
+
+input IntelligenceConfigInput {
+  enabled: Boolean!
+  # Scheduling interval in minutes. One of 10, 30 or 60.
+  intervalMinutes: Int!
+  targets: [IntelligenceTargetInput!]!
+}
+
+type IntelligenceConfig {
+  enabled: Boolean!
+  intervalMinutes: Int!
+  targets: [IntelligenceTarget!]!
+}
+
 type IntelligenceEvaluatePayload {
   channelID: ID!
   model: String!
@@ -1011,6 +1035,10 @@ type Mutation {
   testChannelAPIKeys(channelID: ID!, modelID: String): TestChannelAPIKeysPayload!
   testChannelAPIKey(channelID: ID!, key: String!, modelID: String): TestAPIKeyResult!
   evaluateChannelIntelligence(input: IntelligenceEvaluateInput!): IntelligenceEvaluatePayload!
+  """Persists the scheduled check configuration."""
+  setIntelligenceConfig(input: IntelligenceConfigInput!): IntelligenceConfig!
+  """Runs every configured target now. Returns how many channels were queued."""
+  runIntelligenceCheckNow: Int!
   bulkImportChannels(input: BulkImportChannelsInput!): BulkImportChannelsResult!
   bulkUpdateChannelOrdering(
     input: BulkUpdateChannelOrderingInput!
@@ -1158,6 +1186,17 @@ input CountChannelsByTypeInput {
 }
 
 extend type Query {
+  """Configuration of the scheduled intelligence check."""
+  intelligenceConfig: IntelligenceConfig!
+
+  """History of intelligence runs for one channel, newest first."""
+  intelligenceHistory(
+    channelID: ID!
+    """Returns the first _n_ elements from the list."""
+    first: Int
+    after: Cursor
+  ): IntelligenceRunConnection!
+
   allChannelSummarys(includeArchived: Boolean): [Channel!]!
   allChannelTags: [String!]!
   countChannelsByType(input: CountChannelsByTypeInput!): [ChannelTypeCount!]!

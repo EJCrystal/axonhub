@@ -22,6 +22,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
+	"github.com/looplj/axonhub/internal/ent/intelligencerun"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
 	"github.com/looplj/axonhub/internal/ent/project"
@@ -2653,6 +2654,320 @@ func (_m *DataStorage) ToEdge(order *DataStorageOrder) *DataStorageEdge {
 		order = DefaultDataStorageOrder
 	}
 	return &DataStorageEdge{
+		Node:   _m,
+		Cursor: order.Field.toCursor(_m),
+	}
+}
+
+// IntelligenceRunEdge is the edge representation of IntelligenceRun.
+type IntelligenceRunEdge struct {
+	Node   *IntelligenceRun `json:"node"`
+	Cursor Cursor           `json:"cursor"`
+}
+
+// IntelligenceRunConnection is the connection containing edges to IntelligenceRun.
+type IntelligenceRunConnection struct {
+	Edges      []*IntelligenceRunEdge `json:"edges"`
+	PageInfo   PageInfo               `json:"pageInfo"`
+	TotalCount int                    `json:"totalCount"`
+}
+
+func (c *IntelligenceRunConnection) build(nodes []*IntelligenceRun, pager *intelligencerunPager, after *Cursor, first *int, before *Cursor, last *int) {
+	c.PageInfo.HasNextPage = before != nil
+	c.PageInfo.HasPreviousPage = after != nil
+	if first != nil && *first+1 == len(nodes) {
+		c.PageInfo.HasNextPage = true
+		nodes = nodes[:len(nodes)-1]
+	} else if last != nil && *last+1 == len(nodes) {
+		c.PageInfo.HasPreviousPage = true
+		nodes = nodes[:len(nodes)-1]
+	}
+	var nodeAt func(int) *IntelligenceRun
+	if last != nil {
+		n := len(nodes) - 1
+		nodeAt = func(i int) *IntelligenceRun {
+			return nodes[n-i]
+		}
+	} else {
+		nodeAt = func(i int) *IntelligenceRun {
+			return nodes[i]
+		}
+	}
+	c.Edges = make([]*IntelligenceRunEdge, len(nodes))
+	for i := range nodes {
+		node := nodeAt(i)
+		c.Edges[i] = &IntelligenceRunEdge{
+			Node:   node,
+			Cursor: pager.toCursor(node),
+		}
+	}
+	if l := len(c.Edges); l > 0 {
+		c.PageInfo.StartCursor = &c.Edges[0].Cursor
+		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
+	}
+	if c.TotalCount == 0 {
+		c.TotalCount = len(nodes)
+	}
+}
+
+// IntelligenceRunPaginateOption enables pagination customization.
+type IntelligenceRunPaginateOption func(*intelligencerunPager) error
+
+// WithIntelligenceRunOrder configures pagination ordering.
+func WithIntelligenceRunOrder(order *IntelligenceRunOrder) IntelligenceRunPaginateOption {
+	if order == nil {
+		order = DefaultIntelligenceRunOrder
+	}
+	o := *order
+	return func(pager *intelligencerunPager) error {
+		if err := o.Direction.Validate(); err != nil {
+			return err
+		}
+		if o.Field == nil {
+			o.Field = DefaultIntelligenceRunOrder.Field
+		}
+		pager.order = &o
+		return nil
+	}
+}
+
+// WithIntelligenceRunFilter configures pagination filter.
+func WithIntelligenceRunFilter(filter func(*IntelligenceRunQuery) (*IntelligenceRunQuery, error)) IntelligenceRunPaginateOption {
+	return func(pager *intelligencerunPager) error {
+		if filter == nil {
+			return errors.New("IntelligenceRunQuery filter cannot be nil")
+		}
+		pager.filter = filter
+		return nil
+	}
+}
+
+type intelligencerunPager struct {
+	reverse bool
+	order   *IntelligenceRunOrder
+	filter  func(*IntelligenceRunQuery) (*IntelligenceRunQuery, error)
+}
+
+func newIntelligenceRunPager(opts []IntelligenceRunPaginateOption, reverse bool) (*intelligencerunPager, error) {
+	pager := &intelligencerunPager{reverse: reverse}
+	for _, opt := range opts {
+		if err := opt(pager); err != nil {
+			return nil, err
+		}
+	}
+	if pager.order == nil {
+		pager.order = DefaultIntelligenceRunOrder
+	}
+	return pager, nil
+}
+
+func (p *intelligencerunPager) applyFilter(query *IntelligenceRunQuery) (*IntelligenceRunQuery, error) {
+	if p.filter != nil {
+		return p.filter(query)
+	}
+	return query, nil
+}
+
+func (p *intelligencerunPager) toCursor(_m *IntelligenceRun) Cursor {
+	return p.order.Field.toCursor(_m)
+}
+
+func (p *intelligencerunPager) applyCursors(query *IntelligenceRunQuery, after, before *Cursor) (*IntelligenceRunQuery, error) {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultIntelligenceRunOrder.Field.column, p.order.Field.column, direction) {
+		query = query.Where(predicate)
+	}
+	return query, nil
+}
+
+func (p *intelligencerunPager) applyOrder(query *IntelligenceRunQuery) *IntelligenceRunQuery {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultIntelligenceRunOrder.Field {
+		query = query.Order(DefaultIntelligenceRunOrder.Field.toTerm(direction.OrderTermOption()))
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return query
+}
+
+func (p *intelligencerunPager) orderExpr(query *IntelligenceRunQuery) sql.Querier {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultIntelligenceRunOrder.Field {
+			b.Comma().Ident(DefaultIntelligenceRunOrder.Field.column).Pad().WriteString(string(direction))
+		}
+	})
+}
+
+// Paginate executes the query and returns a relay based cursor connection to IntelligenceRun.
+func (_m *IntelligenceRunQuery) Paginate(
+	ctx context.Context, after *Cursor, first *int,
+	before *Cursor, last *int, opts ...IntelligenceRunPaginateOption,
+) (*IntelligenceRunConnection, error) {
+	if err := validateFirstLast(first, last); err != nil {
+		return nil, err
+	}
+	pager, err := newIntelligenceRunPager(opts, last != nil)
+	if err != nil {
+		return nil, err
+	}
+	if _m, err = pager.applyFilter(_m); err != nil {
+		return nil, err
+	}
+	conn := &IntelligenceRunConnection{Edges: []*IntelligenceRunEdge{}}
+	ignoredEdges := !hasCollectedField(ctx, edgesField)
+	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
+		hasPagination := after != nil || first != nil || before != nil || last != nil
+		if hasPagination || ignoredEdges {
+			c := _m.Clone()
+			c.ctx.Fields = nil
+			if conn.TotalCount, err = c.Count(ctx); err != nil {
+				return nil, err
+			}
+			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
+			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
+		}
+	}
+	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
+		return conn, nil
+	}
+	if _m, err = pager.applyCursors(_m, after, before); err != nil {
+		return nil, err
+	}
+	limit := paginateLimit(first, last)
+	if limit != 0 {
+		_m.Limit(limit)
+	}
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+			return nil, err
+		}
+	}
+	_m = pager.applyOrder(_m)
+	nodes, err := _m.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+var (
+	// IntelligenceRunOrderFieldCreatedAt orders IntelligenceRun by created_at.
+	IntelligenceRunOrderFieldCreatedAt = &IntelligenceRunOrderField{
+		Value: func(_m *IntelligenceRun) (ent.Value, error) {
+			return _m.CreatedAt, nil
+		},
+		column: intelligencerun.FieldCreatedAt,
+		toTerm: intelligencerun.ByCreatedAt,
+		toCursor: func(_m *IntelligenceRun) Cursor {
+			return Cursor{
+				ID:    _m.ID,
+				Value: _m.CreatedAt,
+			}
+		},
+	}
+	// IntelligenceRunOrderFieldUpdatedAt orders IntelligenceRun by updated_at.
+	IntelligenceRunOrderFieldUpdatedAt = &IntelligenceRunOrderField{
+		Value: func(_m *IntelligenceRun) (ent.Value, error) {
+			return _m.UpdatedAt, nil
+		},
+		column: intelligencerun.FieldUpdatedAt,
+		toTerm: intelligencerun.ByUpdatedAt,
+		toCursor: func(_m *IntelligenceRun) Cursor {
+			return Cursor{
+				ID:    _m.ID,
+				Value: _m.UpdatedAt,
+			}
+		},
+	}
+)
+
+// String implement fmt.Stringer interface.
+func (f IntelligenceRunOrderField) String() string {
+	var str string
+	switch f.column {
+	case IntelligenceRunOrderFieldCreatedAt.column:
+		str = "CREATED_AT"
+	case IntelligenceRunOrderFieldUpdatedAt.column:
+		str = "UPDATED_AT"
+	}
+	return str
+}
+
+// MarshalGQL implements graphql.Marshaler interface.
+func (f IntelligenceRunOrderField) MarshalGQL(w io.Writer) {
+	io.WriteString(w, strconv.Quote(f.String()))
+}
+
+// UnmarshalGQL implements graphql.Unmarshaler interface.
+func (f *IntelligenceRunOrderField) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("IntelligenceRunOrderField %T must be a string", v)
+	}
+	switch str {
+	case "CREATED_AT":
+		*f = *IntelligenceRunOrderFieldCreatedAt
+	case "UPDATED_AT":
+		*f = *IntelligenceRunOrderFieldUpdatedAt
+	default:
+		return fmt.Errorf("%s is not a valid IntelligenceRunOrderField", str)
+	}
+	return nil
+}
+
+// IntelligenceRunOrderField defines the ordering field of IntelligenceRun.
+type IntelligenceRunOrderField struct {
+	// Value extracts the ordering value from the given IntelligenceRun.
+	Value    func(*IntelligenceRun) (ent.Value, error)
+	column   string // field or computed.
+	toTerm   func(...sql.OrderTermOption) intelligencerun.OrderOption
+	toCursor func(*IntelligenceRun) Cursor
+}
+
+// IntelligenceRunOrder defines the ordering of IntelligenceRun.
+type IntelligenceRunOrder struct {
+	Direction OrderDirection             `json:"direction"`
+	Field     *IntelligenceRunOrderField `json:"field"`
+}
+
+// DefaultIntelligenceRunOrder is the default ordering of IntelligenceRun.
+var DefaultIntelligenceRunOrder = &IntelligenceRunOrder{
+	Direction: entgql.OrderDirectionAsc,
+	Field: &IntelligenceRunOrderField{
+		Value: func(_m *IntelligenceRun) (ent.Value, error) {
+			return _m.ID, nil
+		},
+		column: intelligencerun.FieldID,
+		toTerm: intelligencerun.ByID,
+		toCursor: func(_m *IntelligenceRun) Cursor {
+			return Cursor{ID: _m.ID}
+		},
+	},
+}
+
+// ToEdge converts IntelligenceRun into IntelligenceRunEdge.
+func (_m *IntelligenceRun) ToEdge(order *IntelligenceRunOrder) *IntelligenceRunEdge {
+	if order == nil {
+		order = DefaultIntelligenceRunOrder
+	}
+	return &IntelligenceRunEdge{
 		Node:   _m,
 		Cursor: order.Field.toCursor(_m),
 	}

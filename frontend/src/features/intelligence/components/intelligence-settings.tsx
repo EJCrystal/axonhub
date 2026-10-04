@@ -1,0 +1,198 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useQueryChannels } from '@/features/channels/data/channels';
+import { INTELLIGENCE_INTERVALS, IntelligenceConfig, IntelligenceInterval } from '../data/schema';
+import { useSetIntelligenceConfig } from '../data/intelligence';
+
+interface Props {
+  config?: IntelligenceConfig;
+  loading: boolean;
+  readOnly: boolean;
+}
+
+interface DraftTarget {
+  channelID: string;
+  modelID: string;
+}
+
+export function IntelligenceSettings({ config, loading, readOnly }: Props) {
+  const { t } = useTranslation();
+  const save = useSetIntelligenceConfig();
+
+  // The check needs the channel's model list, so pull the same connection the
+  // channels page uses.
+  const { data: channels } = useQueryChannels({ first: 200 });
+
+  const [enabled, setEnabled] = useState(false);
+  const [intervalMinutes, setIntervalMinutes] = useState<IntelligenceInterval>(60);
+  const [targets, setTargets] = useState<DraftTarget[]>([]);
+
+  useEffect(() => {
+    if (!config) return;
+    setEnabled(config.enabled);
+    setIntervalMinutes((config.intervalMinutes as IntelligenceInterval) ?? 60);
+    setTargets(config.targets.map((target) => ({ channelID: target.channelID, modelID: target.modelID })));
+  }, [config]);
+
+  const channelOptions = useMemo(
+    () => (channels?.edges ?? []).map((edge) => ({ id: edge.node.id, name: edge.node.name, models: edge.node.supportedModels })),
+    [channels]
+  );
+
+  const addTarget = () => {
+    const used = new Set(targets.map((target) => target.channelID));
+    const next = channelOptions.find((channel) => !used.has(channel.id));
+    if (!next) return;
+    setTargets((prev) => [...prev, { channelID: next.id, modelID: next.models[0] ?? '' }]);
+  };
+
+  const updateTarget = (index: number, patch: Partial<DraftTarget>) => {
+    setTargets((prev) => prev.map((target, i) => (i === index ? { ...target, ...patch } : target)));
+  };
+
+  const removeTarget = (index: number) => {
+    setTargets((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSave = () => {
+    save.mutate({ enabled, intervalMinutes, targets });
+  };
+
+  const modelsFor = (channelID: string) => channelOptions.find((channel) => channel.id === channelID)?.models ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('intelligence.settings.title')}</CardTitle>
+        <CardDescription>{t('intelligence.settings.description')}</CardDescription>
+      </CardHeader>
+      <CardContent className='space-y-6'>
+        <div className='flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4'>
+          <div className='space-y-1'>
+            <Label htmlFor='intelligence-enabled'>{t('intelligence.settings.enabled')}</Label>
+            <p className='text-muted-foreground text-xs'>{t('intelligence.settings.enabledHint')}</p>
+          </div>
+          <Switch id='intelligence-enabled' checked={enabled} onCheckedChange={setEnabled} disabled={readOnly} />
+        </div>
+
+        <div className='space-y-2'>
+          <Label>{t('intelligence.settings.interval')}</Label>
+          <Select
+            value={String(intervalMinutes)}
+            onValueChange={(value) => setIntervalMinutes(Number(value) as IntelligenceInterval)}
+            disabled={readOnly}
+          >
+            <SelectTrigger className='w-64'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {INTELLIGENCE_INTERVALS.map((minutes) => (
+                <SelectItem key={minutes} value={String(minutes)}>
+                  {t(`intelligence.interval.${minutes}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className='text-muted-foreground text-xs'>{t('intelligence.settings.intervalHint')}</p>
+        </div>
+
+        <div className='space-y-2'>
+          <div className='flex items-center justify-between'>
+            <Label>{t('intelligence.settings.targets')}</Label>
+            <Button variant='outline' size='sm' onClick={addTarget} disabled={readOnly || loading}>
+              <IconPlus className='mr-1 h-4 w-4' />
+              {t('intelligence.settings.addTarget')}
+            </Button>
+          </div>
+
+          <div className='rounded-lg border'>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('intelligence.settings.channelColumn')}</TableHead>
+                  <TableHead>{t('intelligence.settings.modelColumn')}</TableHead>
+                  <TableHead className='w-16'></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {targets.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className='text-muted-foreground text-center text-xs'>
+                      {t('intelligence.settings.noTargets')}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {targets.map((target, index) => {
+                  const used = new Set(targets.filter((_, i) => i !== index).map((item) => item.channelID));
+                  return (
+                    <TableRow key={`${target.channelID}-${index}`}>
+                      <TableCell>
+                        <Select
+                          value={target.channelID}
+                          onValueChange={(value) => updateTarget(index, { channelID: value, modelID: modelsFor(value)[0] ?? '' })}
+                          disabled={readOnly}
+                        >
+                          <SelectTrigger className='w-56'>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {channelOptions
+                              .filter((channel) => !used.has(channel.id))
+                              .map((channel) => (
+                                <SelectItem key={channel.id} value={channel.id}>
+                                  {channel.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={target.modelID}
+                          onValueChange={(value) => updateTarget(index, { modelID: value })}
+                          disabled={readOnly}
+                        >
+                          <SelectTrigger className='w-56'>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {modelsFor(target.channelID).map((model) => (
+                              <SelectItem key={model} value={model}>
+                                {model}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant='ghost' size='icon' onClick={() => removeTarget(index)} disabled={readOnly}>
+                          <IconTrash size={16} />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <p className='text-muted-foreground text-xs'>{t('intelligence.settings.targetsHint')}</p>
+        </div>
+
+        <div className='flex justify-end'>
+          <Button onClick={handleSave} disabled={readOnly || save.isPending} data-testid='save-intelligence-config'>
+            {save.isPending ? t('intelligence.settings.saving') : t('intelligence.settings.save')}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

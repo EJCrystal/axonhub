@@ -18,6 +18,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
+	"github.com/looplj/axonhub/internal/ent/intelligencerun"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
 	"github.com/looplj/axonhub/internal/ent/project"
@@ -1751,6 +1752,150 @@ func newDataStoragePaginateArgs(rv map[string]any) *datastoragePaginateArgs {
 	}
 	if v, ok := rv[whereField].(*DataStorageWhereInput); ok {
 		args.opts = append(args.opts, WithDataStorageFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *IntelligenceRunQuery) CollectFields(ctx context.Context, satisfies ...string) (*IntelligenceRunQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *IntelligenceRunQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(intelligencerun.Columns))
+		selectedFields = []string{intelligencerun.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+		case "createdAt":
+			if _, ok := fieldSeen[intelligencerun.FieldCreatedAt]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldCreatedAt)
+				fieldSeen[intelligencerun.FieldCreatedAt] = struct{}{}
+			}
+		case "updatedAt":
+			if _, ok := fieldSeen[intelligencerun.FieldUpdatedAt]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldUpdatedAt)
+				fieldSeen[intelligencerun.FieldUpdatedAt] = struct{}{}
+			}
+		case "channelID":
+			if _, ok := fieldSeen[intelligencerun.FieldChannelID]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldChannelID)
+				fieldSeen[intelligencerun.FieldChannelID] = struct{}{}
+			}
+		case "channelName":
+			if _, ok := fieldSeen[intelligencerun.FieldChannelName]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldChannelName)
+				fieldSeen[intelligencerun.FieldChannelName] = struct{}{}
+			}
+		case "modelID":
+			if _, ok := fieldSeen[intelligencerun.FieldModelID]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldModelID)
+				fieldSeen[intelligencerun.FieldModelID] = struct{}{}
+			}
+		case "trigger":
+			if _, ok := fieldSeen[intelligencerun.FieldTrigger]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldTrigger)
+				fieldSeen[intelligencerun.FieldTrigger] = struct{}{}
+			}
+		case "status":
+			if _, ok := fieldSeen[intelligencerun.FieldStatus]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldStatus)
+				fieldSeen[intelligencerun.FieldStatus] = struct{}{}
+			}
+		case "totalKeys":
+			if _, ok := fieldSeen[intelligencerun.FieldTotalKeys]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldTotalKeys)
+				fieldSeen[intelligencerun.FieldTotalKeys] = struct{}{}
+			}
+		case "successKeys":
+			if _, ok := fieldSeen[intelligencerun.FieldSuccessKeys]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldSuccessKeys)
+				fieldSeen[intelligencerun.FieldSuccessKeys] = struct{}{}
+			}
+		case "failedKeys":
+			if _, ok := fieldSeen[intelligencerun.FieldFailedKeys]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldFailedKeys)
+				fieldSeen[intelligencerun.FieldFailedKeys] = struct{}{}
+			}
+		case "durationMs":
+			if _, ok := fieldSeen[intelligencerun.FieldDurationMs]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldDurationMs)
+				fieldSeen[intelligencerun.FieldDurationMs] = struct{}{}
+			}
+		case "results":
+			if _, ok := fieldSeen[intelligencerun.FieldResults]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldResults)
+				fieldSeen[intelligencerun.FieldResults] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type intelligencerunPaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []IntelligenceRunPaginateOption
+}
+
+func newIntelligenceRunPaginateArgs(rv map[string]any) *intelligencerunPaginateArgs {
+	args := &intelligencerunPaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[orderByField]; ok {
+		switch v := v.(type) {
+		case map[string]any:
+			var (
+				err1, err2 error
+				order      = &IntelligenceRunOrder{Field: &IntelligenceRunOrderField{}, Direction: entgql.OrderDirectionAsc}
+			)
+			if d, ok := v[directionField]; ok {
+				err1 = order.Direction.UnmarshalGQL(d)
+			}
+			if f, ok := v[fieldField]; ok {
+				err2 = order.Field.UnmarshalGQL(f)
+			}
+			if err1 == nil && err2 == nil {
+				args.opts = append(args.opts, WithIntelligenceRunOrder(order))
+			}
+		case *IntelligenceRunOrder:
+			if v != nil {
+				args.opts = append(args.opts, WithIntelligenceRunOrder(v))
+			}
+		}
+	}
+	if v, ok := rv[whereField].(*IntelligenceRunWhereInput); ok {
+		args.opts = append(args.opts, WithIntelligenceRunFilter(v.Filter))
 	}
 	return args
 }

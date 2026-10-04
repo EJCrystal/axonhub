@@ -245,6 +245,16 @@ func (r *dataStorageResolver) ID(ctx context.Context, obj *ent.DataStorage) (*ob
 }
 
 // ID is the resolver for the id field.
+func (r *intelligenceRunResolver) ID(ctx context.Context, obj *ent.IntelligenceRun) (*objects.GUID, error) {
+	panic(fmt.Errorf("not implemented: ID - id"))
+}
+
+// Results is the resolver for the results field.
+func (r *intelligenceRunResolver) Results(ctx context.Context, obj *ent.IntelligenceRun) ([]*IntelligenceKeyResult, error) {
+	panic(fmt.Errorf("not implemented: Results - results"))
+}
+
+// ID is the resolver for the id field.
 func (r *modelResolver) ID(ctx context.Context, obj *ent.Model) (*objects.GUID, error) {
 	return &objects.GUID{
 		Type: ent.TypeModel,
@@ -410,6 +420,11 @@ func (r *queryResolver) DataStorages(ctx context.Context, after *entgql.Cursor[i
 		ent.WithDataStorageOrder(orderBy),
 		ent.WithDataStorageFilter(where.Filter),
 	)
+}
+
+// IntelligenceRuns is the resolver for the intelligenceRuns field.
+func (r *queryResolver) IntelligenceRuns(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.IntelligenceRunOrder, where *ent.IntelligenceRunWhereInput) (*ent.IntelligenceRunConnection, error) {
+	panic(fmt.Errorf("not implemented: IntelligenceRuns - intelligenceRuns"))
 }
 
 // Models is the resolver for the models field.
@@ -1017,6 +1032,9 @@ func (r *Resolver) ChannelProbe() ChannelProbeResolver { return &channelProbeRes
 // DataStorage returns DataStorageResolver implementation.
 func (r *Resolver) DataStorage() DataStorageResolver { return &dataStorageResolver{r} }
 
+// IntelligenceRun returns IntelligenceRunResolver implementation.
+func (r *Resolver) IntelligenceRun() IntelligenceRunResolver { return &intelligenceRunResolver{r} }
+
 // Model returns ModelResolver implementation.
 func (r *Resolver) Model() ModelResolver { return &modelResolver{r} }
 
@@ -1080,6 +1098,7 @@ type channelModelPriceVersionResolver struct{ *Resolver }
 type channelOverrideTemplateResolver struct{ *Resolver }
 type channelProbeResolver struct{ *Resolver }
 type dataStorageResolver struct{ *Resolver }
+type intelligenceRunResolver struct{ *Resolver }
 type modelResolver struct{ *Resolver }
 type oIDCIdentityResolver struct{ *Resolver }
 type projectResolver struct{ *Resolver }

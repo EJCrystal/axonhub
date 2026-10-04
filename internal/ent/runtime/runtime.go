@@ -13,6 +13,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
+	"github.com/looplj/axonhub/internal/ent/intelligencerun"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
@@ -359,6 +360,65 @@ func init() {
 	datastorageDescPrimary := datastorageFields[2].Descriptor()
 	// datastorage.DefaultPrimary holds the default value on creation for the primary field.
 	datastorage.DefaultPrimary = datastorageDescPrimary.Default.(bool)
+	intelligencerunMixin := schema.IntelligenceRun{}.Mixin()
+	intelligencerun.Policy = privacy.NewPolicies(schema.IntelligenceRun{})
+	intelligencerun.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := intelligencerun.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	intelligencerunMixinHooks1 := intelligencerunMixin[1].Hooks()
+
+	intelligencerun.Hooks[1] = intelligencerunMixinHooks1[0]
+	intelligencerunMixinInters1 := intelligencerunMixin[1].Interceptors()
+	intelligencerun.Interceptors[0] = intelligencerunMixinInters1[0]
+	intelligencerunMixinFields0 := intelligencerunMixin[0].Fields()
+	_ = intelligencerunMixinFields0
+	intelligencerunMixinFields1 := intelligencerunMixin[1].Fields()
+	_ = intelligencerunMixinFields1
+	intelligencerunFields := schema.IntelligenceRun{}.Fields()
+	_ = intelligencerunFields
+	// intelligencerunDescCreatedAt is the schema descriptor for created_at field.
+	intelligencerunDescCreatedAt := intelligencerunMixinFields0[0].Descriptor()
+	// intelligencerun.DefaultCreatedAt holds the default value on creation for the created_at field.
+	intelligencerun.DefaultCreatedAt = intelligencerunDescCreatedAt.Default.(func() time.Time)
+	// intelligencerunDescUpdatedAt is the schema descriptor for updated_at field.
+	intelligencerunDescUpdatedAt := intelligencerunMixinFields0[1].Descriptor()
+	// intelligencerun.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	intelligencerun.DefaultUpdatedAt = intelligencerunDescUpdatedAt.Default.(func() time.Time)
+	// intelligencerun.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	intelligencerun.UpdateDefaultUpdatedAt = intelligencerunDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// intelligencerunDescDeletedAt is the schema descriptor for deleted_at field.
+	intelligencerunDescDeletedAt := intelligencerunMixinFields1[0].Descriptor()
+	// intelligencerun.DefaultDeletedAt holds the default value on creation for the deleted_at field.
+	intelligencerun.DefaultDeletedAt = intelligencerunDescDeletedAt.Default.(int)
+	// intelligencerunDescChannelName is the schema descriptor for channel_name field.
+	intelligencerunDescChannelName := intelligencerunFields[1].Descriptor()
+	// intelligencerun.DefaultChannelName holds the default value on creation for the channel_name field.
+	intelligencerun.DefaultChannelName = intelligencerunDescChannelName.Default.(string)
+	// intelligencerunDescTrigger is the schema descriptor for trigger field.
+	intelligencerunDescTrigger := intelligencerunFields[3].Descriptor()
+	// intelligencerun.DefaultTrigger holds the default value on creation for the trigger field.
+	intelligencerun.DefaultTrigger = intelligencerunDescTrigger.Default.(string)
+	// intelligencerunDescTotalKeys is the schema descriptor for total_keys field.
+	intelligencerunDescTotalKeys := intelligencerunFields[5].Descriptor()
+	// intelligencerun.DefaultTotalKeys holds the default value on creation for the total_keys field.
+	intelligencerun.DefaultTotalKeys = intelligencerunDescTotalKeys.Default.(int)
+	// intelligencerunDescSuccessKeys is the schema descriptor for success_keys field.
+	intelligencerunDescSuccessKeys := intelligencerunFields[6].Descriptor()
+	// intelligencerun.DefaultSuccessKeys holds the default value on creation for the success_keys field.
+	intelligencerun.DefaultSuccessKeys = intelligencerunDescSuccessKeys.Default.(int)
+	// intelligencerunDescFailedKeys is the schema descriptor for failed_keys field.
+	intelligencerunDescFailedKeys := intelligencerunFields[7].Descriptor()
+	// intelligencerun.DefaultFailedKeys holds the default value on creation for the failed_keys field.
+	intelligencerun.DefaultFailedKeys = intelligencerunDescFailedKeys.Default.(int)
+	// intelligencerunDescDurationMs is the schema descriptor for duration_ms field.
+	intelligencerunDescDurationMs := intelligencerunFields[8].Descriptor()
+	// intelligencerun.DefaultDurationMs holds the default value on creation for the duration_ms field.
+	intelligencerun.DefaultDurationMs = intelligencerunDescDurationMs.Default.(int)
 	invitationMixin := schema.Invitation{}.Mixin()
 	invitation.Policy = privacy.NewPolicies(schema.Invitation{})
 	invitation.Hooks[0] = func(next ent.Mutator) ent.Mutator {

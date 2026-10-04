@@ -350,6 +350,18 @@ type InitializeSystemPayload struct {
 	Token   *string   `json:"token,omitempty"`
 }
 
+type IntelligenceConfig struct {
+	Enabled         bool                  `json:"enabled"`
+	IntervalMinutes int                   `json:"intervalMinutes"`
+	Targets         []*IntelligenceTarget `json:"targets"`
+}
+
+type IntelligenceConfigInput struct {
+	Enabled         bool                       `json:"enabled"`
+	IntervalMinutes int                        `json:"intervalMinutes"`
+	Targets         []*IntelligenceTargetInput `json:"targets"`
+}
+
 type IntelligenceEvaluateInput struct {
 	ChannelID objects.GUID `json:"channelID"`
 	ModelID   *string      `json:"modelID,omitempty"`
@@ -378,6 +390,17 @@ type IntelligenceKeyResult struct {
 	DurationMs   int     `json:"durationMs"`
 	HTML         *string `json:"html,omitempty"`
 	Error        *string `json:"error,omitempty"`
+}
+
+type IntelligenceTarget struct {
+	ChannelID   objects.GUID `json:"channelID"`
+	ChannelName string       `json:"channelName"`
+	ModelID     string       `json:"modelID"`
+}
+
+type IntelligenceTargetInput struct {
+	ChannelID objects.GUID `json:"channelID"`
+	ModelID   string       `json:"modelID"`
 }
 
 type LoadAPIKeyProfileTemplateInput struct {

@@ -30,6 +30,9 @@ type ChannelProbe func(*sql.Selector)
 // DataStorage is the predicate function for datastorage builders.
 type DataStorage func(*sql.Selector)
 
+// IntelligenceRun is the predicate function for intelligencerun builders.
+type IntelligenceRun func(*sql.Selector)
+
 // Invitation is the predicate function for invitation builders.
 type Invitation func(*sql.Selector)
 

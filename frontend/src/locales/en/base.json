@@ -5,6 +5,7 @@
   "sidebar.items.dashboard": "Dashboard",
   "sidebar.items.channels": "Channels",
   "sidebar.items.models": "Models",
+  "sidebar.items.intelligence": "Intelligence Check",
   "sidebar.items.promptProtectionRules": "Prompt Protection",
   "sidebar.items.prompts": "Prompts",
   "sidebar.items.dataStorages": "Payload Storages",
