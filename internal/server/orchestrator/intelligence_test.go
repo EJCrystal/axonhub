@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -154,4 +155,24 @@ func TestResolveIntelligenceKeysFiltersForeignKeys(t *testing.T) {
 	all := resolveIntelligenceKeys(loaded, nil)
 	require.Len(t, all, 2)
 	require.ElementsMatch(t, []string{"key-a", "key-b"}, all)
+}
+
+func TestHTMLForResult(t *testing.T) {
+	t.Run("returns the generated source", func(t *testing.T) {
+		html := "<html><body>ok</body></html>"
+		require.Equal(t, &html, htmlForResult(html))
+	})
+
+	t.Run("omits an empty document", func(t *testing.T) {
+		require.Nil(t, htmlForResult(""))
+	})
+
+	t.Run("omits a document past the size cap", func(t *testing.T) {
+		require.Nil(t, htmlForResult(strings.Repeat("x", intelligenceHTMLMaxBytes+1)))
+	})
+
+	t.Run("keeps a document at the size cap", func(t *testing.T) {
+		html := strings.Repeat("x", intelligenceHTMLMaxBytes)
+		require.Equal(t, &html, htmlForResult(html))
+	})
 }

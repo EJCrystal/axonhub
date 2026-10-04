@@ -13,6 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { ErrorDisplay } from '../utils/error-formatter';
 import { useEvaluateChannelIntelligence } from '../data/channels';
+import { IntelligenceHTMLPreview } from './channels-intelligence-preview';
+import { intelligenceVerdict, verdictBadgeVariant } from './intelligence-verdict';
 import { Channel, IntelligenceKeyResult } from '../data/schema';
 
 interface Props {
@@ -26,20 +28,6 @@ interface Props {
 function maskKey(key: string): string {
   if (key.length <= 8) return '****';
   return key.slice(0, 4) + '****' + key.slice(-4);
-}
-
-function qualityBadgeVariant(quality: string): 'default' | 'destructive' | 'secondary' | 'outline' {
-  switch (quality) {
-    case 'normal':
-      return 'default';
-    case 'degraded':
-    case 'suspicious':
-      return 'destructive';
-    case 'unknown':
-      return 'secondary';
-    default:
-      return 'outline';
-  }
 }
 
 export function ChannelsIntelligenceDialog({ open, onOpenChange, channel }: Props) {
@@ -148,8 +136,8 @@ export function ChannelsIntelligenceDialog({ open, onOpenChange, channel }: Prop
                             {disabled ? (
                               <Badge variant='secondary'>{t('channels.dialogs.intelligence.keyDisabled')}</Badge>
                             ) : result ? (
-                              <Badge variant={result.success ? qualityBadgeVariant(result.quality) : 'destructive'}>
-                                {result.success ? result.label || result.quality : t('channels.dialogs.intelligence.keyFailed')}
+                              <Badge variant={verdictBadgeVariant(intelligenceVerdict(result))}>
+                                {t(`channels.dialogs.intelligence.verdict.${intelligenceVerdict(result)}`)}
                               </Badge>
                             ) : (
                               <span className='text-muted-foreground text-xs'>{t('channels.dialogs.intelligence.keyNotRun')}</span>
@@ -184,8 +172,8 @@ export function ChannelsIntelligenceDialog({ open, onOpenChange, channel }: Prop
                 <div key={item.keyPrefix} className='rounded-lg border p-3 text-xs'>
                   <div className='flex flex-wrap items-center gap-2'>
                     <span className='font-mono'>{item.keyPrefix}</span>
-                    <Badge variant={item.success ? qualityBadgeVariant(item.quality) : 'destructive'}>
-                      {item.success ? item.label || item.quality : t('channels.dialogs.intelligence.keyFailed')}
+                    <Badge variant={verdictBadgeVariant(intelligenceVerdict(item))}>
+                      {t(`channels.dialogs.intelligence.verdict.${intelligenceVerdict(item)}`)}
                     </Badge>
                     {item.taskID && <span className='text-muted-foreground'>{t('channels.dialogs.intelligence.taskID', { id: item.taskID })}</span>}
                   </div>
@@ -196,6 +184,7 @@ export function ChannelsIntelligenceDialog({ open, onOpenChange, channel }: Prop
                     </p>
                   )}
                   {item.error && <ErrorDisplay error={item.error} messageClassName='mt-2 text-xs text-red-600' />}
+                  <IntelligenceHTMLPreview html={item.html} verdict={intelligenceVerdict(item)} />
                 </div>
               ))}
             </div>

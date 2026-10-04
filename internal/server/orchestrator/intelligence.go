@@ -56,6 +56,11 @@ const (
 	// connection drop.
 	intelligenceTotalTimeout = 9 * time.Minute
 
+	// intelligenceHTMLMaxBytes caps the generated source returned to the UI. The
+	// detection service accepts up to 2 MiB, but the dialog only renders the
+	// artifact, so anything larger is reported without its body.
+	intelligenceHTMLMaxBytes = 256 * 1024
+
 	// intelligenceMaxConcurrency caps how many channel API keys are evaluated at
 	// the same time. Each key fans out to both the tested model and the detection
 	// service, so the limit also bounds upstream cost and rate-limit pressure.
@@ -78,7 +83,11 @@ type IntelligenceKeyResult struct {
 	DurationMs   int
 	InputTokens  int
 	OutputTokens int
-	Error        *string
+	// HTML is the source the tested model produced, so the UI can render the
+	// exact artifact the detection service scored. It is dropped once it grows
+	// past intelligenceHTMLMaxBytes to keep the GraphQL payload bounded.
+	HTML  *string
+	Error *string
 }
 
 // IntelligenceEvaluateResult aggregates the per-key evaluation outcomes.
@@ -347,6 +356,10 @@ func (processor *TestChannelOrchestrator) evaluateIntelligenceKey(
 		return result
 	}
 
+	// Keep the generated source on the result before submitting it, so a failed
+	// or inconclusive assessment still lets the UI show what the model produced.
+	result.HTML = htmlForResult(html)
+
 	taskID, err := evaluator.submit(ctx, html)
 	if err != nil {
 		result.Error = lo.ToPtr(err.Error())
@@ -362,8 +375,19 @@ func (processor *TestChannelOrchestrator) evaluateIntelligenceKey(
 	}
 
 	evaluation.KeyPrefix = result.KeyPrefix
+	evaluation.HTML = result.HTML
 
 	return evaluation
+}
+
+// htmlForResult returns the generated source for the UI, or nil when it is too
+// large to ship through the GraphQL payload.
+func htmlForResult(html string) *string {
+	if html == "" || len(html) > intelligenceHTMLMaxBytes {
+		return nil
+	}
+
+	return lo.ToPtr(html)
 }
 
 // generateIntelligenceHTML asks the tested model to produce the pelican HTML

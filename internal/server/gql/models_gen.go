@@ -377,6 +377,7 @@ type IntelligenceKeyResult struct {
 	DurationMs   int     `json:"durationMs"`
 	InputTokens  int     `json:"inputTokens"`
 	OutputTokens int     `json:"outputTokens"`
+	HTML         *string `json:"html,omitempty"`
 	Error        *string `json:"error,omitempty"`
 }
 

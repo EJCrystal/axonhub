@@ -592,6 +592,7 @@ const EVALUATE_CHANNEL_INTELLIGENCE_MUTATION = `
         durationMs
         inputTokens
         outputTokens
+        html
         error
       }
     }

@@ -516,6 +516,9 @@ export const intelligenceKeyResultSchema = z.object({
   durationMs: z.number().default(0),
   inputTokens: z.number().default(0),
   outputTokens: z.number().default(0),
+  // Source the model produced, rendered in a sandbox by the dialog. Empty when
+  // the run failed or the source exceeded the backend size cap.
+  html: z.string().optional().nullable(),
   error: z.string().optional().nullable(),
 });
 export type IntelligenceKeyResult = z.infer<typeof intelligenceKeyResultSchema>;
