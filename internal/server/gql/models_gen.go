@@ -374,9 +374,8 @@ type IntelligenceKeyResult struct {
 	Label        string  `json:"label"`
 	Reason       string  `json:"reason"`
 	TaskID       string  `json:"taskID"`
+	GenerationMs int     `json:"generationMs"`
 	DurationMs   int     `json:"durationMs"`
-	InputTokens  int     `json:"inputTokens"`
-	OutputTokens int     `json:"outputTokens"`
 	HTML         *string `json:"html,omitempty"`
 	Error        *string `json:"error,omitempty"`
 }

@@ -71,7 +71,7 @@ func TestIntelligenceEvaluatorSubmitUsesHTMLMode(t *testing.T) {
 func TestIntelligenceEvaluatorWaitMapsAssessment(t *testing.T) {
 	server, _, _ := newIntelligenceTestServer(t, []string{
 		`{"status":"running","phase":"classifying"}`,
-		`{"status":"succeeded","phase":"complete","assessment":{"quality":"degraded","label":"疑似降智","reason":"分类结果为降智特征"},"result":{"duration_ms":1200,"input_tokens":376,"output_tokens":5437}}`,
+		`{"status":"succeeded","phase":"complete","assessment":{"quality":"degraded","label":"疑似降智","reason":"分类结果为降智特征"},"result":{"duration_ms":0,"input_tokens":0,"output_tokens":0}}`,
 	})
 
 	evaluator := newIntelligenceEvaluator(httpclient.NewHttpClient(), server.URL)
@@ -82,9 +82,9 @@ func TestIntelligenceEvaluatorWaitMapsAssessment(t *testing.T) {
 	require.Equal(t, "degraded", result.Quality)
 	require.Equal(t, "疑似降智", result.Label)
 	require.Equal(t, "分类结果为降智特征", result.Reason)
-	require.Equal(t, 1200, result.DurationMs)
-	require.Equal(t, 376, result.InputTokens)
-	require.Equal(t, 5437, result.OutputTokens)
+	// The service only scores the source we submit, so its own duration and
+	// token counters stay zero in HTML mode and are deliberately not surfaced.
+	require.Zero(t, result.DurationMs)
 }
 
 // TestIntelligenceEvaluatorPollKeepsPollingWhileRunning verifies a non-terminal
