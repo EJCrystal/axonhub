@@ -154,20 +154,24 @@ func (s *IntelligenceService) SetIntelligenceConfig(ctx context.Context, config 
 
 // runScheduled executes a configured run when the schedule is due.
 func (s *IntelligenceService) runScheduled(ctx context.Context) {
-	config, err := s.IntelligenceConfig(ctx)
+	// The scheduler runs with a background context, which carries no principal,
+	// so every read and write below needs the system bypass to clear the ent
+	// privacy layer.
+	runCtx := authz.WithSystemBypass(context.WithoutCancel(ctx), "intelligence-check")
+
+	config, err := s.IntelligenceConfig(runCtx)
 	if err != nil {
-		log.Error(ctx, "intelligence check: failed to read configuration", log.Cause(err))
+		log.Error(runCtx, "intelligence check: failed to read configuration", log.Cause(err))
 		return
 	}
 	if !config.Enabled || len(config.Targets) == 0 {
 		return
 	}
 
-	if !s.dueForRun(ctx, config.IntervalMinutes) {
+	if !s.dueForRun(runCtx, config.IntervalMinutes) {
 		return
 	}
 
-	runCtx := authz.WithSystemBypass(context.WithoutCancel(ctx), "intelligence-check")
 	s.runConfiguredTargets(runCtx, config, "scheduled")
 }
 
@@ -200,6 +204,11 @@ func (s *IntelligenceService) RunManual(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("no channel is configured for the intelligence check")
 	}
 
+	// The run outlives the GraphQL request: detach the context so the request
+	// returning does not abort the work or close its database connection, and
+	// take the system bypass because the detached context carries no principal.
+	bgCtx := authz.WithSystemBypass(context.WithoutCancel(ctx), "intelligence-check-manual")
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -207,8 +216,7 @@ func (s *IntelligenceService) RunManual(ctx context.Context) (int, error) {
 			}
 		}()
 
-		runCtx := authz.WithSystemBypass(context.WithoutCancel(ctx), "intelligence-check-manual")
-		s.runConfiguredTargets(runCtx, config, "manual")
+		s.runConfiguredTargets(bgCtx, config, "manual")
 	}()
 
 	return len(config.Targets), nil

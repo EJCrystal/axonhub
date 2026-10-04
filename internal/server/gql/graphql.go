@@ -285,7 +285,14 @@ var skippedTransactionOperations = entgql.SkipOperations("TestChannel", "TestCha
 // evaluateChannelIntelligence runs for minutes for the same reason as
 // TestChannel. bulkImportChannels instead manages one transaction per row to
 // preserve its partial-success behavior.
-var skippedTransactionFields = entgql.SkipIfHasFields("evaluateChannelIntelligence", "bulkImportChannels")
+var skippedTransactionFields = entgql.SkipIfHasFields(
+	// The synchronous per-channel check and the async dashboard trigger both
+	// outlive a request-scoped transaction: the latter detaches its context to
+	// keep running, which leaves the transaction unusable.
+	"evaluateChannelIntelligence",
+	"runIntelligenceCheckNow",
+	"bulkImportChannels",
+)
 
 // skipGraphQLTransaction reports whether an operation opts out of the ent
 // transaction wrapper.
