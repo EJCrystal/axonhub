@@ -93,6 +93,11 @@ func (s *IntelligenceService) RegisterScheduledTasks(ctx context.Context, sched 
 func (s *IntelligenceService) IntelligenceConfig(ctx context.Context) (*objects.IntelligenceConfig, error) {
 	value, err := s.systemService.SystemValue(ctx, IntelligenceConfigKey)
 	if err != nil {
+		// Nothing saved yet is the normal first-run state, so fall back to the
+		// defaults instead of surfacing a missing system row as a failure.
+		if ent.IsNotFound(err) {
+			return defaultIntelligenceConfig(), nil
+		}
 		return nil, err
 	}
 	if strings.TrimSpace(value) == "" {
@@ -115,7 +120,7 @@ func (s *IntelligenceService) SetIntelligenceConfig(ctx context.Context, config 
 		return fmt.Errorf("configuration is required")
 	}
 
-	if !slices.Contains(allowedIntelligenceIntervals, config.IntervalMinutes) {
+	if !isAllowedInterval(config.IntervalMinutes) {
 		return fmt.Errorf("interval must be one of %v minutes", allowedIntelligenceIntervals)
 	}
 
@@ -254,13 +259,7 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		results = append(results, entry)
 	}
 
-	status := objects.IntelligenceRunFailed
-	switch {
-	case result.Total > 0 && result.SuccessCount == result.Total:
-		status = objects.IntelligenceRunSucceeded
-	case result.SuccessCount > 0:
-		status = objects.IntelligenceRunPartial
-	}
+	status := runStatus(result.Total, result.SuccessCount)
 
 	saved, err := s.ent.IntelligenceRun.Create().
 		SetChannelID(channel.ID).
@@ -352,4 +351,22 @@ func (s *IntelligenceService) History(ctx context.Context, channelID int, first 
 	}
 
 	return connection, nil
+}
+
+// runStatus collapses the per-key outcomes into the run-level verdict. A run
+// with no keys at all counts as failed, since nothing was verified.
+func runStatus(total, success int) objects.IntelligenceRunStatus {
+	switch {
+	case total > 0 && success == total:
+		return objects.IntelligenceRunSucceeded
+	case success > 0:
+		return objects.IntelligenceRunPartial
+	default:
+		return objects.IntelligenceRunFailed
+	}
+}
+
+// isAllowedInterval reports whether the configuration accepts the interval.
+func isAllowedInterval(minutes int) bool {
+	return slices.Contains(allowedIntelligenceIntervals, minutes)
 }
