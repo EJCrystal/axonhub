@@ -1,8 +1,18 @@
 package server
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/vektah/gqlparser/v2/parser"
 	"go.uber.org/fx"
 
 	"github.com/looplj/axonhub/internal/ent"
@@ -160,9 +170,24 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 		middleware.WithProjectID(),
 	)
 	{
-		adminGraphqlGroup.POST("/graphql", middleware.WithTimeout(server.Config.RequestTimeout), func(c *gin.Context) {
-			handlers.Graphql.Graphql.ServeHTTP(c.Writer, c.Request)
-		})
+		// Most admin mutations are short, but the intelligence check drives the
+		// channel's model and then polls the detection service for minutes, so it
+		// needs the LLM budget instead of the ordinary request timeout. Only that
+		// one mutation is lifted; everything else on this endpoint keeps the
+		// default.
+		adminGraphqlGroup.POST("/graphql",
+			func(c *gin.Context) {
+				timeout := adminGraphQLTimeout(c.Request, server.Config.RequestTimeout, server.Config.LLMRequestTimeout)
+
+				ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
+				defer cancel()
+
+				c.Request = c.Request.WithContext(ctx)
+				c.Next()
+			},
+			func(c *gin.Context) {
+				handlers.Graphql.Graphql.ServeHTTP(c.Writer, c.Request)
+			})
 	}
 
 	openAPIGroup := server.Group(
@@ -288,3 +313,81 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 		registerGeminiRoutes(geminiAliasGroup)
 	}
 }
+
+// adminGraphQLTimeout returns the deadline for a request to the admin GraphQL
+// endpoint. The intelligence check is the one mutation there that drives an
+// upstream model and then polls the detection service for minutes, so it gets
+// longTimeout; every other operation keeps defaultTimeout.
+func adminGraphQLTimeout(r *http.Request, defaultTimeout, longTimeout time.Duration) time.Duration {
+	if requestsChannelIntelligence(r) {
+		return longTimeout
+	}
+
+	return defaultTimeout
+}
+
+// requestsChannelIntelligence reports whether the request's GraphQL payload is
+// an evaluateChannelIntelligence mutation. Anything unreadable, oversized or
+// not that mutation reports false so the caller keeps the default timeout.
+func requestsChannelIntelligence(r *http.Request) bool {
+	if r == nil || r.Body == nil {
+		return false
+	}
+
+	body, ok := readGraphQLRequestBody(r)
+	if !ok {
+		return false
+	}
+
+	var payload struct {
+		Query string `json:"query"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil || strings.TrimSpace(payload.Query) == "" {
+		return false
+	}
+
+	doc, err := parser.ParseQuery(&ast.Source{Input: payload.Query})
+	if err != nil {
+		return false
+	}
+
+	for _, op := range doc.Operations {
+		if op.Operation != ast.Mutation {
+			continue
+		}
+		for _, selection := range op.SelectionSet {
+			if field, isField := selection.(*ast.Field); isField && field.Name == "evaluateChannelIntelligence" {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// readGraphQLRequestBody buffers the request body for inspection and puts it
+// back so the GraphQL handler still reads the full payload.
+func readGraphQLRequestBody(r *http.Request) ([]byte, bool) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxAdminGraphQLBodyBytes+1))
+	if err != nil {
+		return nil, false
+	}
+
+	if len(body) > maxAdminGraphQLBodyBytes {
+		// Oversized body: reassemble a stream that still yields every byte.
+		r.Body = struct {
+			io.Reader
+			io.Closer
+		}{Reader: io.MultiReader(bytes.NewReader(body), r.Body), Closer: r.Body}
+
+		return nil, false
+	}
+
+	r.Body = io.NopCloser(bytes.NewReader(body))
+
+	return body, true
+}
+
+// maxAdminGraphQLBodyBytes bounds how much of a GraphQL request body is
+// buffered to inspect the operation. Larger bodies keep the default timeout.
+const maxAdminGraphQLBodyBytes = 1 << 20

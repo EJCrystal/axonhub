@@ -138,16 +138,16 @@ func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
 	})
 	gqlSrv.Use(&loggingTracer{})
 	gqlSrv.AroundOperations(apiKeyReadOnly)
-	skipTestChannelTransaction := entgql.SkipOperations("TestChannel", "TestChannelAPIKeys")
-	skipBulkImportTransaction := entgql.SkipIfHasFields("bulkImportChannels")
+	// TestChannel, TestChannelAPIKeys and evaluateChannelIntelligence fan out to
+	// upstream providers for minutes and persist their request records through
+	// the orchestrator, which manages its own connections. Pinning the GraphQL
+	// transaction open for the whole run would hold a database connection and
+	// roll the work back when the transaction times out. The intelligence check
+	// is matched by field name so it skips regardless of the operation name a
+	// client picks.
 	gqlSrv.Use(entgql.Transactioner{
-		TxOpener: deps.Ent,
-		// TestChannel performs long-running parallel provider requests whose database
-		// operations do not require one transaction. BulkImportChannels manages one
-		// transaction per row to preserve its partial-success behavior.
-		SkipTxFunc: func(op *ast.OperationDefinition) bool {
-			return skipTestChannelTransaction(op) || skipBulkImportTransaction(op)
-		},
+		TxOpener:   deps.Ent,
+		SkipTxFunc: skipGraphQLTransaction,
 	})
 
 	// Set error presenter to handle CodedError and add extensions.code
@@ -265,4 +265,26 @@ func getNilableUser(ctx context.Context, client *ent.Client, userID int) (*ent.U
 	}
 
 	return u, nil
+}
+
+// skippedTransactionOperations are the admin mutations that must not run inside
+// the GraphQL transaction, matched by operation name. TestChannel and
+// TestChannelAPIKeys fan out to upstream providers for minutes and persist
+// their request records through the orchestrator, which manages its own
+// connections. Pinning the GraphQL transaction open for the whole run would
+// hold a database connection and roll the work back when the transaction times
+// out.
+var skippedTransactionOperations = entgql.SkipOperations("TestChannel", "TestChannelAPIKeys")
+
+// skippedTransactionFields are mutations matched by root field name, which is
+// independent of the operation name a client picks.
+// evaluateChannelIntelligence runs for minutes for the same reason as
+// TestChannel. bulkImportChannels instead manages one transaction per row to
+// preserve its partial-success behavior.
+var skippedTransactionFields = entgql.SkipIfHasFields("evaluateChannelIntelligence", "bulkImportChannels")
+
+// skipGraphQLTransaction reports whether an operation opts out of the ent
+// transaction wrapper.
+func skipGraphQLTransaction(op *ast.OperationDefinition) bool {
+	return skippedTransactionOperations(op) || skippedTransactionFields(op)
 }
