@@ -426,9 +426,10 @@ type IntelligenceKeyResult {
   label: String!
   reason: String!
   taskID: String!
+  # How long the tested model took to produce the source.
+  generationMs: Int!
+  # The whole run: generation plus submission and polling.
   durationMs: Int!
-  inputTokens: Int!
-  outputTokens: Int!
   # Source the tested model produced, so the UI can render exactly what the
   # detection service scored. Empty when the run failed or the source exceeded
   # the size cap.

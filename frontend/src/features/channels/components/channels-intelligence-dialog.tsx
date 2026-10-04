@@ -181,6 +181,8 @@ export function ChannelsIntelligenceDialog({ open, onOpenChange, channel }: Prop
                   {item.durationMs > 0 && (
                     <p className='text-muted-foreground mt-2'>
                       {t('channels.dialogs.intelligence.duration', { seconds: (item.durationMs / 1000).toFixed(1) })}
+                      {item.generationMs > 0 &&
+                        ` · ${t('channels.dialogs.intelligence.generation', { seconds: (item.generationMs / 1000).toFixed(1) })}`}
                     </p>
                   )}
                   {item.error && <ErrorDisplay error={item.error} messageClassName='mt-2 text-xs text-red-600' />}

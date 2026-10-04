@@ -513,9 +513,8 @@ export const intelligenceKeyResultSchema = z.object({
   label: z.string().default(''),
   reason: z.string().default(''),
   taskID: z.string().default(''),
+  generationMs: z.number().default(0),
   durationMs: z.number().default(0),
-  inputTokens: z.number().default(0),
-  outputTokens: z.number().default(0),
   // Source the model produced, rendered in a sandbox by the dialog. Empty when
   // the run failed or the source exceeded the backend size cap.
   html: z.string().optional().nullable(),

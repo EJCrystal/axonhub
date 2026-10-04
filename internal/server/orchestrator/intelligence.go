@@ -74,15 +74,19 @@ const defaultIntelligencePrompt = "请生成可直接运行的单文件HTML，�
 
 // IntelligenceKeyResult is the evaluation outcome for a single API key.
 type IntelligenceKeyResult struct {
-	KeyPrefix    string
-	Success      bool
-	Quality      string
-	Label        string
-	Reason       string
-	TaskID       string
+	KeyPrefix string
+	Success   bool
+	Quality   string
+	Label     string
+	Reason    string
+	TaskID    string
+	// GenerationMs is how long the tested model took to produce the source, and
+	// DurationMs is the whole run: generation plus submission and polling. They
+	// are measured here rather than read from the service, which only scores the
+	// source we hand it and therefore always reports 0 for its own duration and
+	// token counts in HTML mode.
+	GenerationMs int
 	DurationMs   int
-	InputTokens  int
-	OutputTokens int
 	// HTML is the source the tested model produced, so the UI can render the
 	// exact artifact the detection service scored. It is dropped once it grows
 	// past intelligenceHTMLMaxBytes to keep the GraphQL payload bounded.
@@ -199,9 +203,6 @@ func (c *intelligenceEvaluator) poll(ctx context.Context, taskID string) (*Intel
 		if result.Quality == "" {
 			result.Quality = generated.Get("quality").String()
 		}
-		result.DurationMs = int(generated.Get("duration_ms").Int())
-		result.InputTokens = int(generated.Get("input_tokens").Int())
-		result.OutputTokens = int(generated.Get("output_tokens").Int())
 	}
 
 	switch status := gjson.GetBytes(response.Body, "status").String(); status {
@@ -343,15 +344,20 @@ func (processor *TestChannelOrchestrator) evaluateIntelligenceKey(
 	evaluator *intelligenceEvaluator,
 ) *IntelligenceKeyResult {
 	result := &IntelligenceKeyResult{KeyPrefix: maskAPIKey(key)}
+	startedAt := time.Now()
 
 	html, err := processor.generateIntelligenceHTML(ctx, channel, key, model, prompt)
 	if err != nil {
+		result.DurationMs = int(time.Since(startedAt).Milliseconds())
 		result.Error = lo.ToPtr(err.Error())
 		return result
 	}
 
+	result.GenerationMs = int(time.Since(startedAt).Milliseconds())
+
 	html = stripMarkdownFence(html)
 	if html == "" {
+		result.DurationMs = int(time.Since(startedAt).Milliseconds())
 		result.Error = lo.ToPtr("model returned empty HTML")
 		return result
 	}
@@ -362,6 +368,7 @@ func (processor *TestChannelOrchestrator) evaluateIntelligenceKey(
 
 	taskID, err := evaluator.submit(ctx, html)
 	if err != nil {
+		result.DurationMs = int(time.Since(startedAt).Milliseconds())
 		result.Error = lo.ToPtr(err.Error())
 		return result
 	}
@@ -370,11 +377,14 @@ func (processor *TestChannelOrchestrator) evaluateIntelligenceKey(
 
 	evaluation, err := evaluator.wait(ctx, taskID)
 	if err != nil {
+		result.DurationMs = int(time.Since(startedAt).Milliseconds())
 		result.Error = lo.ToPtr(err.Error())
 		return result
 	}
 
 	evaluation.KeyPrefix = result.KeyPrefix
+	evaluation.GenerationMs = result.GenerationMs
+	evaluation.DurationMs = int(time.Since(startedAt).Milliseconds())
 	evaluation.HTML = result.HTML
 
 	return evaluation

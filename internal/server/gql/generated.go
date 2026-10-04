@@ -846,11 +846,10 @@ type ComplexityRoot struct {
 	IntelligenceKeyResult struct {
 		DurationMs   func(childComplexity int) int
 		Error        func(childComplexity int) int
+		GenerationMs func(childComplexity int) int
 		HTML         func(childComplexity int) int
-		InputTokens  func(childComplexity int) int
 		KeyPrefix    func(childComplexity int) int
 		Label        func(childComplexity int) int
-		OutputTokens func(childComplexity int) int
 		Quality      func(childComplexity int) int
 		Reason       func(childComplexity int) int
 		Success      func(childComplexity int) int
@@ -5422,18 +5421,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.IntelligenceKeyResult.Error(childComplexity), true
+	case "IntelligenceKeyResult.generationMs":
+		if e.complexity.IntelligenceKeyResult.GenerationMs == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.GenerationMs(childComplexity), true
 	case "IntelligenceKeyResult.html":
 		if e.complexity.IntelligenceKeyResult.HTML == nil {
 			break
 		}
 
 		return e.complexity.IntelligenceKeyResult.HTML(childComplexity), true
-	case "IntelligenceKeyResult.inputTokens":
-		if e.complexity.IntelligenceKeyResult.InputTokens == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.InputTokens(childComplexity), true
 	case "IntelligenceKeyResult.keyPrefix":
 		if e.complexity.IntelligenceKeyResult.KeyPrefix == nil {
 			break
@@ -5446,12 +5445,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.IntelligenceKeyResult.Label(childComplexity), true
-	case "IntelligenceKeyResult.outputTokens":
-		if e.complexity.IntelligenceKeyResult.OutputTokens == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.OutputTokens(childComplexity), true
 	case "IntelligenceKeyResult.quality":
 		if e.complexity.IntelligenceKeyResult.Quality == nil {
 			break
@@ -30456,12 +30449,10 @@ func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_results(_ c
 				return ec.fieldContext_IntelligenceKeyResult_reason(ctx, field)
 			case "taskID":
 				return ec.fieldContext_IntelligenceKeyResult_taskID(ctx, field)
+			case "generationMs":
+				return ec.fieldContext_IntelligenceKeyResult_generationMs(ctx, field)
 			case "durationMs":
 				return ec.fieldContext_IntelligenceKeyResult_durationMs(ctx, field)
-			case "inputTokens":
-				return ec.fieldContext_IntelligenceKeyResult_inputTokens(ctx, field)
-			case "outputTokens":
-				return ec.fieldContext_IntelligenceKeyResult_outputTokens(ctx, field)
 			case "html":
 				return ec.fieldContext_IntelligenceKeyResult_html(ctx, field)
 			case "error":
@@ -30647,6 +30638,35 @@ func (ec *executionContext) fieldContext_IntelligenceKeyResult_taskID(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _IntelligenceKeyResult_generationMs(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_generationMs,
+		func(ctx context.Context) (any, error) {
+			return obj.GenerationMs, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_generationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _IntelligenceKeyResult_durationMs(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -30664,64 +30684,6 @@ func (ec *executionContext) _IntelligenceKeyResult_durationMs(ctx context.Contex
 }
 
 func (ec *executionContext) fieldContext_IntelligenceKeyResult_durationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_inputTokens(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_inputTokens,
-		func(ctx context.Context) (any, error) {
-			return obj.InputTokens, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_inputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_outputTokens(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_outputTokens,
-		func(ctx context.Context) (any, error) {
-			return obj.OutputTokens, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_outputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "IntelligenceKeyResult",
 		Field:      field,
@@ -99797,18 +99759,13 @@ func (ec *executionContext) _IntelligenceKeyResult(ctx context.Context, sel ast.
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "generationMs":
+			out.Values[i] = ec._IntelligenceKeyResult_generationMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "durationMs":
 			out.Values[i] = ec._IntelligenceKeyResult_durationMs(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "inputTokens":
-			out.Values[i] = ec._IntelligenceKeyResult_inputTokens(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "outputTokens":
-			out.Values[i] = ec._IntelligenceKeyResult_outputTokens(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

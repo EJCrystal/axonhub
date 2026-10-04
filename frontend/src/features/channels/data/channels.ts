@@ -589,9 +589,8 @@ const EVALUATE_CHANNEL_INTELLIGENCE_MUTATION = `
         label
         reason
         taskID
+        generationMs
         durationMs
-        inputTokens
-        outputTokens
         html
         error
       }
