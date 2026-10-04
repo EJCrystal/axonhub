@@ -397,6 +397,7 @@ func (r *mutationResolver) EvaluateChannelIntelligence(ctx context.Context, inpu
 			DurationMs:   item.DurationMs,
 			InputTokens:  item.InputTokens,
 			OutputTokens: item.OutputTokens,
+			HTML:         item.HTML,
 			Error:        item.Error,
 		}
 	}

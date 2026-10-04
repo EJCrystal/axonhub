@@ -846,6 +846,7 @@ type ComplexityRoot struct {
 	IntelligenceKeyResult struct {
 		DurationMs   func(childComplexity int) int
 		Error        func(childComplexity int) int
+		HTML         func(childComplexity int) int
 		InputTokens  func(childComplexity int) int
 		KeyPrefix    func(childComplexity int) int
 		Label        func(childComplexity int) int
@@ -5421,6 +5422,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.IntelligenceKeyResult.Error(childComplexity), true
+	case "IntelligenceKeyResult.html":
+		if e.complexity.IntelligenceKeyResult.HTML == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.HTML(childComplexity), true
 	case "IntelligenceKeyResult.inputTokens":
 		if e.complexity.IntelligenceKeyResult.InputTokens == nil {
 			break
@@ -30455,6 +30462,8 @@ func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_results(_ c
 				return ec.fieldContext_IntelligenceKeyResult_inputTokens(ctx, field)
 			case "outputTokens":
 				return ec.fieldContext_IntelligenceKeyResult_outputTokens(ctx, field)
+			case "html":
+				return ec.fieldContext_IntelligenceKeyResult_html(ctx, field)
 			case "error":
 				return ec.fieldContext_IntelligenceKeyResult_error(ctx, field)
 			}
@@ -30720,6 +30729,35 @@ func (ec *executionContext) fieldContext_IntelligenceKeyResult_outputTokens(_ co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_html(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_html,
+		func(ctx context.Context) (any, error) {
+			return obj.HTML, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_html(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -99774,6 +99812,8 @@ func (ec *executionContext) _IntelligenceKeyResult(ctx context.Context, sel ast.
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "html":
+			out.Values[i] = ec._IntelligenceKeyResult_html(ctx, field, obj)
 		case "error":
 			out.Values[i] = ec._IntelligenceKeyResult_error(ctx, field, obj)
 		default:
