@@ -50,9 +50,10 @@ const (
 	intelligencePollTimeout = 5 * time.Minute
 
 	// intelligenceTotalTimeout bounds a whole evaluation run. The admin GraphQL
-	// request is served with the server's LLM request timeout, so the run gives
-	// up before that budget expires and reports a readable error instead of
-	// letting the connection drop.
+	// route grants this operation the server's LLM request timeout
+	// (adminGraphQLTimeout in the server package), so the run gives up before
+	// that budget expires and reports a readable error instead of letting the
+	// connection drop.
 	intelligenceTotalTimeout = 9 * time.Minute
 
 	// intelligenceMaxConcurrency caps how many channel API keys are evaluated at
