@@ -246,12 +246,32 @@ func (r *dataStorageResolver) ID(ctx context.Context, obj *ent.DataStorage) (*ob
 
 // ID is the resolver for the id field.
 func (r *intelligenceRunResolver) ID(ctx context.Context, obj *ent.IntelligenceRun) (*objects.GUID, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	return &objects.GUID{
+		Type: ent.TypeIntelligenceRun,
+		ID:   obj.ID,
+	}, nil
 }
 
-// Results is the resolver for the results field.
+// Results is the resolver for the results field. The stored payload already
+// uses the GraphQL field names, so it maps straight onto the schema type.
 func (r *intelligenceRunResolver) Results(ctx context.Context, obj *ent.IntelligenceRun) ([]*IntelligenceKeyResult, error) {
-	panic(fmt.Errorf("not implemented: Results - results"))
+	results := make([]*IntelligenceKeyResult, 0, len(obj.Results))
+	for _, item := range obj.Results {
+		results = append(results, &IntelligenceKeyResult{
+			KeyPrefix:    item.KeyPrefix,
+			Success:      item.Success,
+			Quality:      item.Quality,
+			Label:        item.Label,
+			Reason:       item.Reason,
+			TaskID:       item.TaskID,
+			GenerationMs: item.GenerationMs,
+			DurationMs:   item.DurationMs,
+			HTML:         intelHTMLOrNil(item.HTML),
+			Error:        item.Error,
+		})
+	}
+
+	return results, nil
 }
 
 // ID is the resolver for the id field.

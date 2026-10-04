@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/samber/lo"
+
 	"github.com/looplj/axonhub/internal/objects"
 )
 
@@ -34,4 +36,14 @@ func (r *mutationResolver) intelligenceConfigPayload(ctx context.Context) (*Inte
 		IntervalMinutes: config.IntervalMinutes,
 		Targets:         targets,
 	}, nil
+}
+
+// intelHTMLOrNil keeps an absent source represented as null rather than an
+// empty string, so the UI can tell "nothing to preview" from an empty document.
+func intelHTMLOrNil(html string) *string {
+	if html == "" {
+		return nil
+	}
+
+	return lo.ToPtr(html)
 }
