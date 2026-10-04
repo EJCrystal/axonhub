@@ -15,6 +15,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
+	"github.com/looplj/axonhub/internal/ent/intelligencerun"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
 	"github.com/looplj/axonhub/internal/ent/predicate"
@@ -3641,6 +3642,548 @@ func (i *DataStorageWhereInput) P() (predicate.DataStorage, error) {
 		return predicates[0], nil
 	default:
 		return datastorage.And(predicates...), nil
+	}
+}
+
+// IntelligenceRunWhereInput represents a where input for filtering IntelligenceRun queries.
+type IntelligenceRunWhereInput struct {
+	Predicates []predicate.IntelligenceRun  `json:"-"`
+	Not        *IntelligenceRunWhereInput   `json:"not,omitempty"`
+	Or         []*IntelligenceRunWhereInput `json:"or,omitempty"`
+	And        []*IntelligenceRunWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *int  `json:"id,omitempty"`
+	IDNEQ   *int  `json:"idNEQ,omitempty"`
+	IDIn    []int `json:"idIn,omitempty"`
+	IDNotIn []int `json:"idNotIn,omitempty"`
+	IDGT    *int  `json:"idGT,omitempty"`
+	IDGTE   *int  `json:"idGTE,omitempty"`
+	IDLT    *int  `json:"idLT,omitempty"`
+	IDLTE   *int  `json:"idLTE,omitempty"`
+
+	// "created_at" field predicates.
+	CreatedAt      *time.Time  `json:"createdAt,omitempty"`
+	CreatedAtNEQ   *time.Time  `json:"createdAtNEQ,omitempty"`
+	CreatedAtIn    []time.Time `json:"createdAtIn,omitempty"`
+	CreatedAtNotIn []time.Time `json:"createdAtNotIn,omitempty"`
+	CreatedAtGT    *time.Time  `json:"createdAtGT,omitempty"`
+	CreatedAtGTE   *time.Time  `json:"createdAtGTE,omitempty"`
+	CreatedAtLT    *time.Time  `json:"createdAtLT,omitempty"`
+	CreatedAtLTE   *time.Time  `json:"createdAtLTE,omitempty"`
+
+	// "updated_at" field predicates.
+	UpdatedAt      *time.Time  `json:"updatedAt,omitempty"`
+	UpdatedAtNEQ   *time.Time  `json:"updatedAtNEQ,omitempty"`
+	UpdatedAtIn    []time.Time `json:"updatedAtIn,omitempty"`
+	UpdatedAtNotIn []time.Time `json:"updatedAtNotIn,omitempty"`
+	UpdatedAtGT    *time.Time  `json:"updatedAtGT,omitempty"`
+	UpdatedAtGTE   *time.Time  `json:"updatedAtGTE,omitempty"`
+	UpdatedAtLT    *time.Time  `json:"updatedAtLT,omitempty"`
+	UpdatedAtLTE   *time.Time  `json:"updatedAtLTE,omitempty"`
+
+	// "channel_id" field predicates.
+	ChannelID      *int  `json:"channelID,omitempty"`
+	ChannelIDNEQ   *int  `json:"channelIDNEQ,omitempty"`
+	ChannelIDIn    []int `json:"channelIDIn,omitempty"`
+	ChannelIDNotIn []int `json:"channelIDNotIn,omitempty"`
+	ChannelIDGT    *int  `json:"channelIDGT,omitempty"`
+	ChannelIDGTE   *int  `json:"channelIDGTE,omitempty"`
+	ChannelIDLT    *int  `json:"channelIDLT,omitempty"`
+	ChannelIDLTE   *int  `json:"channelIDLTE,omitempty"`
+
+	// "channel_name" field predicates.
+	ChannelName             *string  `json:"channelName,omitempty"`
+	ChannelNameNEQ          *string  `json:"channelNameNEQ,omitempty"`
+	ChannelNameIn           []string `json:"channelNameIn,omitempty"`
+	ChannelNameNotIn        []string `json:"channelNameNotIn,omitempty"`
+	ChannelNameGT           *string  `json:"channelNameGT,omitempty"`
+	ChannelNameGTE          *string  `json:"channelNameGTE,omitempty"`
+	ChannelNameLT           *string  `json:"channelNameLT,omitempty"`
+	ChannelNameLTE          *string  `json:"channelNameLTE,omitempty"`
+	ChannelNameContains     *string  `json:"channelNameContains,omitempty"`
+	ChannelNameHasPrefix    *string  `json:"channelNameHasPrefix,omitempty"`
+	ChannelNameHasSuffix    *string  `json:"channelNameHasSuffix,omitempty"`
+	ChannelNameEqualFold    *string  `json:"channelNameEqualFold,omitempty"`
+	ChannelNameContainsFold *string  `json:"channelNameContainsFold,omitempty"`
+
+	// "model_id" field predicates.
+	ModelID             *string  `json:"modelID,omitempty"`
+	ModelIDNEQ          *string  `json:"modelIDNEQ,omitempty"`
+	ModelIDIn           []string `json:"modelIDIn,omitempty"`
+	ModelIDNotIn        []string `json:"modelIDNotIn,omitempty"`
+	ModelIDGT           *string  `json:"modelIDGT,omitempty"`
+	ModelIDGTE          *string  `json:"modelIDGTE,omitempty"`
+	ModelIDLT           *string  `json:"modelIDLT,omitempty"`
+	ModelIDLTE          *string  `json:"modelIDLTE,omitempty"`
+	ModelIDContains     *string  `json:"modelIDContains,omitempty"`
+	ModelIDHasPrefix    *string  `json:"modelIDHasPrefix,omitempty"`
+	ModelIDHasSuffix    *string  `json:"modelIDHasSuffix,omitempty"`
+	ModelIDEqualFold    *string  `json:"modelIDEqualFold,omitempty"`
+	ModelIDContainsFold *string  `json:"modelIDContainsFold,omitempty"`
+
+	// "trigger" field predicates.
+	Trigger             *string  `json:"trigger,omitempty"`
+	TriggerNEQ          *string  `json:"triggerNEQ,omitempty"`
+	TriggerIn           []string `json:"triggerIn,omitempty"`
+	TriggerNotIn        []string `json:"triggerNotIn,omitempty"`
+	TriggerGT           *string  `json:"triggerGT,omitempty"`
+	TriggerGTE          *string  `json:"triggerGTE,omitempty"`
+	TriggerLT           *string  `json:"triggerLT,omitempty"`
+	TriggerLTE          *string  `json:"triggerLTE,omitempty"`
+	TriggerContains     *string  `json:"triggerContains,omitempty"`
+	TriggerHasPrefix    *string  `json:"triggerHasPrefix,omitempty"`
+	TriggerHasSuffix    *string  `json:"triggerHasSuffix,omitempty"`
+	TriggerEqualFold    *string  `json:"triggerEqualFold,omitempty"`
+	TriggerContainsFold *string  `json:"triggerContainsFold,omitempty"`
+
+	// "status" field predicates.
+	Status      *intelligencerun.Status  `json:"status,omitempty"`
+	StatusNEQ   *intelligencerun.Status  `json:"statusNEQ,omitempty"`
+	StatusIn    []intelligencerun.Status `json:"statusIn,omitempty"`
+	StatusNotIn []intelligencerun.Status `json:"statusNotIn,omitempty"`
+
+	// "total_keys" field predicates.
+	TotalKeys      *int  `json:"totalKeys,omitempty"`
+	TotalKeysNEQ   *int  `json:"totalKeysNEQ,omitempty"`
+	TotalKeysIn    []int `json:"totalKeysIn,omitempty"`
+	TotalKeysNotIn []int `json:"totalKeysNotIn,omitempty"`
+	TotalKeysGT    *int  `json:"totalKeysGT,omitempty"`
+	TotalKeysGTE   *int  `json:"totalKeysGTE,omitempty"`
+	TotalKeysLT    *int  `json:"totalKeysLT,omitempty"`
+	TotalKeysLTE   *int  `json:"totalKeysLTE,omitempty"`
+
+	// "success_keys" field predicates.
+	SuccessKeys      *int  `json:"successKeys,omitempty"`
+	SuccessKeysNEQ   *int  `json:"successKeysNEQ,omitempty"`
+	SuccessKeysIn    []int `json:"successKeysIn,omitempty"`
+	SuccessKeysNotIn []int `json:"successKeysNotIn,omitempty"`
+	SuccessKeysGT    *int  `json:"successKeysGT,omitempty"`
+	SuccessKeysGTE   *int  `json:"successKeysGTE,omitempty"`
+	SuccessKeysLT    *int  `json:"successKeysLT,omitempty"`
+	SuccessKeysLTE   *int  `json:"successKeysLTE,omitempty"`
+
+	// "failed_keys" field predicates.
+	FailedKeys      *int  `json:"failedKeys,omitempty"`
+	FailedKeysNEQ   *int  `json:"failedKeysNEQ,omitempty"`
+	FailedKeysIn    []int `json:"failedKeysIn,omitempty"`
+	FailedKeysNotIn []int `json:"failedKeysNotIn,omitempty"`
+	FailedKeysGT    *int  `json:"failedKeysGT,omitempty"`
+	FailedKeysGTE   *int  `json:"failedKeysGTE,omitempty"`
+	FailedKeysLT    *int  `json:"failedKeysLT,omitempty"`
+	FailedKeysLTE   *int  `json:"failedKeysLTE,omitempty"`
+
+	// "duration_ms" field predicates.
+	DurationMs      *int  `json:"durationMs,omitempty"`
+	DurationMsNEQ   *int  `json:"durationMsNEQ,omitempty"`
+	DurationMsIn    []int `json:"durationMsIn,omitempty"`
+	DurationMsNotIn []int `json:"durationMsNotIn,omitempty"`
+	DurationMsGT    *int  `json:"durationMsGT,omitempty"`
+	DurationMsGTE   *int  `json:"durationMsGTE,omitempty"`
+	DurationMsLT    *int  `json:"durationMsLT,omitempty"`
+	DurationMsLTE   *int  `json:"durationMsLTE,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *IntelligenceRunWhereInput) AddPredicates(predicates ...predicate.IntelligenceRun) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the IntelligenceRunWhereInput filter on the IntelligenceRunQuery builder.
+func (i *IntelligenceRunWhereInput) Filter(q *IntelligenceRunQuery) (*IntelligenceRunQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptyIntelligenceRunWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptyIntelligenceRunWhereInput is returned in case the IntelligenceRunWhereInput is empty.
+var ErrEmptyIntelligenceRunWhereInput = errors.New("ent: empty predicate IntelligenceRunWhereInput")
+
+// P returns a predicate for filtering intelligenceruns.
+// An error is returned if the input is empty or invalid.
+func (i *IntelligenceRunWhereInput) P() (predicate.IntelligenceRun, error) {
+	var predicates []predicate.IntelligenceRun
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, intelligencerun.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.IntelligenceRun, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, intelligencerun.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.IntelligenceRun, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, intelligencerun.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, intelligencerun.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, intelligencerun.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, intelligencerun.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, intelligencerun.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, intelligencerun.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, intelligencerun.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, intelligencerun.IDLTE(*i.IDLTE))
+	}
+	if i.CreatedAt != nil {
+		predicates = append(predicates, intelligencerun.CreatedAtEQ(*i.CreatedAt))
+	}
+	if i.CreatedAtNEQ != nil {
+		predicates = append(predicates, intelligencerun.CreatedAtNEQ(*i.CreatedAtNEQ))
+	}
+	if len(i.CreatedAtIn) > 0 {
+		predicates = append(predicates, intelligencerun.CreatedAtIn(i.CreatedAtIn...))
+	}
+	if len(i.CreatedAtNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.CreatedAtNotIn(i.CreatedAtNotIn...))
+	}
+	if i.CreatedAtGT != nil {
+		predicates = append(predicates, intelligencerun.CreatedAtGT(*i.CreatedAtGT))
+	}
+	if i.CreatedAtGTE != nil {
+		predicates = append(predicates, intelligencerun.CreatedAtGTE(*i.CreatedAtGTE))
+	}
+	if i.CreatedAtLT != nil {
+		predicates = append(predicates, intelligencerun.CreatedAtLT(*i.CreatedAtLT))
+	}
+	if i.CreatedAtLTE != nil {
+		predicates = append(predicates, intelligencerun.CreatedAtLTE(*i.CreatedAtLTE))
+	}
+	if i.UpdatedAt != nil {
+		predicates = append(predicates, intelligencerun.UpdatedAtEQ(*i.UpdatedAt))
+	}
+	if i.UpdatedAtNEQ != nil {
+		predicates = append(predicates, intelligencerun.UpdatedAtNEQ(*i.UpdatedAtNEQ))
+	}
+	if len(i.UpdatedAtIn) > 0 {
+		predicates = append(predicates, intelligencerun.UpdatedAtIn(i.UpdatedAtIn...))
+	}
+	if len(i.UpdatedAtNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.UpdatedAtNotIn(i.UpdatedAtNotIn...))
+	}
+	if i.UpdatedAtGT != nil {
+		predicates = append(predicates, intelligencerun.UpdatedAtGT(*i.UpdatedAtGT))
+	}
+	if i.UpdatedAtGTE != nil {
+		predicates = append(predicates, intelligencerun.UpdatedAtGTE(*i.UpdatedAtGTE))
+	}
+	if i.UpdatedAtLT != nil {
+		predicates = append(predicates, intelligencerun.UpdatedAtLT(*i.UpdatedAtLT))
+	}
+	if i.UpdatedAtLTE != nil {
+		predicates = append(predicates, intelligencerun.UpdatedAtLTE(*i.UpdatedAtLTE))
+	}
+	if i.ChannelID != nil {
+		predicates = append(predicates, intelligencerun.ChannelIDEQ(*i.ChannelID))
+	}
+	if i.ChannelIDNEQ != nil {
+		predicates = append(predicates, intelligencerun.ChannelIDNEQ(*i.ChannelIDNEQ))
+	}
+	if len(i.ChannelIDIn) > 0 {
+		predicates = append(predicates, intelligencerun.ChannelIDIn(i.ChannelIDIn...))
+	}
+	if len(i.ChannelIDNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.ChannelIDNotIn(i.ChannelIDNotIn...))
+	}
+	if i.ChannelIDGT != nil {
+		predicates = append(predicates, intelligencerun.ChannelIDGT(*i.ChannelIDGT))
+	}
+	if i.ChannelIDGTE != nil {
+		predicates = append(predicates, intelligencerun.ChannelIDGTE(*i.ChannelIDGTE))
+	}
+	if i.ChannelIDLT != nil {
+		predicates = append(predicates, intelligencerun.ChannelIDLT(*i.ChannelIDLT))
+	}
+	if i.ChannelIDLTE != nil {
+		predicates = append(predicates, intelligencerun.ChannelIDLTE(*i.ChannelIDLTE))
+	}
+	if i.ChannelName != nil {
+		predicates = append(predicates, intelligencerun.ChannelNameEQ(*i.ChannelName))
+	}
+	if i.ChannelNameNEQ != nil {
+		predicates = append(predicates, intelligencerun.ChannelNameNEQ(*i.ChannelNameNEQ))
+	}
+	if len(i.ChannelNameIn) > 0 {
+		predicates = append(predicates, intelligencerun.ChannelNameIn(i.ChannelNameIn...))
+	}
+	if len(i.ChannelNameNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.ChannelNameNotIn(i.ChannelNameNotIn...))
+	}
+	if i.ChannelNameGT != nil {
+		predicates = append(predicates, intelligencerun.ChannelNameGT(*i.ChannelNameGT))
+	}
+	if i.ChannelNameGTE != nil {
+		predicates = append(predicates, intelligencerun.ChannelNameGTE(*i.ChannelNameGTE))
+	}
+	if i.ChannelNameLT != nil {
+		predicates = append(predicates, intelligencerun.ChannelNameLT(*i.ChannelNameLT))
+	}
+	if i.ChannelNameLTE != nil {
+		predicates = append(predicates, intelligencerun.ChannelNameLTE(*i.ChannelNameLTE))
+	}
+	if i.ChannelNameContains != nil {
+		predicates = append(predicates, intelligencerun.ChannelNameContains(*i.ChannelNameContains))
+	}
+	if i.ChannelNameHasPrefix != nil {
+		predicates = append(predicates, intelligencerun.ChannelNameHasPrefix(*i.ChannelNameHasPrefix))
+	}
+	if i.ChannelNameHasSuffix != nil {
+		predicates = append(predicates, intelligencerun.ChannelNameHasSuffix(*i.ChannelNameHasSuffix))
+	}
+	if i.ChannelNameEqualFold != nil {
+		predicates = append(predicates, intelligencerun.ChannelNameEqualFold(*i.ChannelNameEqualFold))
+	}
+	if i.ChannelNameContainsFold != nil {
+		predicates = append(predicates, intelligencerun.ChannelNameContainsFold(*i.ChannelNameContainsFold))
+	}
+	if i.ModelID != nil {
+		predicates = append(predicates, intelligencerun.ModelIDEQ(*i.ModelID))
+	}
+	if i.ModelIDNEQ != nil {
+		predicates = append(predicates, intelligencerun.ModelIDNEQ(*i.ModelIDNEQ))
+	}
+	if len(i.ModelIDIn) > 0 {
+		predicates = append(predicates, intelligencerun.ModelIDIn(i.ModelIDIn...))
+	}
+	if len(i.ModelIDNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.ModelIDNotIn(i.ModelIDNotIn...))
+	}
+	if i.ModelIDGT != nil {
+		predicates = append(predicates, intelligencerun.ModelIDGT(*i.ModelIDGT))
+	}
+	if i.ModelIDGTE != nil {
+		predicates = append(predicates, intelligencerun.ModelIDGTE(*i.ModelIDGTE))
+	}
+	if i.ModelIDLT != nil {
+		predicates = append(predicates, intelligencerun.ModelIDLT(*i.ModelIDLT))
+	}
+	if i.ModelIDLTE != nil {
+		predicates = append(predicates, intelligencerun.ModelIDLTE(*i.ModelIDLTE))
+	}
+	if i.ModelIDContains != nil {
+		predicates = append(predicates, intelligencerun.ModelIDContains(*i.ModelIDContains))
+	}
+	if i.ModelIDHasPrefix != nil {
+		predicates = append(predicates, intelligencerun.ModelIDHasPrefix(*i.ModelIDHasPrefix))
+	}
+	if i.ModelIDHasSuffix != nil {
+		predicates = append(predicates, intelligencerun.ModelIDHasSuffix(*i.ModelIDHasSuffix))
+	}
+	if i.ModelIDEqualFold != nil {
+		predicates = append(predicates, intelligencerun.ModelIDEqualFold(*i.ModelIDEqualFold))
+	}
+	if i.ModelIDContainsFold != nil {
+		predicates = append(predicates, intelligencerun.ModelIDContainsFold(*i.ModelIDContainsFold))
+	}
+	if i.Trigger != nil {
+		predicates = append(predicates, intelligencerun.TriggerEQ(*i.Trigger))
+	}
+	if i.TriggerNEQ != nil {
+		predicates = append(predicates, intelligencerun.TriggerNEQ(*i.TriggerNEQ))
+	}
+	if len(i.TriggerIn) > 0 {
+		predicates = append(predicates, intelligencerun.TriggerIn(i.TriggerIn...))
+	}
+	if len(i.TriggerNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.TriggerNotIn(i.TriggerNotIn...))
+	}
+	if i.TriggerGT != nil {
+		predicates = append(predicates, intelligencerun.TriggerGT(*i.TriggerGT))
+	}
+	if i.TriggerGTE != nil {
+		predicates = append(predicates, intelligencerun.TriggerGTE(*i.TriggerGTE))
+	}
+	if i.TriggerLT != nil {
+		predicates = append(predicates, intelligencerun.TriggerLT(*i.TriggerLT))
+	}
+	if i.TriggerLTE != nil {
+		predicates = append(predicates, intelligencerun.TriggerLTE(*i.TriggerLTE))
+	}
+	if i.TriggerContains != nil {
+		predicates = append(predicates, intelligencerun.TriggerContains(*i.TriggerContains))
+	}
+	if i.TriggerHasPrefix != nil {
+		predicates = append(predicates, intelligencerun.TriggerHasPrefix(*i.TriggerHasPrefix))
+	}
+	if i.TriggerHasSuffix != nil {
+		predicates = append(predicates, intelligencerun.TriggerHasSuffix(*i.TriggerHasSuffix))
+	}
+	if i.TriggerEqualFold != nil {
+		predicates = append(predicates, intelligencerun.TriggerEqualFold(*i.TriggerEqualFold))
+	}
+	if i.TriggerContainsFold != nil {
+		predicates = append(predicates, intelligencerun.TriggerContainsFold(*i.TriggerContainsFold))
+	}
+	if i.Status != nil {
+		predicates = append(predicates, intelligencerun.StatusEQ(*i.Status))
+	}
+	if i.StatusNEQ != nil {
+		predicates = append(predicates, intelligencerun.StatusNEQ(*i.StatusNEQ))
+	}
+	if len(i.StatusIn) > 0 {
+		predicates = append(predicates, intelligencerun.StatusIn(i.StatusIn...))
+	}
+	if len(i.StatusNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.StatusNotIn(i.StatusNotIn...))
+	}
+	if i.TotalKeys != nil {
+		predicates = append(predicates, intelligencerun.TotalKeysEQ(*i.TotalKeys))
+	}
+	if i.TotalKeysNEQ != nil {
+		predicates = append(predicates, intelligencerun.TotalKeysNEQ(*i.TotalKeysNEQ))
+	}
+	if len(i.TotalKeysIn) > 0 {
+		predicates = append(predicates, intelligencerun.TotalKeysIn(i.TotalKeysIn...))
+	}
+	if len(i.TotalKeysNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.TotalKeysNotIn(i.TotalKeysNotIn...))
+	}
+	if i.TotalKeysGT != nil {
+		predicates = append(predicates, intelligencerun.TotalKeysGT(*i.TotalKeysGT))
+	}
+	if i.TotalKeysGTE != nil {
+		predicates = append(predicates, intelligencerun.TotalKeysGTE(*i.TotalKeysGTE))
+	}
+	if i.TotalKeysLT != nil {
+		predicates = append(predicates, intelligencerun.TotalKeysLT(*i.TotalKeysLT))
+	}
+	if i.TotalKeysLTE != nil {
+		predicates = append(predicates, intelligencerun.TotalKeysLTE(*i.TotalKeysLTE))
+	}
+	if i.SuccessKeys != nil {
+		predicates = append(predicates, intelligencerun.SuccessKeysEQ(*i.SuccessKeys))
+	}
+	if i.SuccessKeysNEQ != nil {
+		predicates = append(predicates, intelligencerun.SuccessKeysNEQ(*i.SuccessKeysNEQ))
+	}
+	if len(i.SuccessKeysIn) > 0 {
+		predicates = append(predicates, intelligencerun.SuccessKeysIn(i.SuccessKeysIn...))
+	}
+	if len(i.SuccessKeysNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.SuccessKeysNotIn(i.SuccessKeysNotIn...))
+	}
+	if i.SuccessKeysGT != nil {
+		predicates = append(predicates, intelligencerun.SuccessKeysGT(*i.SuccessKeysGT))
+	}
+	if i.SuccessKeysGTE != nil {
+		predicates = append(predicates, intelligencerun.SuccessKeysGTE(*i.SuccessKeysGTE))
+	}
+	if i.SuccessKeysLT != nil {
+		predicates = append(predicates, intelligencerun.SuccessKeysLT(*i.SuccessKeysLT))
+	}
+	if i.SuccessKeysLTE != nil {
+		predicates = append(predicates, intelligencerun.SuccessKeysLTE(*i.SuccessKeysLTE))
+	}
+	if i.FailedKeys != nil {
+		predicates = append(predicates, intelligencerun.FailedKeysEQ(*i.FailedKeys))
+	}
+	if i.FailedKeysNEQ != nil {
+		predicates = append(predicates, intelligencerun.FailedKeysNEQ(*i.FailedKeysNEQ))
+	}
+	if len(i.FailedKeysIn) > 0 {
+		predicates = append(predicates, intelligencerun.FailedKeysIn(i.FailedKeysIn...))
+	}
+	if len(i.FailedKeysNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.FailedKeysNotIn(i.FailedKeysNotIn...))
+	}
+	if i.FailedKeysGT != nil {
+		predicates = append(predicates, intelligencerun.FailedKeysGT(*i.FailedKeysGT))
+	}
+	if i.FailedKeysGTE != nil {
+		predicates = append(predicates, intelligencerun.FailedKeysGTE(*i.FailedKeysGTE))
+	}
+	if i.FailedKeysLT != nil {
+		predicates = append(predicates, intelligencerun.FailedKeysLT(*i.FailedKeysLT))
+	}
+	if i.FailedKeysLTE != nil {
+		predicates = append(predicates, intelligencerun.FailedKeysLTE(*i.FailedKeysLTE))
+	}
+	if i.DurationMs != nil {
+		predicates = append(predicates, intelligencerun.DurationMsEQ(*i.DurationMs))
+	}
+	if i.DurationMsNEQ != nil {
+		predicates = append(predicates, intelligencerun.DurationMsNEQ(*i.DurationMsNEQ))
+	}
+	if len(i.DurationMsIn) > 0 {
+		predicates = append(predicates, intelligencerun.DurationMsIn(i.DurationMsIn...))
+	}
+	if len(i.DurationMsNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.DurationMsNotIn(i.DurationMsNotIn...))
+	}
+	if i.DurationMsGT != nil {
+		predicates = append(predicates, intelligencerun.DurationMsGT(*i.DurationMsGT))
+	}
+	if i.DurationMsGTE != nil {
+		predicates = append(predicates, intelligencerun.DurationMsGTE(*i.DurationMsGTE))
+	}
+	if i.DurationMsLT != nil {
+		predicates = append(predicates, intelligencerun.DurationMsLT(*i.DurationMsLT))
+	}
+	if i.DurationMsLTE != nil {
+		predicates = append(predicates, intelligencerun.DurationMsLTE(*i.DurationMsLTE))
+	}
+
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptyIntelligenceRunWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return intelligencerun.And(predicates...), nil
 	}
 }
 

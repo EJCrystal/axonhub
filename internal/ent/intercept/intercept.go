@@ -16,6 +16,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
+	"github.com/looplj/axonhub/internal/ent/intelligencerun"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
@@ -306,6 +307,33 @@ func (f TraverseDataStorage) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.DataStorageQuery", q)
+}
+
+// The IntelligenceRunFunc type is an adapter to allow the use of ordinary function as a Querier.
+type IntelligenceRunFunc func(context.Context, *ent.IntelligenceRunQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f IntelligenceRunFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.IntelligenceRunQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.IntelligenceRunQuery", q)
+}
+
+// The TraverseIntelligenceRun type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseIntelligenceRun func(context.Context, *ent.IntelligenceRunQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseIntelligenceRun) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseIntelligenceRun) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.IntelligenceRunQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.IntelligenceRunQuery", q)
 }
 
 // The InvitationFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -786,6 +814,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ChannelProbeQuery, predicate.ChannelProbe, channelprobe.OrderOption]{typ: ent.TypeChannelProbe, tq: q}, nil
 	case *ent.DataStorageQuery:
 		return &query[*ent.DataStorageQuery, predicate.DataStorage, datastorage.OrderOption]{typ: ent.TypeDataStorage, tq: q}, nil
+	case *ent.IntelligenceRunQuery:
+		return &query[*ent.IntelligenceRunQuery, predicate.IntelligenceRun, intelligencerun.OrderOption]{typ: ent.TypeIntelligenceRun, tq: q}, nil
 	case *ent.InvitationQuery:
 		return &query[*ent.InvitationQuery, predicate.Invitation, invitation.OrderOption]{typ: ent.TypeInvitation, tq: q}, nil
 	case *ent.ModelQuery:

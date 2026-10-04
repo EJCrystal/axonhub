@@ -51,6 +51,7 @@ type Resolver struct {
 	candidateSelectorDiagnostics   *orchestrator.CandidateSelectorDiagnostics
 	channelLimiterManager          *orchestrator.ChannelLimiterManager
 	TestChannelOrchestrator        *orchestrator.TestChannelOrchestrator
+	intelligenceService            *orchestrator.IntelligenceService
 	gcWorker                       *gc.Worker
 	videoWorker                    *video_storage.Worker
 	catalogService                 *biz.CatalogService
@@ -85,6 +86,8 @@ func NewSchema(
 	candidateSelectorDiagnostics *orchestrator.CandidateSelectorDiagnostics,
 	channelLimiterManager *orchestrator.ChannelLimiterManager,
 	httpClient *httpclient.HttpClient,
+	testChannelOrchestrator *orchestrator.TestChannelOrchestrator,
+	intelligenceService *orchestrator.IntelligenceService,
 	gcWorker *gc.Worker,
 	videoWorker *video_storage.Worker,
 	catalogService *biz.CatalogService,
@@ -119,7 +122,8 @@ func NewSchema(
 			defaultSelector:                defaultSelector,
 			candidateSelectorDiagnostics:   candidateSelectorDiagnostics,
 			channelLimiterManager:          channelLimiterManager,
-			TestChannelOrchestrator:        orchestrator.NewTestChannelOrchestrator(channelService, requestService, systemService, usageLogService, promptProtectionRuleService, httpClient),
+			TestChannelOrchestrator:        testChannelOrchestrator,
+			intelligenceService:            intelligenceService,
 			gcWorker:                       gcWorker,
 			videoWorker:                    videoWorker,
 			catalogService:                 catalogService,

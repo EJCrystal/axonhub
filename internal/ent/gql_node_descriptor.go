@@ -942,6 +942,114 @@ func (_m *DataStorage) Node(ctx context.Context) (node *Node, err error) {
 }
 
 // Node implements Noder interface
+func (_m *IntelligenceRun) Node(ctx context.Context) (node *Node, err error) {
+	node = &Node{
+		ID:     _m.ID,
+		Type:   "IntelligenceRun",
+		Fields: make([]*Field, 12),
+		Edges:  make([]*Edge, 0),
+	}
+	var buf []byte
+	if buf, err = json.Marshal(_m.CreatedAt); err != nil {
+		return nil, err
+	}
+	node.Fields[0] = &Field{
+		Type:  "time.Time",
+		Name:  "created_at",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.UpdatedAt); err != nil {
+		return nil, err
+	}
+	node.Fields[1] = &Field{
+		Type:  "time.Time",
+		Name:  "updated_at",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.ChannelID); err != nil {
+		return nil, err
+	}
+	node.Fields[2] = &Field{
+		Type:  "int",
+		Name:  "channel_id",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.ChannelName); err != nil {
+		return nil, err
+	}
+	node.Fields[3] = &Field{
+		Type:  "string",
+		Name:  "channel_name",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.ModelID); err != nil {
+		return nil, err
+	}
+	node.Fields[4] = &Field{
+		Type:  "string",
+		Name:  "model_id",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.Trigger); err != nil {
+		return nil, err
+	}
+	node.Fields[5] = &Field{
+		Type:  "string",
+		Name:  "trigger",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.Status); err != nil {
+		return nil, err
+	}
+	node.Fields[6] = &Field{
+		Type:  "intelligencerun.Status",
+		Name:  "status",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.TotalKeys); err != nil {
+		return nil, err
+	}
+	node.Fields[7] = &Field{
+		Type:  "int",
+		Name:  "total_keys",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.SuccessKeys); err != nil {
+		return nil, err
+	}
+	node.Fields[8] = &Field{
+		Type:  "int",
+		Name:  "success_keys",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.FailedKeys); err != nil {
+		return nil, err
+	}
+	node.Fields[9] = &Field{
+		Type:  "int",
+		Name:  "failed_keys",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.DurationMs); err != nil {
+		return nil, err
+	}
+	node.Fields[10] = &Field{
+		Type:  "int",
+		Name:  "duration_ms",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.Results); err != nil {
+		return nil, err
+	}
+	node.Fields[11] = &Field{
+		Type:  "[]objects.IntelligenceKeyResult",
+		Name:  "results",
+		Value: string(buf),
+	}
+	return node, nil
+}
+
+// Node implements Noder interface
 func (_m *Model) Node(ctx context.Context) (node *Node, err error) {
 	node = &Node{
 		ID:     _m.ID,

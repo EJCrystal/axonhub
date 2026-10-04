@@ -285,6 +285,36 @@ var (
 			},
 		},
 	}
+	// IntelligenceRunsColumns holds the columns for the "intelligence_runs" table.
+	IntelligenceRunsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "deleted_at", Type: field.TypeInt, Default: 0},
+		{Name: "channel_id", Type: field.TypeInt},
+		{Name: "channel_name", Type: field.TypeString, Default: ""},
+		{Name: "model_id", Type: field.TypeString},
+		{Name: "trigger", Type: field.TypeString, Default: "manual"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"succeeded", "failed", "partial"}, Default: "failed"},
+		{Name: "total_keys", Type: field.TypeInt, Default: 0},
+		{Name: "success_keys", Type: field.TypeInt, Default: 0},
+		{Name: "failed_keys", Type: field.TypeInt, Default: 0},
+		{Name: "duration_ms", Type: field.TypeInt, Default: 0},
+		{Name: "results", Type: field.TypeJSON, Nullable: true},
+	}
+	// IntelligenceRunsTable holds the schema information for the "intelligence_runs" table.
+	IntelligenceRunsTable = &schema.Table{
+		Name:       "intelligence_runs",
+		Columns:    IntelligenceRunsColumns,
+		PrimaryKey: []*schema.Column{IntelligenceRunsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "intelligence_runs_by_channel_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{IntelligenceRunsColumns[4], IntelligenceRunsColumns[1]},
+			},
+		},
+	}
 	// InvitationsColumns holds the columns for the "invitations" table.
 	InvitationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1067,6 +1097,7 @@ var (
 		ChannelOverrideTemplatesTable,
 		ChannelProbesTable,
 		DataStoragesTable,
+		IntelligenceRunsTable,
 		InvitationsTable,
 		ModelsTable,
 		OidcIdentitiesTable,

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"entgo.io/contrib/entgql"
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
@@ -409,6 +410,32 @@ func (r *mutationResolver) EvaluateChannelIntelligence(ctx context.Context, inpu
 		FailedCount:  result.FailedCount,
 		Results:      results,
 	}, nil
+}
+
+// SetIntelligenceConfig is the resolver for the setIntelligenceConfig field.
+func (r *mutationResolver) SetIntelligenceConfig(ctx context.Context, input IntelligenceConfigInput) (*IntelligenceConfig, error) {
+	config := &objects.IntelligenceConfig{
+		Enabled:         input.Enabled,
+		IntervalMinutes: input.IntervalMinutes,
+		Targets:         make([]objects.IntelligenceTarget, 0, len(input.Targets)),
+	}
+	for _, target := range input.Targets {
+		config.Targets = append(config.Targets, objects.IntelligenceTarget{
+			ChannelID: target.ChannelID.ID,
+			ModelID:   target.ModelID,
+		})
+	}
+
+	if err := r.intelligenceService.SetIntelligenceConfig(ctx, config); err != nil {
+		return nil, err
+	}
+
+	return r.intelligenceConfigPayload(ctx)
+}
+
+// RunIntelligenceCheckNow is the resolver for the runIntelligenceCheckNow field.
+func (r *mutationResolver) RunIntelligenceCheckNow(ctx context.Context) (int, error) {
+	return r.intelligenceService.RunManual(ctx)
 }
 
 // BulkImportChannels is the resolver for the bulkImportChannels field.
@@ -860,6 +887,18 @@ func (r *mutationResolver) UnretainThread(ctx context.Context, id objects.GUID) 
 	}
 
 	return true, nil
+}
+
+// IntelligenceConfig is the resolver for the intelligenceConfig field.
+func (r *queryResolver) IntelligenceConfig(ctx context.Context) (*IntelligenceConfig, error) {
+	return (&mutationResolver{Resolver: r.Resolver}).intelligenceConfigPayload(ctx)
+}
+
+// IntelligenceHistory is the resolver for the intelligenceHistory field.
+func (r *queryResolver) IntelligenceHistory(ctx context.Context, channelID objects.GUID, first *int, after *entgql.Cursor[int]) (*ent.IntelligenceRunConnection, error) {
+	// History is always newest-first for one channel; the surrounding ent
+	// connection plumbing still applies the cursor and page size.
+	return r.intelligenceService.History(ctx, channelID.ID, first)
 }
 
 // AllChannelSummarys is the resolver for the allChannelSummarys field.

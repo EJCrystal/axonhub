@@ -958,6 +958,18 @@ func (s *SystemService) getSystemValue(ctx context.Context, key string) (string,
 	return sys.Value, nil
 }
 
+// SystemValue reads a system key-value pair. It is the exported counterpart of
+// getSystemValue, for services that own their own system-scoped settings.
+func (s *SystemService) SystemValue(ctx context.Context, key string) (string, error) {
+	return s.getSystemValue(ctx, key)
+}
+
+// SetSystemValue writes a system key-value pair. It is the exported counterpart
+// of setSystemValue.
+func (s *SystemService) SetSystemValue(ctx context.Context, key, value string) error {
+	return s.setSystemValue(ctx, key, value)
+}
+
 // setSystemValue sets or updates a system key-value pair.
 func (s *SystemService) setSystemValue(ctx context.Context, key, value string) error {
 	client := s.entFromContext(ctx)

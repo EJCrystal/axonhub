@@ -23,6 +23,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
+	"github.com/looplj/axonhub/internal/ent/intelligencerun"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
@@ -63,6 +64,8 @@ type Client struct {
 	ChannelProbe *ChannelProbeClient
 	// DataStorage is the client for interacting with the DataStorage builders.
 	DataStorage *DataStorageClient
+	// IntelligenceRun is the client for interacting with the IntelligenceRun builders.
+	IntelligenceRun *IntelligenceRunClient
 	// Invitation is the client for interacting with the Invitation builders.
 	Invitation *InvitationClient
 	// Model is the client for interacting with the Model builders.
@@ -118,6 +121,7 @@ func (c *Client) init() {
 	c.ChannelOverrideTemplate = NewChannelOverrideTemplateClient(c.config)
 	c.ChannelProbe = NewChannelProbeClient(c.config)
 	c.DataStorage = NewDataStorageClient(c.config)
+	c.IntelligenceRun = NewIntelligenceRunClient(c.config)
 	c.Invitation = NewInvitationClient(c.config)
 	c.Model = NewModelClient(c.config)
 	c.OIDCIdentity = NewOIDCIdentityClient(c.config)
@@ -235,6 +239,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ChannelOverrideTemplate:  NewChannelOverrideTemplateClient(cfg),
 		ChannelProbe:             NewChannelProbeClient(cfg),
 		DataStorage:              NewDataStorageClient(cfg),
+		IntelligenceRun:          NewIntelligenceRunClient(cfg),
 		Invitation:               NewInvitationClient(cfg),
 		Model:                    NewModelClient(cfg),
 		OIDCIdentity:             NewOIDCIdentityClient(cfg),
@@ -279,6 +284,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ChannelOverrideTemplate:  NewChannelOverrideTemplateClient(cfg),
 		ChannelProbe:             NewChannelProbeClient(cfg),
 		DataStorage:              NewDataStorageClient(cfg),
+		IntelligenceRun:          NewIntelligenceRunClient(cfg),
 		Invitation:               NewInvitationClient(cfg),
 		Model:                    NewModelClient(cfg),
 		OIDCIdentity:             NewOIDCIdentityClient(cfg),
@@ -327,10 +333,10 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.APIKeyProfileTemplate, c.Channel, c.ChannelModelPrice,
 		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
-		c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity, c.Project, c.Prompt,
-		c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request, c.RequestExecution,
-		c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User, c.UserProject,
-		c.UserRole,
+		c.DataStorage, c.IntelligenceRun, c.Invitation, c.Model, c.OIDCIdentity,
+		c.Project, c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,
+		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User,
+		c.UserProject, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -342,10 +348,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.APIKeyProfileTemplate, c.Channel, c.ChannelModelPrice,
 		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
-		c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity, c.Project, c.Prompt,
-		c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request, c.RequestExecution,
-		c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User, c.UserProject,
-		c.UserRole,
+		c.DataStorage, c.IntelligenceRun, c.Invitation, c.Model, c.OIDCIdentity,
+		c.Project, c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,
+		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User,
+		c.UserProject, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -370,6 +376,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ChannelProbe.mutate(ctx, m)
 	case *DataStorageMutation:
 		return c.DataStorage.mutate(ctx, m)
+	case *IntelligenceRunMutation:
+		return c.IntelligenceRun.mutate(ctx, m)
 	case *InvitationMutation:
 		return c.Invitation.mutate(ctx, m)
 	case *ModelMutation:
@@ -1755,6 +1763,141 @@ func (c *DataStorageClient) mutate(ctx context.Context, m *DataStorageMutation) 
 		return (&DataStorageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown DataStorage mutation op: %q", m.Op())
+	}
+}
+
+// IntelligenceRunClient is a client for the IntelligenceRun schema.
+type IntelligenceRunClient struct {
+	config
+}
+
+// NewIntelligenceRunClient returns a client for the IntelligenceRun from the given config.
+func NewIntelligenceRunClient(c config) *IntelligenceRunClient {
+	return &IntelligenceRunClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `intelligencerun.Hooks(f(g(h())))`.
+func (c *IntelligenceRunClient) Use(hooks ...Hook) {
+	c.hooks.IntelligenceRun = append(c.hooks.IntelligenceRun, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `intelligencerun.Intercept(f(g(h())))`.
+func (c *IntelligenceRunClient) Intercept(interceptors ...Interceptor) {
+	c.inters.IntelligenceRun = append(c.inters.IntelligenceRun, interceptors...)
+}
+
+// Create returns a builder for creating a IntelligenceRun entity.
+func (c *IntelligenceRunClient) Create() *IntelligenceRunCreate {
+	mutation := newIntelligenceRunMutation(c.config, OpCreate)
+	return &IntelligenceRunCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of IntelligenceRun entities.
+func (c *IntelligenceRunClient) CreateBulk(builders ...*IntelligenceRunCreate) *IntelligenceRunCreateBulk {
+	return &IntelligenceRunCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *IntelligenceRunClient) MapCreateBulk(slice any, setFunc func(*IntelligenceRunCreate, int)) *IntelligenceRunCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &IntelligenceRunCreateBulk{err: fmt.Errorf("calling to IntelligenceRunClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*IntelligenceRunCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &IntelligenceRunCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for IntelligenceRun.
+func (c *IntelligenceRunClient) Update() *IntelligenceRunUpdate {
+	mutation := newIntelligenceRunMutation(c.config, OpUpdate)
+	return &IntelligenceRunUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *IntelligenceRunClient) UpdateOne(_m *IntelligenceRun) *IntelligenceRunUpdateOne {
+	mutation := newIntelligenceRunMutation(c.config, OpUpdateOne, withIntelligenceRun(_m))
+	return &IntelligenceRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *IntelligenceRunClient) UpdateOneID(id int) *IntelligenceRunUpdateOne {
+	mutation := newIntelligenceRunMutation(c.config, OpUpdateOne, withIntelligenceRunID(id))
+	return &IntelligenceRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for IntelligenceRun.
+func (c *IntelligenceRunClient) Delete() *IntelligenceRunDelete {
+	mutation := newIntelligenceRunMutation(c.config, OpDelete)
+	return &IntelligenceRunDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *IntelligenceRunClient) DeleteOne(_m *IntelligenceRun) *IntelligenceRunDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *IntelligenceRunClient) DeleteOneID(id int) *IntelligenceRunDeleteOne {
+	builder := c.Delete().Where(intelligencerun.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &IntelligenceRunDeleteOne{builder}
+}
+
+// Query returns a query builder for IntelligenceRun.
+func (c *IntelligenceRunClient) Query() *IntelligenceRunQuery {
+	return &IntelligenceRunQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeIntelligenceRun},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a IntelligenceRun entity by its id.
+func (c *IntelligenceRunClient) Get(ctx context.Context, id int) (*IntelligenceRun, error) {
+	return c.Query().Where(intelligencerun.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *IntelligenceRunClient) GetX(ctx context.Context, id int) *IntelligenceRun {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *IntelligenceRunClient) Hooks() []Hook {
+	hooks := c.hooks.IntelligenceRun
+	return append(hooks[:len(hooks):len(hooks)], intelligencerun.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *IntelligenceRunClient) Interceptors() []Interceptor {
+	inters := c.inters.IntelligenceRun
+	return append(inters[:len(inters):len(inters)], intelligencerun.Interceptors[:]...)
+}
+
+func (c *IntelligenceRunClient) mutate(ctx context.Context, m *IntelligenceRunMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&IntelligenceRunCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&IntelligenceRunUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&IntelligenceRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&IntelligenceRunDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown IntelligenceRun mutation op: %q", m.Op())
 	}
 }
 
@@ -4801,15 +4944,15 @@ type (
 	hooks struct {
 		APIKey, APIKeyProfileTemplate, Channel, ChannelModelPrice,
 		ChannelModelPriceVersion, ChannelOverrideTemplate, ChannelProbe, DataStorage,
-		Invitation, Model, OIDCIdentity, Project, Prompt, PromptProtectionRule,
-		ProviderQuotaStatus, Request, RequestExecution, Role, System, Thread, Trace,
-		UsageLog, User, UserProject, UserRole []ent.Hook
+		IntelligenceRun, Invitation, Model, OIDCIdentity, Project, Prompt,
+		PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution, Role,
+		System, Thread, Trace, UsageLog, User, UserProject, UserRole []ent.Hook
 	}
 	inters struct {
 		APIKey, APIKeyProfileTemplate, Channel, ChannelModelPrice,
 		ChannelModelPriceVersion, ChannelOverrideTemplate, ChannelProbe, DataStorage,
-		Invitation, Model, OIDCIdentity, Project, Prompt, PromptProtectionRule,
-		ProviderQuotaStatus, Request, RequestExecution, Role, System, Thread, Trace,
-		UsageLog, User, UserProject, UserRole []ent.Interceptor
+		IntelligenceRun, Invitation, Model, OIDCIdentity, Project, Prompt,
+		PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution, Role,
+		System, Thread, Trace, UsageLog, User, UserProject, UserRole []ent.Interceptor
 	}
 )
