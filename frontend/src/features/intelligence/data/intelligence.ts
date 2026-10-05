@@ -77,7 +77,7 @@ const INTELLIGENCE_HISTORY_QUERY = `
             quality
             label
             reason
-            taskId
+            taskID
             generationMs
             durationMs
             html

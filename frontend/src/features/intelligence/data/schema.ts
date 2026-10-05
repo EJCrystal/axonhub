@@ -7,7 +7,7 @@ export const intelligenceKeyResultSchema = z.object({
   quality: z.string().default(''),
   label: z.string().default(''),
   reason: z.string().default(''),
-  taskId: z.string().default(''),
+  taskID: z.string().default(''),
   generationMs: z.number().default(0),
   durationMs: z.number().default(0),
   html: z.string().default(''),
