@@ -113,9 +113,9 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                               <Badge variant={verdictBadgeVariant(intelligenceVerdict(key))}>
                                 {t(`channels.dialogs.intelligence.verdict.${intelligenceVerdict(key)}`)}
                               </Badge>
-                              {key.taskId && (
+                              {key.taskID && (
                                 <span className='text-muted-foreground'>
-                                  {t('channels.dialogs.intelligence.taskID', { id: key.taskId })}
+                                  {t('channels.dialogs.intelligence.taskID', { id: key.taskID })}
                                 </span>
                               )}
                             </div>
