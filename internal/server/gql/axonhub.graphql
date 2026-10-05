@@ -440,12 +440,16 @@ type IntelligenceKeyResult {
 input IntelligenceTargetInput {
   channelID: ID!
   modelID: String!
+  # Narrows the run to one API key. Omit to evaluate every enabled key.
+  apiKey: String
 }
 
 type IntelligenceTarget {
   channelID: ID!
   channelName: String!
   modelID: String!
+  # The single key this target evaluates. Null when every enabled key runs.
+  apiKey: String
 }
 
 input IntelligenceConfigInput {

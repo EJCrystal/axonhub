@@ -1414,6 +1414,10 @@ export function useQueryChannels(
     hasTag?: string;
     model?: string;
     columnVisibility?: ChannelListColumnVisibility;
+    // full requests every node field, including the credential set. The list
+    // query omits credentials unless a column needs them, and pickers that
+    // reason about individual API keys do need them.
+    full?: boolean;
   },
   options?: {
     disableAutoFetch?: boolean;
@@ -1421,8 +1425,8 @@ export function useQueryChannels(
 ) {
   const { handleError } = useErrorHandler();
   const { t } = useTranslation();
-  const { columnVisibility, ...queryInput } = variables ?? {};
-  const query = buildQueryChannelsQuery(columnVisibility);
+  const { columnVisibility, full, ...queryInput } = variables ?? {};
+  const query = buildQueryChannelsQuery(columnVisibility, full ? { full: true } : undefined);
   const columnVisibilityKey = JSON.stringify(columnVisibility ?? {});
 
   const result = useQuery({
@@ -1441,6 +1445,7 @@ export function useQueryChannels(
       variables?.after,
       variables?.before,
       columnVisibilityKey,
+      full ?? false,
     ],
     queryFn: async () => {
       const data = await graphqlRequest<{ queryChannels: ChannelConnection }>(query, { input: queryInput });

@@ -20,6 +20,7 @@ const INTELLIGENCE_CONFIG_QUERY = `
         channelID
         channelName
         modelID
+        apiKey
       }
     }
   }
@@ -34,6 +35,7 @@ const SET_INTELLIGENCE_CONFIG_MUTATION = `
         channelID
         channelName
         modelID
+        apiKey
       }
     }
   }
@@ -103,7 +105,11 @@ export function useSetIntelligenceConfig() {
   const { handleError } = useErrorHandler();
 
   return useMutation({
-    mutationFn: async (input: { enabled: boolean; intervalMinutes: IntelligenceInterval; targets: { channelID: string; modelID: string }[] }) => {
+    mutationFn: async (input: {
+      enabled: boolean;
+      intervalMinutes: IntelligenceInterval;
+      targets: { channelID: string; modelID: string; apiKey?: string }[];
+    }) => {
       const data = await graphqlRequest<{ setIntelligenceConfig: unknown }>(SET_INTELLIGENCE_CONFIG_MUTATION, { input });
       return intelligenceConfigSchema.parse(data.setIntelligenceConfig);
     },

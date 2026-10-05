@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQueryChannels } from '@/features/channels/data/channels';
+import { modelsForAPIKey } from '../data/api-key-models';
 import { INTELLIGENCE_INTERVALS, IntelligenceConfig, IntelligenceInterval } from '../data/schema';
 import { useSetIntelligenceConfig } from '../data/intelligence';
 
@@ -21,16 +22,23 @@ interface Props {
 
 interface DraftTarget {
   channelID: string;
+  apiKey: string;
   modelID: string;
+}
+
+function maskKey(key: string): string {
+  if (key.length <= 8) return '****';
+  return key.slice(0, 4) + '****' + key.slice(-4);
 }
 
 export function IntelligenceSettings({ config, loading, readOnly }: Props) {
   const { t } = useTranslation();
   const save = useSetIntelligenceConfig();
 
-  // The check needs the channel's model list, so pull the same connection the
-  // channels page uses.
-  const { data: channels } = useQueryChannels({ first: 200 });
+  // The picker needs each channel's model list AND its credential set, and the
+  // list query omits both unless the matching columns are visible. Ask for the
+  // full node so the selectors have what they need.
+  const { data: channels } = useQueryChannels({ first: 200, full: true });
 
   const [enabled, setEnabled] = useState(false);
   const [intervalMinutes, setIntervalMinutes] = useState<IntelligenceInterval>(60);
@@ -40,19 +48,45 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
     if (!config) return;
     setEnabled(config.enabled);
     setIntervalMinutes((config.intervalMinutes as IntelligenceInterval) ?? 60);
-    setTargets(config.targets.map((target) => ({ channelID: target.channelID, modelID: target.modelID })));
+    setTargets(config.targets.map((target) => ({ channelID: target.channelID, apiKey: target.apiKey ?? '', modelID: target.modelID })));
   }, [config]);
 
   const channelOptions = useMemo(
-    () => (channels?.edges ?? []).map((edge) => ({ id: edge.node.id, name: edge.node.name, models: edge.node.supportedModels })),
+    () =>
+      (channels?.edges ?? []).map((edge) => ({
+        id: edge.node.id,
+        name: edge.node.name,
+        supportedModels: edge.node.supportedModels ?? [],
+        credentials: edge.node.credentials ?? null,
+        disabledAPIKeys: edge.node.disabledAPIKeys ?? [],
+      })),
     [channels]
   );
 
+  const channelByID = (id: string) => channelOptions.find((channel) => channel.id === id);
+
+  // Enabled keys only: a disabled key cannot be exercised by the check.
+  const keysFor = (channelID: string) => {
+    const channel = channelByID(channelID);
+    if (!channel) return [];
+    const disabled = new Set((channel.disabledAPIKeys ?? []).map((item) => item.key));
+    const all = [...(channel.credentials?.apiKeys ?? [])];
+    const single = channel.credentials?.apiKey;
+    if (single && !all.includes(single)) all.unshift(single);
+    return all.filter((key) => key.trim() !== '' && !disabled.has(key));
+  };
+
+  const modelsFor = (channelID: string, apiKey: string) => {
+    const channel = channelByID(channelID);
+    if (!channel) return [];
+    return modelsForAPIKey(channel.credentials, channel.supportedModels, apiKey);
+  };
+
   const addTarget = () => {
-    const used = new Set(targets.map((target) => target.channelID));
-    const next = channelOptions.find((channel) => !used.has(channel.id));
+    const next = channelOptions.find((channel) => !targets.some((target) => target.channelID === channel.id));
     if (!next) return;
-    setTargets((prev) => [...prev, { channelID: next.id, modelID: next.models[0] ?? '' }]);
+    const apiKey = keysFor(next.id)[0] ?? '';
+    setTargets((prev) => [...prev, { channelID: next.id, apiKey, modelID: modelsFor(next.id, apiKey)[0] ?? '' }]);
   };
 
   const updateTarget = (index: number, patch: Partial<DraftTarget>) => {
@@ -64,10 +98,12 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
   };
 
   const handleSave = () => {
-    save.mutate({ enabled, intervalMinutes, targets });
+    save.mutate({
+      enabled,
+      intervalMinutes,
+      targets: targets.map((target) => ({ channelID: target.channelID, modelID: target.modelID, apiKey: target.apiKey })),
+    });
   };
-
-  const modelsFor = (channelID: string) => channelOptions.find((channel) => channel.id === channelID)?.models ?? [];
 
   return (
     <Card>
@@ -119,6 +155,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('intelligence.settings.channelColumn')}</TableHead>
+                  <TableHead>{t('intelligence.settings.keyColumn')}</TableHead>
                   <TableHead>{t('intelligence.settings.modelColumn')}</TableHead>
                   <TableHead className='w-16'></TableHead>
                 </TableRow>
@@ -126,22 +163,27 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
               <TableBody>
                 {targets.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} className='text-muted-foreground text-center text-xs'>
+                    <TableCell colSpan={4} className='text-muted-foreground text-center text-xs'>
                       {t('intelligence.settings.noTargets')}
                     </TableCell>
                   </TableRow>
                 )}
                 {targets.map((target, index) => {
                   const used = new Set(targets.filter((_, i) => i !== index).map((item) => item.channelID));
+                  const keys = keysFor(target.channelID);
+                  const models = modelsFor(target.channelID, target.apiKey);
                   return (
                     <TableRow key={`${target.channelID}-${index}`}>
                       <TableCell>
                         <Select
                           value={target.channelID}
-                          onValueChange={(value) => updateTarget(index, { channelID: value, modelID: modelsFor(value)[0] ?? '' })}
+                          onValueChange={(value) => {
+                            const apiKey = keysFor(value)[0] ?? '';
+                            updateTarget(index, { channelID: value, apiKey, modelID: modelsFor(value, apiKey)[0] ?? '' });
+                          }}
                           disabled={readOnly}
                         >
-                          <SelectTrigger className='w-56'>
+                          <SelectTrigger className='w-44'>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -157,15 +199,33 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={target.modelID}
-                          onValueChange={(value) => updateTarget(index, { modelID: value })}
-                          disabled={readOnly}
+                          value={target.apiKey}
+                          onValueChange={(value) => updateTarget(index, { apiKey: value, modelID: modelsFor(target.channelID, value)[0] ?? '' })}
+                          disabled={readOnly || keys.length === 0}
                         >
-                          <SelectTrigger className='w-56'>
-                            <SelectValue />
+                          <SelectTrigger className='w-40'>
+                            <SelectValue placeholder={t('intelligence.settings.keyPlaceholder')} />
                           </SelectTrigger>
                           <SelectContent>
-                            {modelsFor(target.channelID).map((model) => (
+                            {keys.map((key) => (
+                              <SelectItem key={key} value={key}>
+                                <span className='font-mono text-xs'>{maskKey(key)}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={target.modelID}
+                          onValueChange={(value) => updateTarget(index, { modelID: value })}
+                          disabled={readOnly || models.length === 0}
+                        >
+                          <SelectTrigger className='w-44'>
+                            <SelectValue placeholder={t('intelligence.settings.modelPlaceholder')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {models.map((model) => (
                               <SelectItem key={model} value={model}>
                                 {model}
                               </SelectItem>

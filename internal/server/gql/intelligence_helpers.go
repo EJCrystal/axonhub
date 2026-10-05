@@ -24,11 +24,15 @@ func (r *mutationResolver) intelligenceConfigPayload(ctx context.Context) (*Inte
 			name = channel.Name
 		}
 
-		targets = append(targets, &IntelligenceTarget{
+		entry := &IntelligenceTarget{
 			ChannelID:   objects.GUID{Type: "channel", ID: target.ChannelID},
 			ChannelName: name,
 			ModelID:     target.ModelID,
-		})
+		}
+		if target.APIKey != "" {
+			entry.APIKey = lo.ToPtr(target.APIKey)
+		}
+		targets = append(targets, entry)
 	}
 
 	return &IntelligenceConfig{

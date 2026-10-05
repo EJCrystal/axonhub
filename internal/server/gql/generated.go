@@ -892,6 +892,7 @@ type ComplexityRoot struct {
 	}
 
 	IntelligenceTarget struct {
+		APIKey      func(childComplexity int) int
 		ChannelID   func(childComplexity int) int
 		ChannelName func(childComplexity int) int
 		ModelID     func(childComplexity int) int
@@ -5656,6 +5657,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.IntelligenceRunEdge.Node(childComplexity), true
 
+	case "IntelligenceTarget.apiKey":
+		if e.complexity.IntelligenceTarget.APIKey == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceTarget.APIKey(childComplexity), true
 	case "IntelligenceTarget.channelID":
 		if e.complexity.IntelligenceTarget.ChannelID == nil {
 			break
@@ -30678,6 +30685,8 @@ func (ec *executionContext) fieldContext_IntelligenceConfig_targets(_ context.Co
 				return ec.fieldContext_IntelligenceTarget_channelName(ctx, field)
 			case "modelID":
 				return ec.fieldContext_IntelligenceTarget_modelID(ctx, field)
+			case "apiKey":
+				return ec.fieldContext_IntelligenceTarget_apiKey(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IntelligenceTarget", field.Name)
 		},
@@ -31834,6 +31843,35 @@ func (ec *executionContext) _IntelligenceTarget_modelID(ctx context.Context, fie
 }
 
 func (ec *executionContext) fieldContext_IntelligenceTarget_modelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceTarget",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceTarget_apiKey(ctx context.Context, field graphql.CollectedField, obj *IntelligenceTarget) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceTarget_apiKey,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKey, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceTarget_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "IntelligenceTarget",
 		Field:      field,
@@ -77223,7 +77261,7 @@ func (ec *executionContext) unmarshalInputIntelligenceTargetInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"channelID", "modelID"}
+	fieldsInOrder := [...]string{"channelID", "modelID", "apiKey"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -77244,6 +77282,13 @@ func (ec *executionContext) unmarshalInputIntelligenceTargetInput(ctx context.Co
 				return it, err
 			}
 			it.ModelID = data
+		case "apiKey":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APIKey = data
 		}
 	}
 
@@ -102361,6 +102406,8 @@ func (ec *executionContext) _IntelligenceTarget(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "apiKey":
+			out.Values[i] = ec._IntelligenceTarget_apiKey(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

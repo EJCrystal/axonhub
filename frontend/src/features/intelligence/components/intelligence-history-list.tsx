@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight, IconLoader2 } from '@tabler/icons-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -38,7 +38,20 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
 
   const runs = history?.edges.map((edge) => edge.node) ?? [];
 
-  if (!loading && runs.length === 0) {
+  // While the first load is in flight there is nothing to lay out yet, and
+  // rendering the table header only to replace it with the empty state makes
+  // the page flicker. Show a spinner until the data settles, then either the
+  // rows or the empty state.
+  if (loading && runs.length === 0) {
+    return (
+      <div className='text-muted-foreground flex items-center justify-center gap-2 py-12 text-sm'>
+        <IconLoader2 className='h-4 w-4 animate-spin' />
+        {t('intelligence.history.loading')}
+      </div>
+    );
+  }
+
+  if (runs.length === 0) {
     return <p className='text-muted-foreground py-12 text-center text-sm'>{t('intelligence.history.empty')}</p>;
   }
 
