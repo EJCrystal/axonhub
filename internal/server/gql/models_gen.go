@@ -396,11 +396,13 @@ type IntelligenceTarget struct {
 	ChannelID   objects.GUID `json:"channelID"`
 	ChannelName string       `json:"channelName"`
 	ModelID     string       `json:"modelID"`
+	APIKey      *string      `json:"apiKey,omitempty"`
 }
 
 type IntelligenceTargetInput struct {
 	ChannelID objects.GUID `json:"channelID"`
 	ModelID   string       `json:"modelID"`
+	APIKey    *string      `json:"apiKey,omitempty"`
 }
 
 type LoadAPIKeyProfileTemplateInput struct {

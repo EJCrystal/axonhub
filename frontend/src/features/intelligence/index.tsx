@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/hooks/usePermissions';
 import { IntelligenceSettings } from './components/intelligence-settings';
 import { IntelligenceHistoryList } from './components/intelligence-history-list';
+import { useQueryChannels } from '@/features/channels/data/channels';
 import { useIntelligenceConfig, useIntelligenceHistory, useRunIntelligenceCheckNow } from './data/intelligence';
 
 export default function IntelligenceManagement() {
@@ -22,6 +23,14 @@ export default function IntelligenceManagement() {
 
   const [channelID, setChannelID] = useState<string>();
 
+  // The filter lists every channel, not just the configured ones: a channel
+  // that was removed from the configuration still has history worth reading.
+  const { data: channels } = useQueryChannels({ first: 200 });
+  const channelOptions = useMemo(
+    () => (channels?.edges ?? []).map((edge) => ({ id: edge.node.id, name: edge.node.name })),
+    [channels]
+  );
+
   // Default the history view to the first configured channel so the page has
   // content without an extra click.
   const effectiveChannelID = useMemo(() => channelID ?? config?.targets[0]?.channelID, [channelID, config?.targets]);
@@ -30,15 +39,15 @@ export default function IntelligenceManagement() {
 
   const actions = (
     <div className='flex items-center gap-2'>
-      {(config?.targets.length ?? 0) > 0 && (
+      {channelOptions.length > 0 && (
         <Select value={effectiveChannelID} onValueChange={setChannelID}>
           <SelectTrigger className='w-48'>
             <SelectValue placeholder={t('intelligence.history.channelPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
-            {(config?.targets ?? []).map((target) => (
-              <SelectItem key={target.channelID} value={target.channelID}>
-                {target.channelName || target.channelID}
+            {channelOptions.map((channel) => (
+              <SelectItem key={channel.id} value={channel.id}>
+                {channel.name}
               </SelectItem>
             ))}
           </SelectContent>

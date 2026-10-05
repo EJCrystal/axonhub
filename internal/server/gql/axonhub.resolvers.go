@@ -420,10 +420,14 @@ func (r *mutationResolver) SetIntelligenceConfig(ctx context.Context, input Inte
 		Targets:         make([]objects.IntelligenceTarget, 0, len(input.Targets)),
 	}
 	for _, target := range input.Targets {
-		config.Targets = append(config.Targets, objects.IntelligenceTarget{
+		entry := objects.IntelligenceTarget{
 			ChannelID: target.ChannelID.ID,
 			ModelID:   target.ModelID,
-		})
+		}
+		if target.APIKey != nil {
+			entry.APIKey = *target.APIKey
+		}
+		config.Targets = append(config.Targets, entry)
 	}
 
 	if err := r.intelligenceService.SetIntelligenceConfig(ctx, config); err != nil {

@@ -51,6 +51,8 @@ export const intelligenceTargetSchema = z.object({
   channelID: z.string(),
   channelName: z.string().default(''),
   modelID: z.string().default(''),
+  // The single key this target evaluates. Null when every enabled key runs.
+  apiKey: z.string().optional().nullable(),
 });
 export type IntelligenceTarget = z.infer<typeof intelligenceTargetSchema>;
 

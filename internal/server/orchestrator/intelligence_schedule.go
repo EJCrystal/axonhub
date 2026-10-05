@@ -242,8 +242,15 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		return fmt.Errorf("failed to load channel %d: %w", target.ChannelID, err)
 	}
 
+	// A configured key narrows the run to that key; leaving it empty keeps the
+	// original behaviour of evaluating every enabled key of the channel.
+	var keys []string
+	if strings.TrimSpace(target.APIKey) != "" {
+		keys = []string{target.APIKey}
+	}
+
 	runCtx := contexts.WithSource(ctx, request.SourceTest)
-	result, err := s.testSvc.EvaluateChannelIntelligence(runCtx, objects.GUID{Type: "channel", ID: channel.ID}, lo.ToPtr(target.ModelID), nil, nil, nil)
+	result, err := s.testSvc.EvaluateChannelIntelligence(runCtx, objects.GUID{Type: "channel", ID: channel.ID}, lo.ToPtr(target.ModelID), keys, nil, nil)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate channel %d: %w", channel.ID, err)
 	}

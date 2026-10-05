@@ -16,10 +16,15 @@ type IntelligenceConfig struct {
 }
 
 // IntelligenceTarget is one channel paired with the model the check should ask
-// it to generate with. Every enabled API key of that channel is evaluated.
+// it to generate with.
+//
+// APIKey narrows the run to a single key, which is what the settings screen
+// offers: a model is only meaningful for the key that can actually serve it.
+// An empty APIKey keeps the older behaviour of evaluating every enabled key.
 type IntelligenceTarget struct {
 	ChannelID int    `json:"channelId"`
 	ModelID   string `json:"modelId"`
+	APIKey    string `json:"apiKey,omitempty"`
 }
 
 // IntelligenceRunStatus is the terminal state of one scheduled or manual run.
