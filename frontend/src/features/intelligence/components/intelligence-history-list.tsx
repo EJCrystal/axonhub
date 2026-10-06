@@ -7,25 +7,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ErrorDisplay } from '@/features/channels/utils/error-formatter';
-import { IntelligenceHTMLPreview } from '@/features/channels/components/channels-intelligence-preview';
-import { intelligenceVerdict, verdictBadgeVariant } from '@/features/channels/components/intelligence-verdict';
-import { IntelligenceRun, IntelligenceRunConnection } from '../data/schema';
+import { IntelligenceHTMLPreview } from './intelligence-html-preview';
+import {
+  intelligenceVerdict,
+  runIntelligenceVerdict,
+  verdictBadgeVariant,
+} from './intelligence-verdict';
+import { IntelligenceRunConnection } from '../data/schema';
 
 interface Props {
   history?: IntelligenceRunConnection;
   loading: boolean;
   configured: boolean;
-}
-
-function runBadgeVariant(status: IntelligenceRun['status']): 'default' | 'destructive' | 'secondary' {
-  switch (status) {
-    case 'succeeded':
-      return 'default';
-    case 'partial':
-      return 'secondary';
-    default:
-      return 'destructive';
-  }
 }
 
 export function IntelligenceHistoryList({ history, loading, configured }: Props) {
@@ -71,6 +64,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
         <TableBody>
           {runs.map((run) => {
             const isOpen = expanded[run.id] ?? false;
+            const verdict = runIntelligenceVerdict(run);
             return (
               <>
                 <TableRow key={run.id}>
@@ -90,7 +84,9 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                   <TableCell className='text-xs'>{t(`intelligence.trigger.${run.trigger}`)}</TableCell>
                   <TableCell>
                     <div className='flex items-center gap-2'>
-                      <Badge variant={runBadgeVariant(run.status)}>{t(`intelligence.status.${run.status}`)}</Badge>
+                      <Badge variant={verdictBadgeVariant(verdict)}>
+                        {t(`channels.dialogs.intelligence.verdict.${verdict}`)}
+                      </Badge>
                       <span className='text-muted-foreground text-xs'>
                         {t('intelligence.history.keysSummary', {
                           success: run.successKeys,

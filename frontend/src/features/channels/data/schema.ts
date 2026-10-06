@@ -506,32 +506,6 @@ export const testChannelAPIKeysPayloadSchema = z.object({
 });
 export type TestChannelAPIKeysPayload = z.infer<typeof testChannelAPIKeysPayloadSchema>;
 
-export const intelligenceKeyResultSchema = z.object({
-  keyPrefix: z.string(),
-  success: z.boolean(),
-  quality: z.string().default(''),
-  label: z.string().default(''),
-  reason: z.string().default(''),
-  taskID: z.string().default(''),
-  generationMs: z.number().default(0),
-  durationMs: z.number().default(0),
-  // Source the model produced, rendered in a sandbox by the dialog. Empty when
-  // the run failed or the source exceeded the backend size cap.
-  html: z.string().optional().nullable(),
-  error: z.string().optional().nullable(),
-});
-export type IntelligenceKeyResult = z.infer<typeof intelligenceKeyResultSchema>;
-
-export const intelligenceEvaluatePayloadSchema = z.object({
-  channelID: z.string(),
-  model: z.string(),
-  total: z.number(),
-  successCount: z.number(),
-  failedCount: z.number(),
-  results: z.array(intelligenceKeyResultSchema),
-});
-export type IntelligenceEvaluatePayload = z.infer<typeof intelligenceEvaluatePayloadSchema>;
-
 // Pricing Schemas
 export const pricingModeSchema = z.enum(['flat_fee', 'usage_per_unit', 'usage_tiered', 'usage_volume']);
 export type PricingMode = z.infer<typeof pricingModeSchema>;

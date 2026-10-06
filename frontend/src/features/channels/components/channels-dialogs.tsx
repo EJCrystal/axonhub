@@ -30,7 +30,6 @@ import { ChannelsSystemSettingsDialog } from './channels-system-settings-dialog'
 import { ChannelsTemplateManagerDialog } from './channels-template-manager-dialog';
 import { ChannelsTestDialog } from './channels-test-dialog';
 import { ChannelsTestHistoryDrawer } from './channels-test-history-drawer';
-import { ChannelsIntelligenceDialog } from './channels-intelligence-dialog';
 import { ChannelsTransformOptionsDialog } from './channels-transform-options-dialog';
 
 export function ChannelsDialogs() {
@@ -267,22 +266,6 @@ export function ChannelsDialogs() {
             onOpenChange={(isOpen) => {
               if (isOpen) {
                 setOpen('testHistory');
-              } else {
-                setOpen(null);
-                setTimeout(() => {
-                  setCurrentRow(null);
-                }, 500);
-              }
-            }}
-            channel={currentRow}
-          />
-
-          <ChannelsIntelligenceDialog
-            key={`channel-intelligence-${currentRow.id}`}
-            open={open === 'intelligence'}
-            onOpenChange={(isOpen) => {
-              if (isOpen) {
-                setOpen('intelligence');
               } else {
                 setOpen(null);
                 setTimeout(() => {
