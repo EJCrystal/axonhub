@@ -6,6 +6,8 @@
   "intelligence.tabs.history": "测试记录",
   "intelligence.tabs.settings": "测试配置",
   "intelligence.history.channelPlaceholder": "选择渠道",
+  "intelligence.history.allChannels": "全部渠道",
+  "intelligence.history.groupCount": "{{count}} 条记录",
   "intelligence.history.refresh": "刷新",
   "intelligence.history.toggle": "展开明细",
   "intelligence.history.notConfigured": "还没有配置参与测试的渠道，先到「测试配置」里添加。",

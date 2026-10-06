@@ -189,7 +189,7 @@ test('quota selection follows quota column visibility and preserves normalized f
     /isChannelColumnVisible\(columnVisibility, 'quota'\)\s*\?\s*CHANNEL_QUERY_QUOTA_SELECTION\s*:\s*''/,
     'hiding quota must remove only the quota selection'
   );
-  assert.match(channelsData, /const \{ columnVisibility, \.\.\.queryInput \} = variables \?\? \{\};/);
+  assert.match(channelsData, /const \{ columnVisibility, full, \.\.\.queryInput \} = variables \?\? \{\};/);
   assert.match(channelsData, /channelListColumnVisibilitySchema\s*=\s*z\.record\(z\.string\(\),\s*z\.boolean\(\)\)/);
   assert.match(channelIndex, /parseChannelColumnVisibility\(JSON\.parse\(stored\)\)/, 'persisted column state must be parsed as boolean visibility');
   assert.match(channelColumns, /quotaWindowLabel\(limit\.window,\s*t\)/, 'window labels should use the active locale');

@@ -12,7 +12,33 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { IntelligenceSettings } from './components/intelligence-settings';
 import { IntelligenceHistoryList } from './components/intelligence-history-list';
 import { useQueryChannels } from '@/features/channels/data/channels';
-import { useIntelligenceConfig, useIntelligenceHistory, useRunIntelligenceCheckNow } from './data/intelligence';
+import {
+  useAllIntelligenceRuns,
+  useIntelligenceConfig,
+  useIntelligenceHistory,
+  useRunIntelligenceCheckNow,
+} from './data/intelligence';
+import { IntelligenceRun, IntelligenceRunConnection } from './data/schema';
+
+// Sentinel for the “all channels” choice. Radix Select reserves the empty
+// string, so the unfiltered option needs a non-empty value.
+const ALL_CHANNELS = '__all__';
+
+interface ChannelRunGroup {
+  channelID: number;
+  channelName: string;
+  edges: { node: IntelligenceRun; cursor: string }[];
+}
+
+// toConnection wraps one channel’s edges back into the connection shape the
+// history table expects, so the same component renders both views.
+function toConnection(edges: { node: IntelligenceRun; cursor: string }[]): IntelligenceRunConnection {
+  return {
+    edges,
+    totalCount: edges.length,
+    pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
+  };
+}
 
 export default function IntelligenceManagement() {
   const { t } = useTranslation();
@@ -31,20 +57,51 @@ export default function IntelligenceManagement() {
     [channels]
   );
 
-  // Default the history view to the first configured channel so the page has
-  // content without an extra click.
-  const effectiveChannelID = useMemo(() => channelID ?? config?.targets[0]?.channelID, [channelID, config?.targets]);
+  const allRuns = useAllIntelligenceRuns(200);
+  const historyQuery = useIntelligenceHistory(channelID);
 
-  const { data: history, isLoading: historyLoading, refetch, isFetching } = useIntelligenceHistory(effectiveChannelID);
+  // Without a channel filter the page merges every channel’s runs, keeping
+  // the newest-first order and grouping consecutive runs by their channel.
+  const groups = useMemo<ChannelRunGroup[]>(() => {
+    const order: number[] = [];
+    const byChannel = new Map<number, ChannelRunGroup>();
+
+    for (const edge of allRuns.data?.edges ?? []) {
+      const node = edge.node;
+      let group = byChannel.get(node.channelID);
+      if (!group) {
+        group = { channelID: node.channelID, channelName: node.channelName, edges: [] };
+        byChannel.set(node.channelID, group);
+        order.push(node.channelID);
+      }
+      group.edges.push(edge);
+    }
+
+    return order.map((id) => byChannel.get(id)!).filter(Boolean);
+  }, [allRuns.data]);
+
+  const showingAll = !channelID;
+  const loading = showingAll ? allRuns.isLoading : historyQuery.isLoading;
+  const fetching = showingAll ? allRuns.isFetching : historyQuery.isFetching;
+  const configured = (config?.targets.length ?? 0) > 0;
+
+  const refresh = () => {
+    if (showingAll) {
+      void allRuns.refetch();
+    } else {
+      void historyQuery.refetch();
+    }
+  };
 
   const actions = (
     <div className='flex items-center gap-2'>
       {channelOptions.length > 0 && (
-        <Select value={effectiveChannelID} onValueChange={setChannelID}>
+        <Select value={channelID ?? ALL_CHANNELS} onValueChange={(value) => setChannelID(value === ALL_CHANNELS ? undefined : value)}>
           <SelectTrigger className='w-48'>
             <SelectValue placeholder={t('intelligence.history.channelPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={ALL_CHANNELS}>{t('intelligence.history.allChannels')}</SelectItem>
             {channelOptions.map((channel) => (
               <SelectItem key={channel.id} value={channel.id}>
                 {channel.name}
@@ -53,7 +110,7 @@ export default function IntelligenceManagement() {
           </SelectContent>
         </Select>
       )}
-      <Button variant='outline' size='sm' onClick={() => refetch()} disabled={isFetching}>
+      <Button variant='outline' size='sm' onClick={refresh} disabled={fetching}>
         <IconRefresh className='mr-1 h-4 w-4' />
         {t('intelligence.history.refresh')}
       </Button>
@@ -80,11 +137,27 @@ export default function IntelligenceManagement() {
         </TabsList>
 
         <TabsContent value='history'>
-          <IntelligenceHistoryList
-            history={history}
-            loading={historyLoading}
-            configured={(config?.targets.length ?? 0) > 0}
-          />
+          {showingAll && groups.length > 0 ? (
+            <div className='space-y-6'>
+              {groups.map((group) => (
+                <div key={group.channelID} className='space-y-2'>
+                  <div className='flex items-center gap-2'>
+                    <h3 className='text-sm font-medium'>{group.channelName || '#' + group.channelID}</h3>
+                    <span className='text-muted-foreground text-xs'>
+                      {t('intelligence.history.groupCount', { count: group.edges.length })}
+                    </span>
+                  </div>
+                  <IntelligenceHistoryList history={toConnection(group.edges)} loading={false} configured={configured} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <IntelligenceHistoryList
+              history={showingAll ? undefined : historyQuery.data}
+              loading={loading}
+              configured={configured}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value='settings'>

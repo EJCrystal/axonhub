@@ -10,7 +10,11 @@ export const intelligenceKeyResultSchema = z.object({
   taskID: z.string().default(''),
   generationMs: z.number().default(0),
   durationMs: z.number().default(0),
-  html: z.string().default(''),
+  // Null whenever the run failed before generation or the source was over
+  // the size cap, so normalize it the way the rest of the payload treats
+  // absent strings. A bare default('') only covers undefined, and a null
+  // from GraphQL would make the whole history parse fail.
+  html: z.string().nullish().transform((value) => value ?? ''),
   error: z.string().optional().nullable(),
 });
 export type IntelligenceKeyResult = z.infer<typeof intelligenceKeyResultSchema>;
