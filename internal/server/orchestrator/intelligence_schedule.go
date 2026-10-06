@@ -274,7 +274,7 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		results = append(results, entry)
 	}
 
-	status := runStatus(result.Total, result.SuccessCount)
+	status := runStatus(results)
 
 	saved, err := s.ent.IntelligenceRun.Create().
 		SetChannelID(channel.ID).
@@ -324,6 +324,64 @@ func (s *IntelligenceService) trimHistory(ctx context.Context, channelID int) er
 	return err
 }
 
+// SetManualVerdict records an operator's verdict for one key of a run, or clears
+// it when verdict is empty, and recomputes the run status. This exists for the
+// case automatic scoring cannot cover: the detection service is unreachable, so
+// a human judges the generated source and the run should end up reflecting that.
+func (s *IntelligenceService) SetManualVerdict(ctx context.Context, runID int, keyPrefix string, verdict string) (*ent.IntelligenceRun, error) {
+	keyPrefix = strings.TrimSpace(keyPrefix)
+	if keyPrefix == "" {
+		return nil, fmt.Errorf("key prefix is required")
+	}
+
+	switch verdict {
+	case "", objects.IntelligenceManualVerdictNormal, objects.IntelligenceManualVerdictDegraded:
+	default:
+		return nil, fmt.Errorf("verdict must be %s or %s", objects.IntelligenceManualVerdictNormal, objects.IntelligenceManualVerdictDegraded)
+	}
+
+	run, err := s.ent.IntelligenceRun.Get(ctx, runID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load intelligence run: %w", err)
+	}
+
+	results := make([]objects.IntelligenceKeyResult, len(run.Results))
+	copy(results, run.Results)
+
+	found := false
+	for i := range results {
+		if results[i].KeyPrefix != keyPrefix {
+			continue
+		}
+		results[i].ManualVerdict = verdict
+		found = true
+	}
+	if !found {
+		return nil, fmt.Errorf("run %d has no result for key %s", runID, keyPrefix)
+	}
+
+	// The counters and the run status follow the effective verdict, so a manual
+	// decision is reflected everywhere the history is read.
+	success := 0
+	for _, result := range results {
+		if keyVerdict(result) == objects.IntelligenceManualVerdictNormal {
+			success++
+		}
+	}
+
+	updated, err := s.ent.IntelligenceRun.UpdateOneID(runID).
+		SetResults(results).
+		SetSuccessKeys(success).
+		SetFailedKeys(len(results) - success).
+		SetStatus(intelligencerun.Status(runStatus(results))).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to record manual verdict: %w", err)
+	}
+
+	return updated, nil
+}
+
 // History returns one channel's most recent runs, newest first.
 func (s *IntelligenceService) History(ctx context.Context, channelID int, first *int) (*ent.IntelligenceRunConnection, error) {
 	limit := intelligenceMaxRunsPerChannel
@@ -368,16 +426,53 @@ func (s *IntelligenceService) History(ctx context.Context, channelID int, first 
 	return connection, nil
 }
 
-// runStatus collapses the per-key outcomes into the run-level verdict. A run
-// with no keys at all counts as failed, since nothing was verified.
-func runStatus(total, success int) objects.IntelligenceRunStatus {
-	switch {
-	case total > 0 && success == total:
-		return objects.IntelligenceRunSucceeded
-	case success > 0:
-		return objects.IntelligenceRunPartial
-	default:
+// runStatus collapses the per-key outcomes into the run-level verdict. A key
+// that never produced an answer counts as failed rather than succeeded, so a
+// run only reads as succeeded when the model was actually judged normal, and
+// only reads as partial when some keys passed and others did not.
+func runStatus(results []objects.IntelligenceKeyResult) objects.IntelligenceRunStatus {
+	if len(results) == 0 {
 		return objects.IntelligenceRunFailed
+	}
+
+	normal, failed := 0, 0
+	for _, result := range results {
+		switch keyVerdict(result) {
+		case objects.IntelligenceManualVerdictNormal:
+			normal++
+		default:
+			failed++
+		}
+	}
+
+	switch {
+	case failed == 0:
+		return objects.IntelligenceRunSucceeded
+	case normal == 0:
+		return objects.IntelligenceRunFailed
+	default:
+		return objects.IntelligenceRunPartial
+	}
+}
+
+// keyVerdict resolves one key's effective outcome. An operator's manual verdict
+// wins over whatever automatic scoring reported, which is what lets a human
+// close out a run whose scoring failed.
+func keyVerdict(result objects.IntelligenceKeyResult) string {
+	switch result.ManualVerdict {
+	case objects.IntelligenceManualVerdictNormal, objects.IntelligenceManualVerdictDegraded:
+		return result.ManualVerdict
+	}
+
+	if !result.Success {
+		return objects.IntelligenceManualVerdictDegraded
+	}
+
+	switch result.Quality {
+	case "normal":
+		return objects.IntelligenceManualVerdictNormal
+	default:
+		return objects.IntelligenceManualVerdictDegraded
 	}
 }
 

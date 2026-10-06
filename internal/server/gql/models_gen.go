@@ -380,16 +380,17 @@ type IntelligenceEvaluatePayload struct {
 }
 
 type IntelligenceKeyResult struct {
-	KeyPrefix    string  `json:"keyPrefix"`
-	Success      bool    `json:"success"`
-	Quality      string  `json:"quality"`
-	Label        string  `json:"label"`
-	Reason       string  `json:"reason"`
-	TaskID       string  `json:"taskID"`
-	GenerationMs int     `json:"generationMs"`
-	DurationMs   int     `json:"durationMs"`
-	HTML         *string `json:"html,omitempty"`
-	Error        *string `json:"error,omitempty"`
+	KeyPrefix     string  `json:"keyPrefix"`
+	Success       bool    `json:"success"`
+	Quality       string  `json:"quality"`
+	Label         string  `json:"label"`
+	Reason        string  `json:"reason"`
+	TaskID        string  `json:"taskID"`
+	GenerationMs  int     `json:"generationMs"`
+	DurationMs    int     `json:"durationMs"`
+	HTML          *string `json:"html,omitempty"`
+	Error         *string `json:"error,omitempty"`
+	ManualVerdict *string `json:"manualVerdict,omitempty"`
 }
 
 type IntelligenceTarget struct {
@@ -513,6 +514,12 @@ type ScopeInfo struct {
 	Scope       string   `json:"scope"`
 	Description string   `json:"description"`
 	Levels      []string `json:"levels"`
+}
+
+type SetIntelligenceRunVerdictInput struct {
+	RunID     objects.GUID `json:"runID"`
+	KeyPrefix string       `json:"keyPrefix"`
+	Verdict   *string      `json:"verdict,omitempty"`
 }
 
 type SignInInput struct {

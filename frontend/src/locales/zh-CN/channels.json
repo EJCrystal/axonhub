@@ -746,8 +746,6 @@
   "channels.dialogs.testAPIKeys.requestFailed": "请求失败",
   "channels.dialogs.intelligence.verdict.normal": "正常",
   "channels.dialogs.intelligence.verdict.degraded": "降智",
-  "channels.dialogs.intelligence.verdict.unknown": "无法判定",
-  "channels.dialogs.intelligence.verdict.incomplete": "未完成",
   "channels.dialogs.intelligence.preview.title": "生成结果预览",
   "channels.dialogs.intelligence.preview.expand": "全屏查看",
   "channels.dialogs.intelligence.preview.missing": "本次没有可预览的生成结果（运行失败，或源码超过大小上限）。",
@@ -987,5 +985,6 @@
   "channels.templates.manager.deleting": "删除中...",
   "channels.templates.dialogs.edit.title": "编辑模板",
   "channels.templates.dialogs.edit.description": "更新模板配置。在你重新应用模板之前，改动不会影响任何渠道。",
-  "channels.templates.validation.duplicateName": "已存在名为 \"{{name}}\" 的模板，请更换名称。"
+  "channels.templates.validation.duplicateName": "已存在名为 \"{{name}}\" 的模板，请更换名称。",
+  "channels.dialogs.intelligence.verdict.failed": "失败"
 }

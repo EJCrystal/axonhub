@@ -14,6 +14,7 @@ import {
   verdictBadgeVariant,
 } from './intelligence-verdict';
 import { IntelligenceRunConnection } from '../data/schema';
+import { useSetIntelligenceRunVerdict } from '../data/intelligence';
 
 interface Props {
   history?: IntelligenceRunConnection;
@@ -24,6 +25,7 @@ interface Props {
 export function IntelligenceHistoryList({ history, loading, configured }: Props) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const setVerdict = useSetIntelligenceRunVerdict();
 
   if (!configured) {
     return <p className='text-muted-foreground py-12 text-center text-sm'>{t('intelligence.history.notConfigured')}</p>;
@@ -109,6 +111,13 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                               <Badge variant={verdictBadgeVariant(intelligenceVerdict(key))}>
                                 {t(`channels.dialogs.intelligence.verdict.${intelligenceVerdict(key)}`)}
                               </Badge>
+                              {key.manualVerdict && (
+                                <span className='text-muted-foreground'>
+                                  {t('intelligence.history.manual.label', {
+                                    verdict: t(`channels.dialogs.intelligence.verdict.${key.manualVerdict}`),
+                                  })}
+                                </span>
+                              )}
                               {key.taskID && (
                                 <span className='text-muted-foreground'>
                                   {t('channels.dialogs.intelligence.taskID', { id: key.taskID })}
@@ -133,6 +142,47 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                                 <p className='text-muted-foreground mt-1'>
                                   {t('intelligence.history.previewAfterFailureDetail')}
                                 </p>
+                              </div>
+                            )}
+                            {/* Automatic scoring can leave no usable verdict; a human then
+                                has to judge the source and record the decision here. */}
+                            {!key.manualVerdict && intelligenceVerdict(key) === 'failed' && (
+                              <div className='mt-2 flex flex-wrap items-center gap-2'>
+                                <Button
+                                  variant='outline'
+                                  size='sm'
+                                  className='h-7'
+                                  disabled={setVerdict.isPending}
+                                  onClick={() =>
+                                    setVerdict.mutate({ runID: run.id, keyPrefix: key.keyPrefix, verdict: 'degraded' })
+                                  }
+                                >
+                                  {t('intelligence.history.manual.markDegraded')}
+                                </Button>
+                                <Button
+                                  variant='outline'
+                                  size='sm'
+                                  className='h-7'
+                                  disabled={setVerdict.isPending}
+                                  onClick={() =>
+                                    setVerdict.mutate({ runID: run.id, keyPrefix: key.keyPrefix, verdict: 'normal' })
+                                  }
+                                >
+                                  {t('intelligence.history.manual.markNormal')}
+                                </Button>
+                              </div>
+                            )}
+                            {key.manualVerdict && (
+                              <div className='mt-2'>
+                                <Button
+                                  variant='ghost'
+                                  size='sm'
+                                  className='h-7'
+                                  disabled={setVerdict.isPending}
+                                  onClick={() => setVerdict.mutate({ runID: run.id, keyPrefix: key.keyPrefix })}
+                                >
+                                  {t('intelligence.history.manual.clear')}
+                                </Button>
                               </div>
                             )}
                             <IntelligenceHTMLPreview html={key.html} verdict={intelligenceVerdict(key)} compact />

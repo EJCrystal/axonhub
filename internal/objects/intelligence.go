@@ -51,4 +51,15 @@ type IntelligenceKeyResult struct {
 	DurationMs int     `json:"durationMs"`
 	HTML       string  `json:"html"`
 	Error      *string `json:"error,omitempty"`
+	// ManualVerdict is an operator's decision when automatic scoring produced no
+	// usable answer, e.g. because the detection service could not be reached. It
+	// takes precedence over Quality so the recorded outcome matches what a human
+	// actually judged, and stays empty until someone sets it.
+	ManualVerdict string `json:"manualVerdict,omitempty"`
 }
+
+// Manual verdicts an operator can record for one key.
+const (
+	IntelligenceManualVerdictNormal   = "normal"
+	IntelligenceManualVerdictDegraded = "degraded"
+)

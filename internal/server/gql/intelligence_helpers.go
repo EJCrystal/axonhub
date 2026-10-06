@@ -42,6 +42,16 @@ func (r *mutationResolver) intelligenceConfigPayload(ctx context.Context) (*Inte
 	}, nil
 }
 
+// intelStringOrNil keeps an absent optional string represented as null rather
+// than an empty string, so the UI can tell "not set" from "set to empty".
+func intelStringOrNil(value string) *string {
+	if value == "" {
+		return nil
+	}
+
+	return lo.ToPtr(value)
+}
+
 // intelHTMLOrNil keeps an absent source represented as null rather than an
 // empty string, so the UI can tell "nothing to preview" from an empty document.
 func intelHTMLOrNil(html string) *string {

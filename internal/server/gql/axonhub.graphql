@@ -435,6 +435,9 @@ type IntelligenceKeyResult {
   # the size cap.
   html: String
   error: String
+  # Operator's decision when automatic scoring produced no usable answer.
+  # normal or degraded; empty until someone records one.
+  manualVerdict: String
 }
 
 input IntelligenceTargetInput {
@@ -1018,6 +1021,14 @@ type DeleteDisabledAPIKeysPayload {
   message: String
 }
 
+input SetIntelligenceRunVerdictInput {
+  runID: ID!
+  # Masked key prefix identifying which result inside the run to update.
+  keyPrefix: String!
+  # normal or degraded. Omit to clear a previously recorded verdict.
+  verdict: String
+}
+
 type Mutation {
   createChannel(input: CreateChannelInput!): Channel!
   duplicateChannel(sourceID: ID!, input: CreateChannelInput!): Channel!
@@ -1043,6 +1054,9 @@ type Mutation {
   setIntelligenceConfig(input: IntelligenceConfigInput!): IntelligenceConfig!
   """Runs every configured target now. Returns how many channels were queued."""
   runIntelligenceCheckNow: Int!
+  # Records an operator's verdict for one key of a run, or clears it when
+  # verdict is omitted. Used when automatic scoring failed.
+  setIntelligenceRunVerdict(input: SetIntelligenceRunVerdictInput!): IntelligenceRun!
   bulkImportChannels(input: BulkImportChannelsInput!): BulkImportChannelsResult!
   bulkUpdateChannelOrdering(
     input: BulkUpdateChannelOrderingInput!

@@ -23,13 +23,32 @@ test('degraded and the historical suspicious label both map to degraded', () => 
   assert.equal(intelligenceVerdict({ success: true, quality: 'suspicious' }), 'degraded');
 });
 
-test('an unrecognized quality is inconclusive, not degraded', () => {
-  assert.equal(intelligenceVerdict({ success: true, quality: 'unknown' }), 'unknown');
-  assert.equal(intelligenceVerdict({ success: true, quality: '' }), 'unknown');
+// The three states answer one question: was there an automatic verdict at all?
+test('an inconclusive assessment collapses into failed', () => {
+  assert.equal(intelligenceVerdict({ success: true, quality: 'unknown' }), 'failed');
+  assert.equal(intelligenceVerdict({ success: true, quality: '' }), 'failed');
 });
 
-test('a failed key has no verdict', () => {
-  assert.equal(intelligenceVerdict({ success: false, quality: 'degraded' }), 'incomplete');
+test('a key that never produced an answer is failed', () => {
+  assert.equal(intelligenceVerdict({ success: false, quality: '' }), 'failed');
+  assert.equal(intelligenceVerdict({ success: false, quality: 'normal' }), 'failed');
+});
+
+test('a manual verdict wins over the automatic result', () => {
+  assert.equal(
+    intelligenceVerdict({ success: false, quality: '', manualVerdict: 'degraded' }),
+    'degraded',
+    'a human can close out a run scoring could not decide'
+  );
+  assert.equal(
+    intelligenceVerdict({ success: true, quality: 'degraded', manualVerdict: 'normal' }),
+    'normal',
+    'a human can overrule the classifier'
+  );
+});
+
+test('an unrecognized manual verdict falls back to the automatic result', () => {
+  assert.equal(intelligenceVerdict({ success: true, quality: 'normal', manualVerdict: 'whatever' }), 'normal');
 });
 
 // The bug this guards: the run status says "succeeded" whenever every key
@@ -69,25 +88,33 @@ test('a run is only normal when every key is normal', () => {
   );
 });
 
-test('a run with no successful key is incomplete', () => {
-  assert.equal(
-    runIntelligenceVerdict({ successKeys: 0, results: [{ success: false, quality: '' }] }),
-    'incomplete'
-  );
-  assert.equal(runIntelligenceVerdict({ successKeys: 0, results: [] }), 'incomplete');
+test('a run with no successful key is failed', () => {
+  assert.equal(runIntelligenceVerdict({ successKeys: 0, results: [{ success: false, quality: '' }] }), 'failed');
+  assert.equal(runIntelligenceVerdict({ successKeys: 0, results: [] }), 'failed');
 });
 
-test('a run of inconclusive keys is unknown', () => {
+test('a run of inconclusive keys is failed', () => {
   assert.equal(
     runIntelligenceVerdict({
       successKeys: 1,
       results: [{ success: true, quality: 'unknown' }],
     }),
-    'unknown'
+    'failed'
   );
 });
 
-test('degraded is the alarming badge and normal is the positive one', () => {
+test('a manual verdict lifts the run out of failed', () => {
+  assert.equal(
+    runIntelligenceVerdict({
+      successKeys: 0,
+      results: [{ success: false, quality: '', manualVerdict: 'degraded' }],
+    }),
+    'degraded'
+  );
+});
+
+test('degraded is the alarming badge, normal the positive one, failed neutral', () => {
   assert.equal(verdictBadgeVariant('degraded'), 'destructive');
   assert.equal(verdictBadgeVariant('normal'), 'default');
+  assert.equal(verdictBadgeVariant('failed'), 'secondary');
 });

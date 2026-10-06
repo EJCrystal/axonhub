@@ -852,16 +852,17 @@ type ComplexityRoot struct {
 	}
 
 	IntelligenceKeyResult struct {
-		DurationMs   func(childComplexity int) int
-		Error        func(childComplexity int) int
-		GenerationMs func(childComplexity int) int
-		HTML         func(childComplexity int) int
-		KeyPrefix    func(childComplexity int) int
-		Label        func(childComplexity int) int
-		Quality      func(childComplexity int) int
-		Reason       func(childComplexity int) int
-		Success      func(childComplexity int) int
-		TaskID       func(childComplexity int) int
+		DurationMs    func(childComplexity int) int
+		Error         func(childComplexity int) int
+		GenerationMs  func(childComplexity int) int
+		HTML          func(childComplexity int) int
+		KeyPrefix     func(childComplexity int) int
+		Label         func(childComplexity int) int
+		ManualVerdict func(childComplexity int) int
+		Quality       func(childComplexity int) int
+		Reason        func(childComplexity int) int
+		Success       func(childComplexity int) int
+		TaskID        func(childComplexity int) int
 	}
 
 	IntelligenceRun struct {
@@ -1127,6 +1128,7 @@ type ComplexityRoot struct {
 		SaveChannelModelPrices                func(childComplexity int, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput) int
 		SaveProxyPreset                       func(childComplexity int, input biz.ProxyPreset) int
 		SetIntelligenceConfig                 func(childComplexity int, input IntelligenceConfigInput) int
+		SetIntelligenceRunVerdict             func(childComplexity int, input SetIntelligenceRunVerdictInput) int
 		SyncChannelModels                     func(childComplexity int, channelID objects.GUID, pattern *string) int
 		TestChannel                           func(childComplexity int, input TestChannelInput) int
 		TestChannelAPIKey                     func(childComplexity int, channelID objects.GUID, key string, modelID *string) int
@@ -2354,6 +2356,7 @@ type MutationResolver interface {
 	EvaluateChannelIntelligence(ctx context.Context, input IntelligenceEvaluateInput) (*IntelligenceEvaluatePayload, error)
 	SetIntelligenceConfig(ctx context.Context, input IntelligenceConfigInput) (*IntelligenceConfig, error)
 	RunIntelligenceCheckNow(ctx context.Context) (int, error)
+	SetIntelligenceRunVerdict(ctx context.Context, input SetIntelligenceRunVerdictInput) (*ent.IntelligenceRun, error)
 	BulkImportChannels(ctx context.Context, input BulkImportChannelsInput) (*biz.BulkImportChannelsResult, error)
 	BulkUpdateChannelOrdering(ctx context.Context, input BulkUpdateChannelOrderingInput) (*BulkUpdateChannelOrderingResult, error)
 	BulkUpdateChannelAutoDisable(ctx context.Context, input biz.BulkUpdateChannelAutoDisableInput) (*BulkUpdateChannelAutoDisablePayload, error)
@@ -5521,6 +5524,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.IntelligenceKeyResult.Label(childComplexity), true
+	case "IntelligenceKeyResult.manualVerdict":
+		if e.complexity.IntelligenceKeyResult.ManualVerdict == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.ManualVerdict(childComplexity), true
 	case "IntelligenceKeyResult.quality":
 		if e.complexity.IntelligenceKeyResult.Quality == nil {
 			break
@@ -7083,6 +7092,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SetIntelligenceConfig(childComplexity, args["input"].(IntelligenceConfigInput)), true
+	case "Mutation.setIntelligenceRunVerdict":
+		if e.complexity.Mutation.SetIntelligenceRunVerdict == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setIntelligenceRunVerdict_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SetIntelligenceRunVerdict(childComplexity, args["input"].(SetIntelligenceRunVerdictInput)), true
 	case "Mutation.syncChannelModels":
 		if e.complexity.Mutation.SyncChannelModels == nil {
 			break
@@ -12436,6 +12456,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputSaveChannelEndpointsInput,
 		ec.unmarshalInputSaveChannelModelPriceInput,
 		ec.unmarshalInputSaveProxyPresetInput,
+		ec.unmarshalInputSetIntelligenceRunVerdictInput,
 		ec.unmarshalInputSignInInput,
 		ec.unmarshalInputSystemOrder,
 		ec.unmarshalInputSystemWhereInput,
@@ -13759,6 +13780,17 @@ func (ec *executionContext) field_Mutation_setIntelligenceConfig_args(ctx contex
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNIntelligenceConfigInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceConfigInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setIntelligenceRunVerdict_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSetIntelligenceRunVerdictInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐSetIntelligenceRunVerdictInput)
 	if err != nil {
 		return nil, err
 	}
@@ -30883,6 +30915,8 @@ func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_results(_ c
 				return ec.fieldContext_IntelligenceKeyResult_html(ctx, field)
 			case "error":
 				return ec.fieldContext_IntelligenceKeyResult_error(ctx, field)
+			case "manualVerdict":
+				return ec.fieldContext_IntelligenceKeyResult_manualVerdict(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IntelligenceKeyResult", field.Name)
 		},
@@ -31168,6 +31202,35 @@ func (ec *executionContext) _IntelligenceKeyResult_error(ctx context.Context, fi
 }
 
 func (ec *executionContext) fieldContext_IntelligenceKeyResult_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_manualVerdict(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_manualVerdict,
+		func(ctx context.Context) (any, error) {
+			return obj.ManualVerdict, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_manualVerdict(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "IntelligenceKeyResult",
 		Field:      field,
@@ -31572,6 +31635,8 @@ func (ec *executionContext) fieldContext_IntelligenceRun_results(_ context.Conte
 				return ec.fieldContext_IntelligenceKeyResult_html(ctx, field)
 			case "error":
 				return ec.fieldContext_IntelligenceKeyResult_error(ctx, field)
+			case "manualVerdict":
+				return ec.fieldContext_IntelligenceKeyResult_manualVerdict(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IntelligenceKeyResult", field.Name)
 		},
@@ -35960,6 +36025,75 @@ func (ec *executionContext) fieldContext_Mutation_runIntelligenceCheckNow(_ cont
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setIntelligenceRunVerdict(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_setIntelligenceRunVerdict,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SetIntelligenceRunVerdict(ctx, fc.Args["input"].(SetIntelligenceRunVerdictInput))
+		},
+		nil,
+		ec.marshalNIntelligenceRun2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRun,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_setIntelligenceRunVerdict(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_IntelligenceRun_id(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_IntelligenceRun_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_IntelligenceRun_updatedAt(ctx, field)
+			case "channelID":
+				return ec.fieldContext_IntelligenceRun_channelID(ctx, field)
+			case "channelName":
+				return ec.fieldContext_IntelligenceRun_channelName(ctx, field)
+			case "modelID":
+				return ec.fieldContext_IntelligenceRun_modelID(ctx, field)
+			case "trigger":
+				return ec.fieldContext_IntelligenceRun_trigger(ctx, field)
+			case "status":
+				return ec.fieldContext_IntelligenceRun_status(ctx, field)
+			case "totalKeys":
+				return ec.fieldContext_IntelligenceRun_totalKeys(ctx, field)
+			case "successKeys":
+				return ec.fieldContext_IntelligenceRun_successKeys(ctx, field)
+			case "failedKeys":
+				return ec.fieldContext_IntelligenceRun_failedKeys(ctx, field)
+			case "durationMs":
+				return ec.fieldContext_IntelligenceRun_durationMs(ctx, field)
+			case "results":
+				return ec.fieldContext_IntelligenceRun_results(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type IntelligenceRun", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setIntelligenceRunVerdict_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -87450,6 +87584,47 @@ func (ec *executionContext) unmarshalInputSaveProxyPresetInput(ctx context.Conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputSetIntelligenceRunVerdictInput(ctx context.Context, obj any) (SetIntelligenceRunVerdictInput, error) {
+	var it SetIntelligenceRunVerdictInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"runID", "keyPrefix", "verdict"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "runID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("runID"))
+			data, err := ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RunID = data
+		case "keyPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("keyPrefix"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.KeyPrefix = data
+		case "verdict":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("verdict"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Verdict = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputSignInInput(ctx context.Context, obj any) (SignInInput, error) {
 	var it SignInInput
 	asMap := map[string]any{}
@@ -102112,6 +102287,8 @@ func (ec *executionContext) _IntelligenceKeyResult(ctx context.Context, sel ast.
 			out.Values[i] = ec._IntelligenceKeyResult_html(ctx, field, obj)
 		case "error":
 			out.Values[i] = ec._IntelligenceKeyResult_error(ctx, field, obj)
+		case "manualVerdict":
+			out.Values[i] = ec._IntelligenceKeyResult_manualVerdict(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -103730,6 +103907,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "runIntelligenceCheckNow":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_runIntelligenceCheckNow(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setIntelligenceRunVerdict":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setIntelligenceRunVerdict(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -119582,6 +119766,20 @@ func (ec *executionContext) marshalNIntelligenceKeyResult2ᚖgithubᚗcomᚋloop
 	return ec._IntelligenceKeyResult(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNIntelligenceRun2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRun(ctx context.Context, sel ast.SelectionSet, v ent.IntelligenceRun) graphql.Marshaler {
+	return ec._IntelligenceRun(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNIntelligenceRun2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRun(ctx context.Context, sel ast.SelectionSet, v *ent.IntelligenceRun) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._IntelligenceRun(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNIntelligenceRunConnection2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunConnection(ctx context.Context, sel ast.SelectionSet, v ent.IntelligenceRunConnection) graphql.Marshaler {
 	return ec._IntelligenceRunConnection(ctx, sel, &v)
 }
@@ -122007,6 +122205,11 @@ func (ec *executionContext) marshalNSegment2ᚖgithubᚗcomᚋloopljᚋaxonhub�
 		return graphql.Null
 	}
 	return ec._Segment(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSetIntelligenceRunVerdictInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐSetIntelligenceRunVerdictInput(ctx context.Context, v any) (SetIntelligenceRunVerdictInput, error) {
+	res, err := ec.unmarshalInputSetIntelligenceRunVerdictInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNSpan2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSpan(ctx context.Context, sel ast.SelectionSet, v biz.Span) graphql.Marshaler {

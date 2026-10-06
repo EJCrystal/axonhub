@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"entgo.io/contrib/entgql"
 	"github.com/looplj/axonhub/internal/authz"
@@ -440,6 +441,16 @@ func (r *mutationResolver) SetIntelligenceConfig(ctx context.Context, input Inte
 // RunIntelligenceCheckNow is the resolver for the runIntelligenceCheckNow field.
 func (r *mutationResolver) RunIntelligenceCheckNow(ctx context.Context) (int, error) {
 	return r.intelligenceService.RunManual(ctx)
+}
+
+// SetIntelligenceRunVerdict is the resolver for the setIntelligenceRunVerdict field.
+func (r *mutationResolver) SetIntelligenceRunVerdict(ctx context.Context, input SetIntelligenceRunVerdictInput) (*ent.IntelligenceRun, error) {
+	verdict := ""
+	if input.Verdict != nil {
+		verdict = strings.TrimSpace(*input.Verdict)
+	}
+
+	return r.intelligenceService.SetManualVerdict(ctx, input.RunID.ID, input.KeyPrefix, verdict)
 }
 
 // BulkImportChannels is the resolver for the bulkImportChannels field.
