@@ -16,8 +16,10 @@ export const intelligenceKeyResultSchema = z.object({
   // from GraphQL would make the whole history parse fail.
   html: z.string().nullish().transform((value) => value ?? ''),
   error: z.string().optional().nullable(),
-  // An operator's verdict, set when automatic scoring could not decide.
-  manualVerdict: z.string().default(''),
+  // An operator's verdict, set when automatic scoring could not decide. The
+  // backend sends null when there is none, and default() only covers
+  // undefined, so a bare default would fail the whole history parse.
+  manualVerdict: z.string().nullish().transform((value) => value ?? ''),
 });
 export type IntelligenceKeyResult = z.infer<typeof intelligenceKeyResultSchema>;
 
