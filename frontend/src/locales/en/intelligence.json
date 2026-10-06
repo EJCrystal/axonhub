@@ -12,6 +12,7 @@
   "intelligence.history.toggle": "Expand details",
   "intelligence.history.notConfigured": "No channel is configured yet. Add one under Settings.",
   "intelligence.history.empty": "No runs recorded for this channel yet.",
+  "intelligence.history.previewAfterFailure": "The model produced this, but submitting it for scoring failed, so there is no verdict.",
   "intelligence.history.loading": "Loading...",
   "intelligence.history.columns.time": "Time",
   "intelligence.history.columns.model": "Model",
