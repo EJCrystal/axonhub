@@ -42,8 +42,6 @@ import {
   testAPIKeyResultSchema,
   DetectedChannelEndpoint,
   detectedChannelEndpointSchema,
-  IntelligenceEvaluatePayload,
-  intelligenceEvaluatePayloadSchema,
 } from './schema';
 
 const QUERY_CHANNEL_NAMES_QUERY = `
@@ -570,30 +568,6 @@ const TEST_CHANNEL_API_KEY_MUTATION = `
       latency
       error
       disabled
-    }
-  }
-`;
-
-const EVALUATE_CHANNEL_INTELLIGENCE_MUTATION = `
-  mutation EvaluateChannelIntelligence($input: IntelligenceEvaluateInput!) {
-    evaluateChannelIntelligence(input: $input) {
-      channelID
-      model
-      total
-      successCount
-      failedCount
-      results {
-        keyPrefix
-        success
-        quality
-        label
-        reason
-        taskID
-        generationMs
-        durationMs
-        html
-        error
-      }
     }
   }
 `;
@@ -2068,29 +2042,6 @@ export function useTestChannelAPIKey() {
         modelID,
       });
       return testAPIKeyResultSchema.parse(data.testChannelAPIKey);
-    },
-  });
-}
-
-export interface EvaluateChannelIntelligenceInput {
-  channelID: string;
-  modelID?: string;
-  keys?: string[];
-  prompt?: string;
-  baseURL?: string;
-}
-
-// Runs the manxue.ai pelican HTML evaluation for one channel. Each targeted API
-// key generates the HTML with the tested model and submits it for scoring, so a
-// single run can take several minutes; errors are surfaced by the caller.
-export function useEvaluateChannelIntelligence() {
-  return useMutation({
-    mutationFn: async (input: EvaluateChannelIntelligenceInput) => {
-      const data = await graphqlRequest<{ evaluateChannelIntelligence: IntelligenceEvaluatePayload }>(
-        EVALUATE_CHANNEL_INTELLIGENCE_MUTATION,
-        { input }
-      );
-      return intelligenceEvaluatePayloadSchema.parse(data.evaluateChannelIntelligence);
     },
   });
 }

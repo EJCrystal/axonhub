@@ -22,7 +22,6 @@ import {
   IconKeyOff,
   IconGauge,
   IconHistory,
-  IconBrain,
   IconPlugConnected,
   IconClockPlay,
 } from '@tabler/icons-react';
@@ -166,11 +165,6 @@ const ActionCell = memo(({ row }: { row: Row<Channel> }) => {
     setOpen('test');
   }, [channel, setCurrentRow, setOpen]);
 
-  const handleOpenIntelligenceDialog = useCallback(() => {
-    setCurrentRow(channel);
-    setOpen('intelligence');
-  }, [channel, setCurrentRow, setOpen]);
-
   const handleEdit = useCallback(() => {
     setCurrentRow(channel);
     setOpen('edit');
@@ -203,13 +197,6 @@ const ActionCell = memo(({ row }: { row: Row<Channel> }) => {
           >
             <IconHistory size={16} className='mr-2' />
             {t('channels.actions.testHistory')}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            data-testid='channel-intelligence-action'
-            onClick={handleOpenIntelligenceDialog}
-          >
-            <IconBrain size={16} className='mr-2' />
-            {t('channels.actions.intelligence')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
 
