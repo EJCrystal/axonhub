@@ -124,7 +124,14 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                               </p>
                             )}
                             {key.error && <ErrorDisplay error={key.error} messageClassName='mt-2 text-xs text-red-600' />}
-                            <IntelligenceHTMLPreview html={key.html} verdict={intelligenceVerdict(key)} />
+                            {/* A run can fail after the model already produced its answer, so a
+                                failed key still has source worth looking at. Say why it is here. */}
+                            {key.error && key.html && (
+                              <p className='text-muted-foreground mt-2'>
+                                {t('intelligence.history.previewAfterFailure')}
+                              </p>
+                            )}
+                            <IntelligenceHTMLPreview html={key.html} verdict={intelligenceVerdict(key)} compact />
                           </div>
                         ))}
                       </div>
