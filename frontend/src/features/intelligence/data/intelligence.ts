@@ -9,6 +9,7 @@ import {
   IntelligenceRunConnection,
   intelligenceConfigSchema,
   intelligenceRunConnectionSchema,
+  intelligenceRunSchema,
 } from './schema';
 
 const INTELLIGENCE_CONFIG_QUERY = `
@@ -82,6 +83,7 @@ const INTELLIGENCE_HISTORY_QUERY = `
             durationMs
             html
             error
+            manualVerdict
           }
         }
       }
@@ -118,6 +120,7 @@ const ALL_INTELLIGENCE_RUNS_QUERY = `
             durationMs
             html
             error
+            manualVerdict
           }
         }
       }
@@ -205,6 +208,53 @@ export function useAllIntelligenceRuns(first = 200) {
       const data = await graphqlRequest<{ intelligenceRuns: unknown }>(ALL_INTELLIGENCE_RUNS_QUERY, { first });
       return intelligenceRunConnectionSchema.parse(data.intelligenceRuns) as IntelligenceRunConnection;
     },
+  });
+}
+
+const SET_INTELLIGENCE_RUN_VERDICT_MUTATION = `
+  mutation SetIntelligenceRunVerdict($input: SetIntelligenceRunVerdictInput!) {
+    setIntelligenceRunVerdict(input: $input) {
+      id
+      status
+      successKeys
+      failedKeys
+      results {
+        keyPrefix
+        success
+        quality
+        label
+        reason
+        taskID
+        generationMs
+        durationMs
+        html
+        error
+        manualVerdict
+      }
+    }
+  }
+`;
+
+// useSetIntelligenceRunVerdict records an operator's verdict for one key of a
+// run, or clears it when verdict is undefined.
+export function useSetIntelligenceRunVerdict() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { handleError } = useErrorHandler();
+
+  return useMutation({
+    mutationFn: async (input: { runID: string; keyPrefix: string; verdict?: 'normal' | 'degraded' }) => {
+      const data = await graphqlRequest<{ setIntelligenceRunVerdict: unknown }>(SET_INTELLIGENCE_RUN_VERDICT_MUTATION, {
+        input: { runID: input.runID, keyPrefix: input.keyPrefix, verdict: input.verdict ?? null },
+      });
+      return intelligenceRunSchema.parse(data.setIntelligenceRunVerdict);
+    },
+    onSuccess: () => {
+      toast.success(t('intelligence.messages.verdictSaved'));
+      queryClient.invalidateQueries({ queryKey: ['intelligence-history'] });
+      queryClient.invalidateQueries({ queryKey: ['intelligence-runs'] });
+    },
+    onError: (error) => handleError(error),
   });
 }
 

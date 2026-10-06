@@ -749,8 +749,6 @@
   "channels.dialogs.testAPIKeys.requestFailed": "Request failed",
   "channels.dialogs.intelligence.verdict.normal": "Normal",
   "channels.dialogs.intelligence.verdict.degraded": "Degraded",
-  "channels.dialogs.intelligence.verdict.unknown": "Inconclusive",
-  "channels.dialogs.intelligence.verdict.incomplete": "Not completed",
   "channels.dialogs.intelligence.preview.title": "Generated result preview",
   "channels.dialogs.intelligence.preview.expand": "Open full size",
   "channels.dialogs.intelligence.preview.missing": "Nothing to preview for this run (it failed, or the source exceeded the size cap).",
@@ -987,5 +985,6 @@
   "channels.templates.manager.deleting": "Deleting...",
   "channels.templates.dialogs.edit.title": "Edit Template",
   "channels.templates.dialogs.edit.description": "Update the template configuration. Changes do not affect channels until you apply the template again.",
-  "channels.templates.validation.duplicateName": "A template named \"{{name}}\" already exists. Choose a different name."
+  "channels.templates.validation.duplicateName": "A template named \"{{name}}\" already exists. Choose a different name.",
+  "channels.dialogs.intelligence.verdict.failed": "Failed"
 }

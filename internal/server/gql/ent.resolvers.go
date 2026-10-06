@@ -258,16 +258,17 @@ func (r *intelligenceRunResolver) Results(ctx context.Context, obj *ent.Intellig
 	results := make([]*IntelligenceKeyResult, 0, len(obj.Results))
 	for _, item := range obj.Results {
 		results = append(results, &IntelligenceKeyResult{
-			KeyPrefix:    item.KeyPrefix,
-			Success:      item.Success,
-			Quality:      item.Quality,
-			Label:        item.Label,
-			Reason:       item.Reason,
-			TaskID:       item.TaskID,
-			GenerationMs: item.GenerationMs,
-			DurationMs:   item.DurationMs,
-			HTML:         intelHTMLOrNil(item.HTML),
-			Error:        item.Error,
+			KeyPrefix:     item.KeyPrefix,
+			Success:       item.Success,
+			Quality:       item.Quality,
+			Label:         item.Label,
+			Reason:        item.Reason,
+			TaskID:        item.TaskID,
+			GenerationMs:  item.GenerationMs,
+			DurationMs:    item.DurationMs,
+			HTML:          intelHTMLOrNil(item.HTML),
+			Error:         item.Error,
+			ManualVerdict: intelStringOrNil(item.ManualVerdict),
 		})
 	}
 
