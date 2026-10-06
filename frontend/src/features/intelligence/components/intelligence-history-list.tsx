@@ -124,12 +124,16 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                               </p>
                             )}
                             {key.error && <ErrorDisplay error={key.error} messageClassName='mt-2 text-xs text-red-600' />}
-                            {/* A run can fail after the model already produced its answer, so a
-                                failed key still has source worth looking at. Say why it is here. */}
+                            {/* A run can fail after the model already produced its answer. The
+                                reader then has to judge the source themselves, so the call to
+                                action comes first and the cause follows. */}
                             {key.error && key.html && (
-                              <p className='text-muted-foreground mt-2'>
-                                {t('intelligence.history.previewAfterFailure')}
-                              </p>
+                              <div className='mt-2 rounded-md border border-dashed p-2'>
+                                <p className='font-medium'>{t('intelligence.history.previewAfterFailure')}</p>
+                                <p className='text-muted-foreground mt-1'>
+                                  {t('intelligence.history.previewAfterFailureDetail')}
+                                </p>
+                              </div>
                             )}
                             <IntelligenceHTMLPreview html={key.html} verdict={intelligenceVerdict(key)} compact />
                           </div>
