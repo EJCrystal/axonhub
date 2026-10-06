@@ -6,6 +6,7 @@ import (
 
 	"github.com/samber/lo"
 
+	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/objects"
 )
 
@@ -25,7 +26,7 @@ func (r *mutationResolver) intelligenceConfigPayload(ctx context.Context) (*Inte
 		}
 
 		entry := &IntelligenceTarget{
-			ChannelID:   objects.GUID{Type: "channel", ID: target.ChannelID},
+			ChannelID:   objects.GUID{Type: ent.TypeChannel, ID: target.ChannelID},
 			ChannelName: name,
 			ModelID:     target.ModelID,
 		}
