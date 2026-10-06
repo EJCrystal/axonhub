@@ -49,5 +49,15 @@
   "intelligence.history.manual.markDegraded": "Mark as degraded",
   "intelligence.history.manual.markNormal": "Mark as normal",
   "intelligence.history.manual.clear": "Clear manual verdict",
-  "intelligence.history.manual.label": "Manual: {{verdict}}"
+  "intelligence.history.manual.label": "Manual: {{verdict}}",
+  "intelligence.history.keyPlaceholder": "API key",
+  "intelligence.history.allKeys": "All keys",
+  "intelligence.history.modelPlaceholder": "Model",
+  "intelligence.history.allModels": "All models",
+  "intelligence.history.clearFilters": "Clear filters",
+  "intelligence.history.verdictFilter.label": "Verdict",
+  "intelligence.history.verdictFilter.all": "All verdicts",
+  "intelligence.history.verdictFilter.degraded": "Degraded only",
+  "intelligence.history.verdictFilter.failed": "Scoring failed only",
+  "intelligence.history.verdictFilter.normal": "Normal only"
 }
