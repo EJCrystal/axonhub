@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"testing"
 
 	"github.com/samber/lo"
@@ -139,4 +140,74 @@ func TestSetManualVerdictRejectsBadInput(t *testing.T) {
 
 	_, err = service.SetManualVerdict(ctx, run.ID, "   ", objects.IntelligenceManualVerdictNormal)
 	require.Error(t, err, "an empty key prefix must be rejected")
+}
+
+// TestRunConfiguredTargetsAttachesEntClient guards the scheduled path: the
+// scheduler invokes tasks with a context it builds itself, so the ent client is
+// absent and every downstream ent read (including the request persistence
+// middleware) would nil-dereference. The service must attach its own client.
+func TestRunConfiguredTargetsAttachesEntClient(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:attach-ent?mode=memory&_fk=1")
+	defer client.Close()
+
+	service := &IntelligenceService{ent: client}
+
+	// Stand-in for the scheduler's own context, which carries no client.
+	bare := context.Background()
+	require.Nil(t, ent.FromContext(bare), "the scheduler context has no client")
+
+	recorded := service.attachEntClient(bare)
+	require.Same(t, client, ent.FromContext(recorded), "the run must carry an ent client")
+
+	// A context that already has one is left alone, so the request path is
+	// unaffected.
+	withClient := ent.NewContext(bare, client)
+	require.Same(t, client, ent.FromContext(service.attachEntClient(withClient)))
+}
+
+// TestRunConfiguredTargetsWithoutEntClientWouldPanic documents why the attach
+// above is required rather than cosmetic.
+func TestRunConfiguredTargetsWithoutEntClientWouldPanic(t *testing.T) {
+	require.Nil(t, ent.FromContext(context.Background()))
+	require.Panics(t, func() {
+		_ = ent.FromContext(context.Background()).DataStorage
+	})
+}
+
+// TestScheduledRunSurvivesMissingEntClient reproduces the panic reported from
+// the scheduler: its context carries no ent client, so a run that reaches the
+// request persistence path used to nil-dereference inside ent.FromContext.
+// Driving one target end to end proves the attach covers the whole chain, not
+// just the first read.
+func TestScheduledRunSurvivesMissingEntClient(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:sched-ent?mode=memory&_fk=1")
+	defer client.Close()
+
+	// A data storage row must exist, otherwise the persistence middleware has
+	// nothing to resolve and the test would pass for the wrong reason.
+	seedCtx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	if _, err := client.DataStorage.Create().
+		SetName("Primary").
+		SetDescription("test").
+		SetPrimary(true).
+		SetStatus("active").
+		SetType("fs").
+		SetSettings(&objects.DataStorageSettings{}).
+		Save(seedCtx); err != nil {
+		t.Fatalf("seed data storage: %v", err)
+	}
+
+	// The scheduler hands the task a context with neither a client nor a
+	// principal; the bypass mirrors what runScheduled sets up.
+	bare := authz.WithSystemBypass(context.Background(), "test")
+	require.Nil(t, ent.FromContext(bare))
+
+	service := &IntelligenceService{ent: client}
+	attached := service.attachEntClient(bare)
+	require.NotNil(t, ent.FromContext(attached), "the run context must carry a client")
+
+	// The exact read that panicked.
+	require.NotPanics(t, func() {
+		_, _ = ent.FromContext(attached).DataStorage.Get(attached, 1)
+	})
 }

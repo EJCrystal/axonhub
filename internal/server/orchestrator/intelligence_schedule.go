@@ -224,13 +224,31 @@ func (s *IntelligenceService) RunManual(ctx context.Context) (int, error) {
 
 // runConfiguredTargets evaluates every target, one channel at a time so a run
 // does not fan out past the upstream concurrency the check already uses.
+//
+// The scheduler invokes its tasks with a context it builds itself, which
+// carries no ent client, while the work below reads and writes through ent both
+// directly and inside the request persistence middleware. Attaching the client
+// here covers the scheduled path without depending on how the run was started.
 func (s *IntelligenceService) runConfiguredTargets(ctx context.Context, config *objects.IntelligenceConfig, trigger string) {
+	ctx = s.attachEntClient(ctx)
+
 	for _, target := range config.Targets {
 		if err := s.runOneChannel(ctx, target, trigger); err != nil {
 			log.Error(ctx, "intelligence check: channel run failed",
 				log.Int("channel_id", target.ChannelID), log.Cause(err))
 		}
 	}
+}
+
+// attachEntClient makes sure the context carries the service's ent client.
+// A context that already has one keeps it, so callers that came in through a
+// request are unaffected.
+func (s *IntelligenceService) attachEntClient(ctx context.Context) context.Context {
+	if s.ent == nil || ent.FromContext(ctx) != nil {
+		return ctx
+	}
+
+	return ent.NewContext(ctx, s.ent)
 }
 
 // runOneChannel evaluates every enabled key of one channel and records the run.
