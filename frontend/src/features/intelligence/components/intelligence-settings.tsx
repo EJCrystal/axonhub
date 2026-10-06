@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useQueryChannels } from '@/features/channels/data/channels';
 import { modelsForAPIKey } from '../data/api-key-models';
 import { maskAPIKey } from '../data/mask-key';
+import { channelIdKey, sameChannelId } from '../data/channel-id';
 import { INTELLIGENCE_INTERVALS, IntelligenceConfig, IntelligenceInterval } from '../data/schema';
 import { useSetIntelligenceConfig } from '../data/intelligence';
 
@@ -60,7 +61,9 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
     [channels]
   );
 
-  const channelByID = (id: string) => channelOptions.find((channel) => channel.id === id);
+  // A saved target stores its channel as a GID whose type segment used to be
+  // written lowercase, so match on the numeric id rather than the raw string.
+  const channelByID = (id: string) => channelOptions.find((channel) => sameChannelId(channel.id, id));
 
   // Enabled keys only: a disabled key cannot be exercised by the check.
   const keysFor = (channelID: string) => {
@@ -80,7 +83,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
   };
 
   const addTarget = () => {
-    const next = channelOptions.find((channel) => !targets.some((target) => target.channelID === channel.id));
+    const next = channelOptions.find((channel) => !targets.some((target) => sameChannelId(target.channelID, channel.id)));
     if (!next) return;
     const apiKey = keysFor(next.id)[0] ?? '';
     setTargets((prev) => [...prev, { channelID: next.id, apiKey, modelID: modelsFor(next.id, apiKey)[0] ?? '' }]);
@@ -166,7 +169,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                   </TableRow>
                 )}
                 {targets.map((target, index) => {
-                  const used = new Set(targets.filter((_, i) => i !== index).map((item) => item.channelID));
+                  const used = new Set(targets.filter((_, i) => i !== index).map((item) => channelIdKey(item.channelID)));
                   const keys = keysFor(target.channelID);
                   const models = modelsFor(target.channelID, target.apiKey);
                   return (
@@ -185,7 +188,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                           </SelectTrigger>
                           <SelectContent>
                             {channelOptions
-                              .filter((channel) => !used.has(channel.id))
+                              .filter((channel) => !used.has(channelIdKey(channel.id)))
                               .map((channel) => (
                                 <SelectItem key={channel.id} value={channel.id}>
                                   {channel.name}
