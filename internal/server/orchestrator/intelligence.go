@@ -2,7 +2,9 @@ package orchestrator
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -45,6 +47,13 @@ const (
 	// intelligencePollInterval follows the service guidance of polling every
 	// 2-5 seconds until the task reaches a terminal state.
 	intelligencePollInterval = 3 * time.Second
+
+	// intelligenceSubmitAttempts bounds the retries when submitting the generated
+	// HTML. A transient reset or EOF leaves no task behind, so retrying is safe.
+	intelligenceSubmitAttempts = 3
+
+	// intelligenceSubmitRetryDelay is the base backoff between submit attempts.
+	intelligenceSubmitRetryDelay = 2 * time.Second
 
 	// intelligencePollTimeout mirrors the documented 10 minute task ceiling.
 	intelligencePollTimeout = 5 * time.Minute
@@ -116,10 +125,47 @@ func newIntelligenceEvaluator(httpClient *httpclient.HttpClient, baseURL string)
 		base = defaultIntelligenceBaseURL
 	}
 
-	return &intelligenceEvaluator{httpClient: httpClient, baseURL: base}
+	return &intelligenceEvaluator{httpClient: newIntelligenceHTTP1Client(httpClient), baseURL: base}
 }
 
-// submit creates an HTML evaluation task and returns its task id.
+// newIntelligenceHTTP1Client derives an HTTP/1.1-only client from the shared
+// one. The detection service sits behind Cloudflare, and its HTTP/2 streams
+// intermittently die with PROTOCOL_ERROR when they run through a CONNECT
+// proxy, which fails the whole check. An empty, non-nil TLSNextProto map
+// keeps the transport on HTTP/1.1 while inheriting the base client's proxy and
+// TLS settings.
+func newIntelligenceHTTP1Client(base *httpclient.HttpClient) *httpclient.HttpClient {
+	if base == nil {
+		return nil
+	}
+
+	var transport *http.Transport
+	if native := base.GetNativeClient(); native != nil {
+		if tr, ok := native.Transport.(*http.Transport); ok && tr != nil {
+			transport = tr.Clone()
+		}
+	}
+	if transport == nil {
+		if defaultTransport, ok := http.DefaultTransport.(*http.Transport); ok {
+			transport = defaultTransport.Clone()
+		}
+	}
+	if transport == nil {
+		transport = &http.Transport{Proxy: base.ProxyFunc()}
+	}
+	if transport.TLSClientConfig != nil {
+		transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+	}
+
+	transport.ForceAttemptHTTP2 = false
+	transport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
+
+	return httpclient.NewHttpClientWithClient(&http.Client{Transport: transport})
+}
+
+// submit creates an HTML evaluation task and returns its task id. Transient
+// transport failures are retried: a lost response leaves no task behind, and a
+// short upstream hiccup would otherwise fail the whole check.
 func (c *intelligenceEvaluator) submit(ctx context.Context, html string) (string, error) {
 	body, err := json.Marshal(map[string]string{
 		"benchmark": intelligenceBenchmark,
@@ -129,6 +175,31 @@ func (c *intelligenceEvaluator) submit(ctx context.Context, html string) (string
 		return "", fmt.Errorf("failed to marshal evaluation request: %w", err)
 	}
 
+	var lastErr error
+	for attempt := 1; attempt <= intelligenceSubmitAttempts; attempt++ {
+		if attempt > 1 {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(intelligenceSubmitRetryDelay * time.Duration(attempt-1)):
+			}
+		}
+
+		taskID, err := c.submitOnce(ctx, body)
+		if err == nil {
+			return taskID, nil
+		}
+		lastErr = err
+		if !isRetriableSubmitError(err) {
+			break
+		}
+	}
+
+	return "", lastErr
+}
+
+// submitOnce performs a single submit attempt.
+func (c *intelligenceEvaluator) submitOnce(ctx context.Context, body []byte) (string, error) {
 	response, err := c.httpClient.Do(ctx, &httpclient.Request{
 		Method:      http.MethodPost,
 		URL:         c.baseURL + intelligenceTestsPath,
@@ -148,6 +219,18 @@ func (c *intelligenceEvaluator) submit(ctx context.Context, html string) (string
 	}
 
 	return taskID, nil
+}
+
+// isRetriableSubmitError reports whether a failed submit is worth another try.
+// Transport-level failures always are; HTTP errors only when the service side
+// failed, since a rejected payload fails the same way every time.
+func isRetriableSubmitError(err error) bool {
+	var httpErr *httpclient.Error
+	if errors.As(err, &httpErr) {
+		return httpErr.StatusCode >= http.StatusInternalServerError
+	}
+
+	return true
 }
 
 // wait polls a task until it reaches a terminal state.

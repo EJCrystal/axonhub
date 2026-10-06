@@ -442,9 +442,21 @@ func (r *queryResolver) DataStorages(ctx context.Context, after *entgql.Cursor[i
 	)
 }
 
-// IntelligenceRuns is the resolver for the intelligenceRuns field.
+// IntelligenceRuns is the resolver for the intelligenceRuns field. It backs
+// the unfiltered history view, which merges every channel's runs newest first.
 func (r *queryResolver) IntelligenceRuns(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.IntelligenceRunOrder, where *ent.IntelligenceRunWhereInput) (*ent.IntelligenceRunConnection, error) {
-	panic(fmt.Errorf("not implemented: IntelligenceRuns - intelligenceRuns"))
+	if err := validatePaginationArgs(first, last); err != nil {
+		return nil, err
+	}
+
+	if orderBy != nil && orderBy.Field.String() == "CREATED_AT" {
+		orderBy.Field = ent.IntelligenceRunOrderFieldCreatedAt
+	}
+
+	return r.client.IntelligenceRun.Query().Paginate(ctx, after, first, before, last,
+		ent.WithIntelligenceRunOrder(orderBy),
+		ent.WithIntelligenceRunFilter(where.Filter),
+	)
 }
 
 // Models is the resolver for the models field.

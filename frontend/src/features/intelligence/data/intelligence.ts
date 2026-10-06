@@ -89,6 +89,42 @@ const INTELLIGENCE_HISTORY_QUERY = `
   }
 `;
 
+const ALL_INTELLIGENCE_RUNS_QUERY = `
+  query AllIntelligenceRuns($first: Int) {
+    intelligenceRuns(first: $first, orderBy: { field: CREATED_AT, direction: DESC }) {
+      totalCount
+      edges {
+        cursor
+        node {
+          id
+          createdAt
+          channelID
+          channelName
+          modelID
+          trigger
+          status
+          totalKeys
+          successKeys
+          failedKeys
+          durationMs
+          results {
+            keyPrefix
+            success
+            quality
+            label
+            reason
+            taskID
+            generationMs
+            durationMs
+            html
+            error
+          }
+        }
+      }
+    }
+  }
+`;
+
 export function useIntelligenceConfig() {
   return useQuery({
     queryKey: ['intelligence-config'],
@@ -154,6 +190,20 @@ export function useIntelligenceHistory(channelID?: string, first = 50) {
         first,
       });
       return intelligenceRunConnectionSchema.parse(data.intelligenceHistory) as IntelligenceRunConnection;
+    },
+  });
+}
+
+// useAllIntelligenceRuns powers the unfiltered view: every channel's runs,
+// newest first. The backend returns them across channels and the page groups
+// them for display.
+export function useAllIntelligenceRuns(first = 200) {
+  return useQuery({
+    queryKey: ['intelligence-runs', 'all', first],
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const data = await graphqlRequest<{ intelligenceRuns: unknown }>(ALL_INTELLIGENCE_RUNS_QUERY, { first });
+      return intelligenceRunConnectionSchema.parse(data.intelligenceRuns) as IntelligenceRunConnection;
     },
   });
 }

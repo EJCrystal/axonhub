@@ -6,6 +6,8 @@
   "intelligence.tabs.history": "History",
   "intelligence.tabs.settings": "Settings",
   "intelligence.history.channelPlaceholder": "Select a channel",
+  "intelligence.history.allChannels": "All channels",
+  "intelligence.history.groupCount": "{{count}} runs",
   "intelligence.history.refresh": "Refresh",
   "intelligence.history.toggle": "Expand details",
   "intelligence.history.notConfigured": "No channel is configured yet. Add one under Settings.",

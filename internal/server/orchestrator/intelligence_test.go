@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -175,4 +176,77 @@ func TestHTMLForResult(t *testing.T) {
 		html := strings.Repeat("x", intelligenceHTMLMaxBytes)
 		require.Equal(t, &html, htmlForResult(html))
 	})
+}
+
+// TestIntelligenceHTTP1ClientDisablesH2 verifies the evaluator forces HTTP/1.1,
+// since manxue.ai's HTTP/2 streams intermittently die behind a CONNECT proxy.
+func TestIntelligenceHTTP1ClientDisablesH2(t *testing.T) {
+	base := httpclient.NewHttpClient()
+	derived := newIntelligenceHTTP1Client(base)
+	require.NotNil(t, derived)
+
+	native := derived.GetNativeClient()
+	require.NotNil(t, native)
+	transport, ok := native.Transport.(*http.Transport)
+	require.True(t, ok, "derived client should keep an *http.Transport")
+	require.False(t, transport.ForceAttemptHTTP2)
+	require.NotNil(t, transport.TLSNextProto)
+	require.Empty(t, transport.TLSNextProto)
+}
+
+// TestIntelligenceHTTP1ClientInheritsBaseProxy checks the derived transport
+// keeps the base client's proxy behavior instead of silently going direct.
+func TestIntelligenceHTTP1ClientInheritsBaseProxy(t *testing.T) {
+	base := httpclient.NewHttpClientWithProxy(&httpclient.ProxyConfig{Type: httpclient.ProxyTypeDisabled})
+	derived := newIntelligenceHTTP1Client(base)
+	transport, ok := derived.GetNativeClient().Transport.(*http.Transport)
+	require.True(t, ok)
+	require.NotNil(t, transport.Proxy)
+
+	u, err := url.Parse("https://manxue.ai/api/v1/tests")
+	require.NoError(t, err)
+	proxyURL, err := transport.Proxy(&http.Request{URL: u})
+	require.NoError(t, err)
+	require.Nil(t, proxyURL, "disabled proxy config should stay disabled")
+}
+
+// TestIntelligenceSubmitRetriesTransportErrors verifies a lost submit is
+// retried, since no task is created when the response never arrives.
+func TestIntelligenceSubmitRetriesTransportErrors(t *testing.T) {
+	var attempts atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if attempts.Add(1) < 3 {
+			conn, _, err := w.(http.Hijacker).Hijack()
+			require.NoError(t, err)
+			_ = conn.Close()
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte("{\"id\":\"task-1\"}"))
+	}))
+	t.Cleanup(server.Close)
+
+	evaluator := newIntelligenceEvaluator(httpclient.NewHttpClient(), server.URL+"/")
+	taskID, err := evaluator.submit(context.Background(), "<html>x</html>")
+	require.NoError(t, err)
+	require.Equal(t, "task-1", taskID)
+	require.EqualValues(t, 3, attempts.Load())
+}
+
+// TestIntelligenceSubmitDoesNotRetryClientErrors verifies a rejected payload is
+// reported right away instead of burning three identical attempts.
+func TestIntelligenceSubmitDoesNotRetryClientErrors(t *testing.T) {
+	var attempts atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("{\"error\":\"bad\"}"))
+	}))
+	t.Cleanup(server.Close)
+
+	evaluator := newIntelligenceEvaluator(httpclient.NewHttpClient(), server.URL+"/")
+	_, err := evaluator.submit(context.Background(), "<html>x</html>")
+	require.Error(t, err)
+	require.EqualValues(t, 1, attempts.Load())
 }
