@@ -49,5 +49,15 @@
   "intelligence.history.manual.markDegraded": "手工判定降智",
   "intelligence.history.manual.markNormal": "手工判定正常",
   "intelligence.history.manual.clear": "清除人工判定",
-  "intelligence.history.manual.label": "人工判定：{{verdict}}"
+  "intelligence.history.manual.label": "人工判定：{{verdict}}",
+  "intelligence.history.keyPlaceholder": "选择 API Key",
+  "intelligence.history.allKeys": "全部 Key",
+  "intelligence.history.modelPlaceholder": "选择模型",
+  "intelligence.history.allModels": "全部模型",
+  "intelligence.history.clearFilters": "清除筛选",
+  "intelligence.history.verdictFilter.label": "结论",
+  "intelligence.history.verdictFilter.all": "全部结论",
+  "intelligence.history.verdictFilter.degraded": "只看降智",
+  "intelligence.history.verdictFilter.failed": "只看判定失败",
+  "intelligence.history.verdictFilter.normal": "只看正常"
 }

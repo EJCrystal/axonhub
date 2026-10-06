@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQueryChannels } from '@/features/channels/data/channels';
 import { modelsForAPIKey } from '../data/api-key-models';
+import { maskAPIKey } from '../data/mask-key';
 import { INTELLIGENCE_INTERVALS, IntelligenceConfig, IntelligenceInterval } from '../data/schema';
 import { useSetIntelligenceConfig } from '../data/intelligence';
 
@@ -26,10 +27,6 @@ interface DraftTarget {
   modelID: string;
 }
 
-function maskKey(key: string): string {
-  if (key.length <= 8) return '****';
-  return key.slice(0, 4) + '****' + key.slice(-4);
-}
 
 export function IntelligenceSettings({ config, loading, readOnly }: Props) {
   const { t } = useTranslation();
@@ -209,7 +206,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                           <SelectContent>
                             {keys.map((key) => (
                               <SelectItem key={key} value={key}>
-                                <span className='font-mono text-xs'>{maskKey(key)}</span>
+                                <span className='font-mono text-xs'>{maskAPIKey(key)}</span>
                               </SelectItem>
                             ))}
                           </SelectContent>
