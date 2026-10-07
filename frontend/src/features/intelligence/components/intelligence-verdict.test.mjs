@@ -12,7 +12,7 @@ const transpiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023 },
 }).outputText;
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(transpiled).toString('base64')}`;
-const { intelligenceVerdict, runIntelligenceVerdict, verdictBadgeVariant } = await import(moduleUrl);
+const { intelligenceVerdict, runIntelligenceVerdict, verdictBadgeVariant, verdictBadgeClass } = await import(moduleUrl);
 
 test('a normal assessment maps to normal', () => {
   assert.equal(intelligenceVerdict({ success: true, quality: 'normal' }), 'normal');
@@ -117,4 +117,21 @@ test('degraded is the alarming badge, normal the positive one, failed neutral', 
   assert.equal(verdictBadgeVariant('degraded'), 'destructive');
   assert.equal(verdictBadgeVariant('normal'), 'default');
   assert.equal(verdictBadgeVariant('failed'), 'secondary');
+});
+
+// The history table paints each outcome with its own colour so the three states
+// are told apart at a glance: green normal, amber degraded, red failed.
+test('each verdict maps to its own colour family', () => {
+  assert.match(verdictBadgeClass('normal'), /emerald/, 'normal is green');
+  assert.match(verdictBadgeClass('degraded'), /amber/, 'degraded is amber');
+  assert.match(verdictBadgeClass('failed'), /red/, 'failed is red');
+
+  // A dark-mode pair has to ship with each one, otherwise the badge is
+  // unreadable in the theme the operator actually uses.
+  for (const verdict of ['normal', 'degraded', 'failed']) {
+    assert.match(verdictBadgeClass(verdict), /dark:/, `${verdict} needs a dark variant`);
+  }
+
+  const classes = new Set(['normal', 'degraded', 'failed'].map(verdictBadgeClass));
+  assert.equal(classes.size, 3, 'the three verdicts must not share a colour');
 });

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { IconArrowsMaximize } from '@tabler/icons-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { IntelligenceVerdict, verdictBadgeVariant } from './intelligence-verdict';
+import { IntelligenceVerdict, verdictBadgeClass } from './intelligence-verdict';
 
 interface Props {
   // html is the source the tested model produced, exactly as scored.
@@ -85,7 +85,7 @@ export function IntelligenceHTMLPreview({ html, verdict, compact = false }: Prop
   if (!html) {
     return (
       <div className='relative mt-3 rounded-md border border-dashed'>
-        <Badge variant={verdictBadgeVariant(verdict)} className='absolute right-2 top-2 z-10 shadow-sm'>
+        <Badge variant='outline' className={`${verdictBadgeClass(verdict)} absolute right-2 top-2 z-10 shadow-sm`}>
           {verdictLabel}
         </Badge>
         <p className='px-3 py-6 text-center text-xs text-muted-foreground'>{t('channels.dialogs.intelligence.preview.missing')}</p>
@@ -105,7 +105,7 @@ export function IntelligenceHTMLPreview({ html, verdict, compact = false }: Prop
             title={expandLabel}
           >
             <Stage html={html} title={title} className='h-full w-full overflow-hidden' />
-            <Badge variant={verdictBadgeVariant(verdict)} className='absolute right-1 top-1 z-10 shadow-sm'>
+            <Badge variant='outline' className={`${verdictBadgeClass(verdict)} absolute right-1 top-1 z-10 shadow-sm`}>
               {verdictLabel}
             </Badge>
             <span className='bg-background/80 absolute bottom-1 right-1 z-10 rounded p-1'>
@@ -120,7 +120,7 @@ export function IntelligenceHTMLPreview({ html, verdict, compact = false }: Prop
             title={expandLabel}
           >
             <Stage html={html} title={title} className='aspect-video w-full overflow-hidden' />
-            <Badge variant={verdictBadgeVariant(verdict)} className='absolute right-2 top-2 z-10 shadow-sm'>
+            <Badge variant='outline' className={`${verdictBadgeClass(verdict)} absolute right-2 top-2 z-10 shadow-sm`}>
               {verdictLabel}
             </Badge>
             <span className='bg-background/90 hover:bg-background absolute bottom-2 right-2 z-10 rounded-md border p-1.5 shadow-sm'>
@@ -133,7 +133,7 @@ export function IntelligenceHTMLPreview({ html, verdict, compact = false }: Prop
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             {title}
-            <Badge variant={verdictBadgeVariant(verdict)}>{verdictLabel}</Badge>
+            <Badge variant='outline' className={verdictBadgeClass(verdict)}>{verdictLabel}</Badge>
           </DialogTitle>
         </DialogHeader>
         <div className='min-h-0 flex-1 overflow-hidden rounded-md border bg-white'>

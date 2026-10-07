@@ -65,3 +65,18 @@ export function verdictBadgeVariant(verdict: IntelligenceVerdict): 'default' | '
       return 'secondary';
   }
 }
+
+// verdictBadgeClass colours the badge by outcome: green when the model looked
+// normal, amber when it looked degraded, red when the check never produced a
+// usable answer. The variants above stay for callers that only need the
+// semantic name; this is what the history table paints with.
+export function verdictBadgeClass(verdict: IntelligenceVerdict): string {
+  switch (verdict) {
+    case 'normal':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400';
+    case 'degraded':
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400';
+    default:
+      return 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400';
+  }
+}
