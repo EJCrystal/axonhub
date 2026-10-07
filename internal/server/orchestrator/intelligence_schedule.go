@@ -77,15 +77,37 @@ func NewIntelligenceService(params IntelligenceServiceParams) *IntelligenceServi
 	}
 }
 
-// RegisterScheduledTasks wires the check into the scheduler. The task always
-// registers; the handler itself honours the Enabled flag so toggling the
-// configuration does not need a restart.
-func (s *IntelligenceService) RegisterScheduledTasks(ctx context.Context, sched *scheduler.Scheduler) error {
-	return sched.Register(ctx, scheduler.TaskSpec{
+// intelligenceTaskSpec builds the scheduler spec for the configured interval, so
+// the tick itself follows the setting instead of a fixed rate.
+func intelligenceTaskSpec(intervalMinutes int) scheduler.TaskSpec {
+	if !isAllowedInterval(intervalMinutes) {
+		intervalMinutes = defaultIntelligenceConfig().IntervalMinutes
+	}
+
+	return scheduler.TaskSpec{
 		Name:        intelligenceSchedulerTask,
 		Description: "Run the configured intelligence checks",
-		FixRate:     10 * time.Minute,
-	}, s.runScheduled)
+		FixRate:     time.Duration(intervalMinutes) * time.Minute,
+	}
+}
+
+// RegisterScheduledTasks wires the check into the scheduler at the interval the
+// stored configuration asks for. The task always registers; the handler itself
+// honours the Enabled flag so toggling the configuration does not need a
+// restart.
+func (s *IntelligenceService) RegisterScheduledTasks(ctx context.Context, sched *scheduler.Scheduler) error {
+	// The fx OnStart hook has no principal, so reading the stored interval would
+	// be denied by the ent privacy layer and fall back to the default. Take the
+	// system bypass, matching the backup and video storage registrations.
+	ctx = authz.WithSystemBypass(ctx, "intelligence-check-register")
+
+	config, err := s.IntelligenceConfig(ctx)
+	if err != nil {
+		log.Warn(ctx, "intelligence check: falling back to the default interval", log.Cause(err))
+		config = defaultIntelligenceConfig()
+	}
+
+	return sched.Register(ctx, intelligenceTaskSpec(config.IntervalMinutes), s.runScheduled)
 }
 
 // IntelligenceConfig returns the stored configuration, falling back to the
@@ -147,9 +169,24 @@ func (s *IntelligenceService) SetIntelligenceConfig(ctx context.Context, config 
 		return err
 	}
 
-	// The task runs on a fixed tick; the interval is enforced inside the run so
-	// a configuration change takes effect without rescheduling.
+	// The interval drives the scheduler tick, so a change has to be applied to
+	// the live task rather than waiting for the next restart to pick it up.
+	s.reschedule(ctx, config.IntervalMinutes)
+
 	return nil
+}
+
+// reschedule aligns the live task with the configured interval. The task is
+// registered during startup, so a missing scheduler or an unregistered task is
+// not an error worth failing the save over.
+func (s *IntelligenceService) reschedule(ctx context.Context, intervalMinutes int) {
+	if s.scheduler == nil {
+		return
+	}
+
+	if err := s.scheduler.Reschedule(ctx, intelligenceSchedulerTask, intelligenceTaskSpec(intervalMinutes)); err != nil {
+		log.Warn(ctx, "intelligence check: failed to reschedule task", log.Cause(err))
+	}
 }
 
 // runScheduled executes a configured run when the schedule is due.
@@ -168,29 +205,9 @@ func (s *IntelligenceService) runScheduled(ctx context.Context) {
 		return
 	}
 
-	if !s.dueForRun(runCtx, config.IntervalMinutes) {
-		return
-	}
-
+	// The scheduler tick already carries the configured interval, so reaching
+	// here means the run is due.
 	s.runConfiguredTargets(runCtx, config, "scheduled")
-}
-
-// dueForRun reports whether enough time has passed since the newest recorded
-// run. The scheduler ticks every 10 minutes, so this keeps 30 and 60 minute
-// intervals honest.
-func (s *IntelligenceService) dueForRun(ctx context.Context, intervalMinutes int) bool {
-	latest, err := s.ent.IntelligenceRun.Query().
-		Order(ent.Desc(intelligencerun.FieldCreatedAt)).
-		First(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return true
-		}
-		log.Warn(ctx, "intelligence check: failed to read last run", log.Cause(err))
-		return true
-	}
-
-	return time.Since(latest.CreatedAt) >= time.Duration(intervalMinutes)*time.Minute
 }
 
 // RunManual evaluates every configured target immediately, whatever the

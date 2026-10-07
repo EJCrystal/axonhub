@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
@@ -32,6 +33,25 @@ func TestAllowedIntelligenceIntervals(t *testing.T) {
 
 	for _, minutes := range []int{-1, 0, 5, 15, 45, 120} {
 		require.False(t, isAllowedInterval(minutes))
+	}
+}
+
+// TestIntelligenceTaskSpecFollowsInterval pins the fix for a fixed 10 minute
+// tick: the interval the operator picks has to reach the scheduler, otherwise
+// the tick wheel quantises every setting into the same slot and 30/60 minute
+// configurations fire far more often than asked.
+func TestIntelligenceTaskSpecFollowsInterval(t *testing.T) {
+	for _, minutes := range allowedIntelligenceIntervals {
+		spec := intelligenceTaskSpec(minutes)
+		require.Equal(t, intelligenceSchedulerTask, spec.Name)
+		require.Equal(t, time.Duration(minutes)*time.Minute, spec.FixRate)
+	}
+
+	// Anything the settings UI does not offer falls back to the default rather
+	// than scheduling a zero-length tick, which the timer wheel would spin on.
+	for _, minutes := range []int{-1, 0, 5, 120} {
+		spec := intelligenceTaskSpec(minutes)
+		require.Equal(t, time.Duration(defaultIntelligenceConfig().IntervalMinutes)*time.Minute, spec.FixRate)
 	}
 }
 
