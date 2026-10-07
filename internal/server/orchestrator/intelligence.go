@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -125,42 +124,7 @@ func newIntelligenceEvaluator(httpClient *httpclient.HttpClient, baseURL string)
 		base = defaultIntelligenceBaseURL
 	}
 
-	return &intelligenceEvaluator{httpClient: newIntelligenceHTTP1Client(httpClient), baseURL: base}
-}
-
-// newIntelligenceHTTP1Client derives an HTTP/1.1-only client from the shared
-// one. The detection service sits behind Cloudflare, and its HTTP/2 streams
-// intermittently die with PROTOCOL_ERROR when they run through a CONNECT
-// proxy, which fails the whole check. An empty, non-nil TLSNextProto map
-// keeps the transport on HTTP/1.1 while inheriting the base client's proxy and
-// TLS settings.
-func newIntelligenceHTTP1Client(base *httpclient.HttpClient) *httpclient.HttpClient {
-	if base == nil {
-		return nil
-	}
-
-	var transport *http.Transport
-	if native := base.GetNativeClient(); native != nil {
-		if tr, ok := native.Transport.(*http.Transport); ok && tr != nil {
-			transport = tr.Clone()
-		}
-	}
-	if transport == nil {
-		if defaultTransport, ok := http.DefaultTransport.(*http.Transport); ok {
-			transport = defaultTransport.Clone()
-		}
-	}
-	if transport == nil {
-		transport = &http.Transport{Proxy: base.ProxyFunc()}
-	}
-	if transport.TLSClientConfig != nil {
-		transport.TLSClientConfig = transport.TLSClientConfig.Clone()
-	}
-
-	transport.ForceAttemptHTTP2 = false
-	transport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
-
-	return httpclient.NewHttpClientWithClient(&http.Client{Transport: transport})
+	return &intelligenceEvaluator{httpClient: httpClient, baseURL: base}
 }
 
 // submit creates an HTML evaluation task and returns its task id. Transient

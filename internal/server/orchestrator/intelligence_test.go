@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -176,38 +175,6 @@ func TestHTMLForResult(t *testing.T) {
 		html := strings.Repeat("x", intelligenceHTMLMaxBytes)
 		require.Equal(t, &html, htmlForResult(html))
 	})
-}
-
-// TestIntelligenceHTTP1ClientDisablesH2 verifies the evaluator forces HTTP/1.1,
-// since manxue.ai's HTTP/2 streams intermittently die behind a CONNECT proxy.
-func TestIntelligenceHTTP1ClientDisablesH2(t *testing.T) {
-	base := httpclient.NewHttpClient()
-	derived := newIntelligenceHTTP1Client(base)
-	require.NotNil(t, derived)
-
-	native := derived.GetNativeClient()
-	require.NotNil(t, native)
-	transport, ok := native.Transport.(*http.Transport)
-	require.True(t, ok, "derived client should keep an *http.Transport")
-	require.False(t, transport.ForceAttemptHTTP2)
-	require.NotNil(t, transport.TLSNextProto)
-	require.Empty(t, transport.TLSNextProto)
-}
-
-// TestIntelligenceHTTP1ClientInheritsBaseProxy checks the derived transport
-// keeps the base client's proxy behavior instead of silently going direct.
-func TestIntelligenceHTTP1ClientInheritsBaseProxy(t *testing.T) {
-	base := httpclient.NewHttpClientWithProxy(&httpclient.ProxyConfig{Type: httpclient.ProxyTypeDisabled})
-	derived := newIntelligenceHTTP1Client(base)
-	transport, ok := derived.GetNativeClient().Transport.(*http.Transport)
-	require.True(t, ok)
-	require.NotNil(t, transport.Proxy)
-
-	u, err := url.Parse("https://manxue.ai/api/v1/tests")
-	require.NoError(t, err)
-	proxyURL, err := transport.Proxy(&http.Request{URL: u})
-	require.NoError(t, err)
-	require.Nil(t, proxyURL, "disabled proxy config should stay disabled")
 }
 
 // TestIntelligenceSubmitRetriesTransportErrors verifies a lost submit is
