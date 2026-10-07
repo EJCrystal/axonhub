@@ -107,3 +107,22 @@ test('a result without the newer fields still parses', () => {
   assert.equal(parsed.results[0].manualVerdict, '');
   assert.equal(parsed.results[0].error, undefined);
 });
+
+// The verdict mutation feeds its result straight into intelligenceRunSchema.
+// id alone is not enough: createdAt and channelID are required, so a selection
+// set that omits them fails validation with "createdAt: Invalid input,
+// channelID: Invalid input" even though the write succeeded.
+test('the verdict mutation selects every field the run schema requires', () => {
+  const source = readFileSync(join(dataDir, 'intelligence.ts'), 'utf8');
+  const block = source.split('const SET_INTELLIGENCE_RUN_VERDICT_MUTATION')[1];
+  assert.ok(block, 'the verdict mutation must exist');
+
+  const selection = block.slice(0, block.indexOf('`;'));
+  for (const field of Object.keys(intelligenceRunSchema.shape)) {
+    assert.match(
+      selection,
+      new RegExp(`\\b${field}\\b`),
+      `the verdict mutation result must select ${field}, otherwise the parse fails`,
+    );
+  }
+});

@@ -11,7 +11,7 @@ import { IntelligenceHTMLPreview } from './intelligence-html-preview';
 import {
   intelligenceVerdict,
   runIntelligenceVerdict,
-  verdictBadgeVariant,
+  verdictBadgeClass,
 } from './intelligence-verdict';
 import { IntelligenceRunConnection } from '../data/schema';
 import { useSetIntelligenceRunVerdict } from '../data/intelligence';
@@ -69,13 +69,22 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
             const verdict = runIntelligenceVerdict(run);
             return (
               <>
-                <TableRow key={run.id}>
+                <TableRow
+                  key={run.id}
+                  className='cursor-pointer'
+                  onClick={() => setExpanded((prev) => ({ ...prev, [run.id]: !isOpen }))}
+                  aria-expanded={isOpen}
+                >
                   <TableCell>
                     <Button
                       variant='ghost'
                       size='icon'
                       className='h-6 w-6'
-                      onClick={() => setExpanded((prev) => ({ ...prev, [run.id]: !isOpen }))}
+                      onClick={(event) => {
+                        // The row itself toggles; stop the click from firing twice.
+                        event.stopPropagation();
+                        setExpanded((prev) => ({ ...prev, [run.id]: !isOpen }));
+                      }}
                       aria-label={t('intelligence.history.toggle')}
                     >
                       {isOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
@@ -86,7 +95,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                   <TableCell className='text-xs'>{t(`intelligence.trigger.${run.trigger}`)}</TableCell>
                   <TableCell>
                     <div className='flex items-center gap-2'>
-                      <Badge variant={verdictBadgeVariant(verdict)}>
+                      <Badge variant='outline' className={verdictBadgeClass(verdict)}>
                         {t(`channels.dialogs.intelligence.verdict.${verdict}`)}
                       </Badge>
                       <span className='text-muted-foreground text-xs'>
@@ -108,7 +117,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                           <div key={key.keyPrefix} className='rounded-md border p-3 text-xs'>
                             <div className='flex flex-wrap items-center gap-2'>
                               <span className='font-mono'>{key.keyPrefix}</span>
-                              <Badge variant={verdictBadgeVariant(intelligenceVerdict(key))}>
+                              <Badge variant='outline' className={verdictBadgeClass(intelligenceVerdict(key))}>
                                 {t(`channels.dialogs.intelligence.verdict.${intelligenceVerdict(key)}`)}
                               </Badge>
                               {key.manualVerdict && (

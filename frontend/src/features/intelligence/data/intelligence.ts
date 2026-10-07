@@ -215,9 +215,16 @@ const SET_INTELLIGENCE_RUN_VERDICT_MUTATION = `
   mutation SetIntelligenceRunVerdict($input: SetIntelligenceRunVerdictInput!) {
     setIntelligenceRunVerdict(input: $input) {
       id
+      createdAt
+      channelID
+      channelName
+      modelID
+      trigger
       status
+      totalKeys
       successKeys
       failedKeys
+      durationMs
       results {
         keyPrefix
         success
