@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { ScopesSelect } from '@/components/scopes-select';
 import { useApiKeysContext } from '../context/apikeys-context';
+import { buildAllowedIpsUpdate } from '../data/allowed-ips-payload';
 import { useUpdateApiKey } from '../data/apikeys';
 import { UpdateApiKeyInput, updateApiKeyInputSchemaFactory } from '../data/schema';
-import { ScopesSelect } from '@/components/scopes-select';
 
 export function ApiKeysEditDialog() {
   const { t } = useTranslation();
@@ -50,19 +51,10 @@ export function ApiKeysEditDialog() {
 
     setIsSubmitting(true);
     try {
-      const input: UpdateApiKeyInput = { name: data.name };
-
-      if (ipRestrictionEnabled) {
-        input.allowedIps = ipInput
-          .split(',')
-          .map((s) => s.trim())
-          .filter((s) => s !== '');
-      } else {
-        // An empty allowedIps array means "leave unchanged" on the backend, so
-        // turning the switch off must clear the list explicitly. Without this the
-        // mutation reports success while the stored restriction survives.
-        input.clearAllowedIps = true;
-      }
+      const input: UpdateApiKeyInput = {
+        name: data.name,
+        ...buildAllowedIpsUpdate(ipRestrictionEnabled, ipInput),
+      };
 
       if (selectedApiKey.type === 'service_account') {
         input.scopes = data.scopes;
