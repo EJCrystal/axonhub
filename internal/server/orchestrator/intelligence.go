@@ -462,7 +462,7 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 	// The channel's own API format decides the request shape and the inbound
 	// transformer, matching how the channel test builds its request: a Decisions
 	// channel needs the Decisions body, not a chat completion.
-	apiFormat := channelTestAPIFormat(channel)
+	apiFormat := channelTestAPIFormat(channel, model)
 	inbound := channelTestInbound(apiFormat)
 
 	chatProcessor := &ChatCompletionOrchestrator{
