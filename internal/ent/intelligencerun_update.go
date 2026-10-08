@@ -86,6 +86,20 @@ func (_u *IntelligenceRunUpdate) SetNillableModelID(v *string) *IntelligenceRunU
 	return _u
 }
 
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (_u *IntelligenceRunUpdate) SetReasoningEffort(v string) *IntelligenceRunUpdate {
+	_u.mutation.SetReasoningEffort(v)
+	return _u
+}
+
+// SetNillableReasoningEffort sets the "reasoning_effort" field if the given value is not nil.
+func (_u *IntelligenceRunUpdate) SetNillableReasoningEffort(v *string) *IntelligenceRunUpdate {
+	if v != nil {
+		_u.SetReasoningEffort(*v)
+	}
+	return _u
+}
+
 // SetTrigger sets the "trigger" field.
 func (_u *IntelligenceRunUpdate) SetTrigger(v string) *IntelligenceRunUpdate {
 	_u.mutation.SetTrigger(v)
@@ -306,6 +320,9 @@ func (_u *IntelligenceRunUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.ModelID(); ok {
 		_spec.SetField(intelligencerun.FieldModelID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.ReasoningEffort(); ok {
+		_spec.SetField(intelligencerun.FieldReasoningEffort, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Trigger(); ok {
 		_spec.SetField(intelligencerun.FieldTrigger, field.TypeString, value)
 	}
@@ -420,6 +437,20 @@ func (_u *IntelligenceRunUpdateOne) SetModelID(v string) *IntelligenceRunUpdateO
 func (_u *IntelligenceRunUpdateOne) SetNillableModelID(v *string) *IntelligenceRunUpdateOne {
 	if v != nil {
 		_u.SetModelID(*v)
+	}
+	return _u
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (_u *IntelligenceRunUpdateOne) SetReasoningEffort(v string) *IntelligenceRunUpdateOne {
+	_u.mutation.SetReasoningEffort(v)
+	return _u
+}
+
+// SetNillableReasoningEffort sets the "reasoning_effort" field if the given value is not nil.
+func (_u *IntelligenceRunUpdateOne) SetNillableReasoningEffort(v *string) *IntelligenceRunUpdateOne {
+	if v != nil {
+		_u.SetReasoningEffort(*v)
 	}
 	return _u
 }
@@ -673,6 +704,9 @@ func (_u *IntelligenceRunUpdateOne) sqlSave(ctx context.Context) (_node *Intelli
 	}
 	if value, ok := _u.mutation.ModelID(); ok {
 		_spec.SetField(intelligencerun.FieldModelID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ReasoningEffort(); ok {
+		_spec.SetField(intelligencerun.FieldReasoningEffort, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Trigger(); ok {
 		_spec.SetField(intelligencerun.FieldTrigger, field.TypeString, value)

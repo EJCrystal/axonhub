@@ -84,6 +84,11 @@ func ModelID(v string) predicate.IntelligenceRun {
 	return predicate.IntelligenceRun(sql.FieldEQ(FieldModelID, v))
 }
 
+// ReasoningEffort applies equality check predicate on the "reasoning_effort" field. It's identical to ReasoningEffortEQ.
+func ReasoningEffort(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldEQ(FieldReasoningEffort, v))
+}
+
 // Trigger applies equality check predicate on the "trigger" field. It's identical to TriggerEQ.
 func Trigger(v string) predicate.IntelligenceRun {
 	return predicate.IntelligenceRun(sql.FieldEQ(FieldTrigger, v))
@@ -397,6 +402,71 @@ func ModelIDEqualFold(v string) predicate.IntelligenceRun {
 // ModelIDContainsFold applies the ContainsFold predicate on the "model_id" field.
 func ModelIDContainsFold(v string) predicate.IntelligenceRun {
 	return predicate.IntelligenceRun(sql.FieldContainsFold(FieldModelID, v))
+}
+
+// ReasoningEffortEQ applies the EQ predicate on the "reasoning_effort" field.
+func ReasoningEffortEQ(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldEQ(FieldReasoningEffort, v))
+}
+
+// ReasoningEffortNEQ applies the NEQ predicate on the "reasoning_effort" field.
+func ReasoningEffortNEQ(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldNEQ(FieldReasoningEffort, v))
+}
+
+// ReasoningEffortIn applies the In predicate on the "reasoning_effort" field.
+func ReasoningEffortIn(vs ...string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldIn(FieldReasoningEffort, vs...))
+}
+
+// ReasoningEffortNotIn applies the NotIn predicate on the "reasoning_effort" field.
+func ReasoningEffortNotIn(vs ...string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldNotIn(FieldReasoningEffort, vs...))
+}
+
+// ReasoningEffortGT applies the GT predicate on the "reasoning_effort" field.
+func ReasoningEffortGT(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldGT(FieldReasoningEffort, v))
+}
+
+// ReasoningEffortGTE applies the GTE predicate on the "reasoning_effort" field.
+func ReasoningEffortGTE(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldGTE(FieldReasoningEffort, v))
+}
+
+// ReasoningEffortLT applies the LT predicate on the "reasoning_effort" field.
+func ReasoningEffortLT(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldLT(FieldReasoningEffort, v))
+}
+
+// ReasoningEffortLTE applies the LTE predicate on the "reasoning_effort" field.
+func ReasoningEffortLTE(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldLTE(FieldReasoningEffort, v))
+}
+
+// ReasoningEffortContains applies the Contains predicate on the "reasoning_effort" field.
+func ReasoningEffortContains(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldContains(FieldReasoningEffort, v))
+}
+
+// ReasoningEffortHasPrefix applies the HasPrefix predicate on the "reasoning_effort" field.
+func ReasoningEffortHasPrefix(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldHasPrefix(FieldReasoningEffort, v))
+}
+
+// ReasoningEffortHasSuffix applies the HasSuffix predicate on the "reasoning_effort" field.
+func ReasoningEffortHasSuffix(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldHasSuffix(FieldReasoningEffort, v))
+}
+
+// ReasoningEffortEqualFold applies the EqualFold predicate on the "reasoning_effort" field.
+func ReasoningEffortEqualFold(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldEqualFold(FieldReasoningEffort, v))
+}
+
+// ReasoningEffortContainsFold applies the ContainsFold predicate on the "reasoning_effort" field.
+func ReasoningEffortContainsFold(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldContainsFold(FieldReasoningEffort, v))
 }
 
 // TriggerEQ applies the EQ predicate on the "trigger" field.

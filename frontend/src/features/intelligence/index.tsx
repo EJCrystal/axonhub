@@ -35,6 +35,9 @@ import { IntelligenceRun, IntelligenceRunConnection } from './data/schema';
 const ALL_CHANNELS = '__all__';
 const ALL_KEYS = '__all_keys__';
 const ALL_MODELS = '__all_models__';
+const ALL_EFFORTS = '__all_efforts__';
+// The effort picker needs a value for the provider default, which is the empty string.
+const NO_EFFORT = '__no_effort__';
 
 interface ChannelRunGroup {
   channelID: number;
@@ -63,6 +66,7 @@ export default function IntelligenceManagement() {
   const [verdict, setVerdict] = useState<VerdictFilter>('all');
   const [apiKey, setApiKey] = useState<string>();
   const [modelID, setModelID] = useState<string>();
+  const [effort, setEffort] = useState<string>();
 
   // The filter lists every channel, not just the configured ones: a channel
   // that was removed from the configuration still has history worth reading.
@@ -82,6 +86,7 @@ export default function IntelligenceManagement() {
   useEffect(() => {
     setApiKey(undefined);
     setModelID(undefined);
+    setEffort(undefined);
   }, [channelID]);
 
   const selectedChannel = useMemo(
@@ -121,9 +126,18 @@ export default function IntelligenceManagement() {
     return keyOptions.map(maskAPIKey);
   }, [selectedChannel, keyOptions, sourceRuns]);
 
+  const effortOptions = useMemo(() => historyFilterOptions(sourceRuns).efforts, [sourceRuns]);
+
   const filter: HistoryFilter = useMemo(
-    () => ({ verdict, modelID, keyPrefix: apiKey ? maskAPIKey(apiKey) : undefined }),
-    [verdict, modelID, apiKey]
+    () => ({
+      verdict,
+      modelID,
+      keyPrefix: apiKey ? maskAPIKey(apiKey) : undefined,
+      // undefined means any level; the empty string is a real choice, so it has
+      // to stay distinguishable from no filter.
+      reasoningEffort: effort === undefined ? undefined : effort === NO_EFFORT ? '' : effort,
+    }),
+    [verdict, modelID, apiKey, effort]
   );
 
   const filteredRuns = useMemo(() => filterRuns(sourceRuns, filter), [sourceRuns, filter]);
@@ -227,6 +241,26 @@ export default function IntelligenceManagement() {
         </Select>
       )}
 
+      {effortOptions.length > 0 && (
+        <Select
+          value={effort ?? ALL_EFFORTS}
+          onValueChange={(value) => setEffort(value === ALL_EFFORTS ? undefined : value)}
+        >
+          <SelectTrigger className='w-40' aria-label={t('intelligence.history.effortPlaceholder')}>
+            <SelectValue placeholder={t('intelligence.history.effortPlaceholder')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_EFFORTS}>{t('intelligence.history.allEfforts')}</SelectItem>
+            <SelectItem value={NO_EFFORT}>{t('intelligence.history.effortDefault')}</SelectItem>
+            {effortOptions.map((value) => (
+              <SelectItem key={value} value={value}>
+                {value}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
       <Select value={verdict} onValueChange={(value) => setVerdict(value as VerdictFilter)}>
         <SelectTrigger className='w-44' aria-label={t('intelligence.history.verdictFilter.label')}>
           <SelectValue placeholder={t('intelligence.history.verdictFilter.label')} />
@@ -248,6 +282,7 @@ export default function IntelligenceManagement() {
             setVerdict(DEFAULT_HISTORY_FILTER.verdict);
             setModelID(undefined);
             setApiKey(undefined);
+            setEffort(undefined);
           }}
         >
           {t('intelligence.history.clearFilters')}

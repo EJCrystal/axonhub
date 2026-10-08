@@ -866,19 +866,20 @@ type ComplexityRoot struct {
 	}
 
 	IntelligenceRun struct {
-		ChannelID   func(childComplexity int) int
-		ChannelName func(childComplexity int) int
-		CreatedAt   func(childComplexity int) int
-		DurationMs  func(childComplexity int) int
-		FailedKeys  func(childComplexity int) int
-		ID          func(childComplexity int) int
-		ModelID     func(childComplexity int) int
-		Results     func(childComplexity int) int
-		Status      func(childComplexity int) int
-		SuccessKeys func(childComplexity int) int
-		TotalKeys   func(childComplexity int) int
-		Trigger     func(childComplexity int) int
-		UpdatedAt   func(childComplexity int) int
+		ChannelID       func(childComplexity int) int
+		ChannelName     func(childComplexity int) int
+		CreatedAt       func(childComplexity int) int
+		DurationMs      func(childComplexity int) int
+		FailedKeys      func(childComplexity int) int
+		ID              func(childComplexity int) int
+		ModelID         func(childComplexity int) int
+		ReasoningEffort func(childComplexity int) int
+		Results         func(childComplexity int) int
+		Status          func(childComplexity int) int
+		SuccessKeys     func(childComplexity int) int
+		TotalKeys       func(childComplexity int) int
+		Trigger         func(childComplexity int) int
+		UpdatedAt       func(childComplexity int) int
 	}
 
 	IntelligenceRunConnection struct {
@@ -5598,6 +5599,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.IntelligenceRun.ModelID(childComplexity), true
+	case "IntelligenceRun.reasoningEffort":
+		if e.complexity.IntelligenceRun.ReasoningEffort == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceRun.ReasoningEffort(childComplexity), true
 	case "IntelligenceRun.results":
 		if e.complexity.IntelligenceRun.Results == nil {
 			break
@@ -31426,6 +31433,35 @@ func (ec *executionContext) fieldContext_IntelligenceRun_modelID(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _IntelligenceRun_reasoningEffort(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceRun_reasoningEffort,
+		func(ctx context.Context) (any, error) {
+			return obj.ReasoningEffort, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceRun_reasoningEffort(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceRun",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _IntelligenceRun_trigger(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -31792,6 +31828,8 @@ func (ec *executionContext) fieldContext_IntelligenceRunEdge_node(_ context.Cont
 				return ec.fieldContext_IntelligenceRun_channelName(ctx, field)
 			case "modelID":
 				return ec.fieldContext_IntelligenceRun_modelID(ctx, field)
+			case "reasoningEffort":
+				return ec.fieldContext_IntelligenceRun_reasoningEffort(ctx, field)
 			case "trigger":
 				return ec.fieldContext_IntelligenceRun_trigger(ctx, field)
 			case "status":
@@ -36104,6 +36142,8 @@ func (ec *executionContext) fieldContext_Mutation_setIntelligenceRunVerdict(ctx 
 				return ec.fieldContext_IntelligenceRun_channelName(ctx, field)
 			case "modelID":
 				return ec.fieldContext_IntelligenceRun_modelID(ctx, field)
+			case "reasoningEffort":
+				return ec.fieldContext_IntelligenceRun_reasoningEffort(ctx, field)
 			case "trigger":
 				return ec.fieldContext_IntelligenceRun_trigger(ctx, field)
 			case "status":
@@ -76618,7 +76658,7 @@ func (ec *executionContext) unmarshalInputIntelligenceRunWhereInput(ctx context.
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "channelIDGT", "channelIDGTE", "channelIDLT", "channelIDLTE", "channelName", "channelNameNEQ", "channelNameIn", "channelNameNotIn", "channelNameGT", "channelNameGTE", "channelNameLT", "channelNameLTE", "channelNameContains", "channelNameHasPrefix", "channelNameHasSuffix", "channelNameEqualFold", "channelNameContainsFold", "modelID", "modelIDNEQ", "modelIDIn", "modelIDNotIn", "modelIDGT", "modelIDGTE", "modelIDLT", "modelIDLTE", "modelIDContains", "modelIDHasPrefix", "modelIDHasSuffix", "modelIDEqualFold", "modelIDContainsFold", "trigger", "triggerNEQ", "triggerIn", "triggerNotIn", "triggerGT", "triggerGTE", "triggerLT", "triggerLTE", "triggerContains", "triggerHasPrefix", "triggerHasSuffix", "triggerEqualFold", "triggerContainsFold", "status", "statusNEQ", "statusIn", "statusNotIn", "totalKeys", "totalKeysNEQ", "totalKeysIn", "totalKeysNotIn", "totalKeysGT", "totalKeysGTE", "totalKeysLT", "totalKeysLTE", "successKeys", "successKeysNEQ", "successKeysIn", "successKeysNotIn", "successKeysGT", "successKeysGTE", "successKeysLT", "successKeysLTE", "failedKeys", "failedKeysNEQ", "failedKeysIn", "failedKeysNotIn", "failedKeysGT", "failedKeysGTE", "failedKeysLT", "failedKeysLTE", "durationMs", "durationMsNEQ", "durationMsIn", "durationMsNotIn", "durationMsGT", "durationMsGTE", "durationMsLT", "durationMsLTE"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "channelIDGT", "channelIDGTE", "channelIDLT", "channelIDLTE", "channelName", "channelNameNEQ", "channelNameIn", "channelNameNotIn", "channelNameGT", "channelNameGTE", "channelNameLT", "channelNameLTE", "channelNameContains", "channelNameHasPrefix", "channelNameHasSuffix", "channelNameEqualFold", "channelNameContainsFold", "modelID", "modelIDNEQ", "modelIDIn", "modelIDNotIn", "modelIDGT", "modelIDGTE", "modelIDLT", "modelIDLTE", "modelIDContains", "modelIDHasPrefix", "modelIDHasSuffix", "modelIDEqualFold", "modelIDContainsFold", "reasoningEffort", "reasoningEffortNEQ", "reasoningEffortIn", "reasoningEffortNotIn", "reasoningEffortGT", "reasoningEffortGTE", "reasoningEffortLT", "reasoningEffortLTE", "reasoningEffortContains", "reasoningEffortHasPrefix", "reasoningEffortHasSuffix", "reasoningEffortEqualFold", "reasoningEffortContainsFold", "trigger", "triggerNEQ", "triggerIn", "triggerNotIn", "triggerGT", "triggerGTE", "triggerLT", "triggerLTE", "triggerContains", "triggerHasPrefix", "triggerHasSuffix", "triggerEqualFold", "triggerContainsFold", "status", "statusNEQ", "statusIn", "statusNotIn", "totalKeys", "totalKeysNEQ", "totalKeysIn", "totalKeysNotIn", "totalKeysGT", "totalKeysGTE", "totalKeysLT", "totalKeysLTE", "successKeys", "successKeysNEQ", "successKeysIn", "successKeysNotIn", "successKeysGT", "successKeysGTE", "successKeysLT", "successKeysLTE", "failedKeys", "failedKeysNEQ", "failedKeysIn", "failedKeysNotIn", "failedKeysGT", "failedKeysGTE", "failedKeysLT", "failedKeysLTE", "durationMs", "durationMsNEQ", "durationMsIn", "durationMsNotIn", "durationMsGT", "durationMsGTE", "durationMsLT", "durationMsLTE"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -77084,6 +77124,97 @@ func (ec *executionContext) unmarshalInputIntelligenceRunWhereInput(ctx context.
 				return it, err
 			}
 			it.ModelIDContainsFold = data
+		case "reasoningEffort":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffort"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffort = data
+		case "reasoningEffortNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortNEQ"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortNEQ = data
+		case "reasoningEffortIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortIn = data
+		case "reasoningEffortNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortNotIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortNotIn = data
+		case "reasoningEffortGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortGT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortGT = data
+		case "reasoningEffortGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortGTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortGTE = data
+		case "reasoningEffortLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortLT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortLT = data
+		case "reasoningEffortLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortLTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortLTE = data
+		case "reasoningEffortContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortContains"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortContains = data
+		case "reasoningEffortHasPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortHasPrefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortHasPrefix = data
+		case "reasoningEffortHasSuffix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortHasSuffix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortHasSuffix = data
+		case "reasoningEffortEqualFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortEqualFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortEqualFold = data
+		case "reasoningEffortContainsFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortContainsFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffortContainsFold = data
 		case "trigger":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("trigger"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -102433,6 +102564,11 @@ func (ec *executionContext) _IntelligenceRun(ctx context.Context, sel ast.Select
 			}
 		case "modelID":
 			out.Values[i] = ec._IntelligenceRun_modelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "reasoningEffort":
+			out.Values[i] = ec._IntelligenceRun_reasoningEffort(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}

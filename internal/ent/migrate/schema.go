@@ -294,6 +294,7 @@ var (
 		{Name: "channel_id", Type: field.TypeInt},
 		{Name: "channel_name", Type: field.TypeString, Default: ""},
 		{Name: "model_id", Type: field.TypeString},
+		{Name: "reasoning_effort", Type: field.TypeString, Default: ""},
 		{Name: "trigger", Type: field.TypeString, Default: "manual"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"succeeded", "failed", "partial"}, Default: "failed"},
 		{Name: "total_keys", Type: field.TypeInt, Default: 0},

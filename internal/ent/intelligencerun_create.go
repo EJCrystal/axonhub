@@ -91,6 +91,20 @@ func (_c *IntelligenceRunCreate) SetModelID(v string) *IntelligenceRunCreate {
 	return _c
 }
 
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (_c *IntelligenceRunCreate) SetReasoningEffort(v string) *IntelligenceRunCreate {
+	_c.mutation.SetReasoningEffort(v)
+	return _c
+}
+
+// SetNillableReasoningEffort sets the "reasoning_effort" field if the given value is not nil.
+func (_c *IntelligenceRunCreate) SetNillableReasoningEffort(v *string) *IntelligenceRunCreate {
+	if v != nil {
+		_c.SetReasoningEffort(*v)
+	}
+	return _c
+}
+
 // SetTrigger sets the "trigger" field.
 func (_c *IntelligenceRunCreate) SetTrigger(v string) *IntelligenceRunCreate {
 	_c.mutation.SetTrigger(v)
@@ -240,6 +254,10 @@ func (_c *IntelligenceRunCreate) defaults() error {
 		v := intelligencerun.DefaultChannelName
 		_c.mutation.SetChannelName(v)
 	}
+	if _, ok := _c.mutation.ReasoningEffort(); !ok {
+		v := intelligencerun.DefaultReasoningEffort
+		_c.mutation.SetReasoningEffort(v)
+	}
 	if _, ok := _c.mutation.Trigger(); !ok {
 		v := intelligencerun.DefaultTrigger
 		_c.mutation.SetTrigger(v)
@@ -280,6 +298,9 @@ func (_c *IntelligenceRunCreate) check() error {
 	}
 	if _, ok := _c.mutation.ModelID(); !ok {
 		return &ValidationError{Name: "model_id", err: errors.New(`ent: missing required field "IntelligenceRun.model_id"`)}
+	}
+	if _, ok := _c.mutation.ReasoningEffort(); !ok {
+		return &ValidationError{Name: "reasoning_effort", err: errors.New(`ent: missing required field "IntelligenceRun.reasoning_effort"`)}
 	}
 	if _, ok := _c.mutation.Trigger(); !ok {
 		return &ValidationError{Name: "trigger", err: errors.New(`ent: missing required field "IntelligenceRun.trigger"`)}
@@ -354,6 +375,10 @@ func (_c *IntelligenceRunCreate) createSpec() (*IntelligenceRun, *sqlgraph.Creat
 	if value, ok := _c.mutation.ModelID(); ok {
 		_spec.SetField(intelligencerun.FieldModelID, field.TypeString, value)
 		_node.ModelID = value
+	}
+	if value, ok := _c.mutation.ReasoningEffort(); ok {
+		_spec.SetField(intelligencerun.FieldReasoningEffort, field.TypeString, value)
+		_node.ReasoningEffort = value
 	}
 	if value, ok := _c.mutation.Trigger(); ok {
 		_spec.SetField(intelligencerun.FieldTrigger, field.TypeString, value)
@@ -486,6 +511,18 @@ func (u *IntelligenceRunUpsert) SetModelID(v string) *IntelligenceRunUpsert {
 // UpdateModelID sets the "model_id" field to the value that was provided on create.
 func (u *IntelligenceRunUpsert) UpdateModelID() *IntelligenceRunUpsert {
 	u.SetExcluded(intelligencerun.FieldModelID)
+	return u
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (u *IntelligenceRunUpsert) SetReasoningEffort(v string) *IntelligenceRunUpsert {
+	u.Set(intelligencerun.FieldReasoningEffort, v)
+	return u
+}
+
+// UpdateReasoningEffort sets the "reasoning_effort" field to the value that was provided on create.
+func (u *IntelligenceRunUpsert) UpdateReasoningEffort() *IntelligenceRunUpsert {
+	u.SetExcluded(intelligencerun.FieldReasoningEffort)
 	return u
 }
 
@@ -711,6 +748,20 @@ func (u *IntelligenceRunUpsertOne) SetModelID(v string) *IntelligenceRunUpsertOn
 func (u *IntelligenceRunUpsertOne) UpdateModelID() *IntelligenceRunUpsertOne {
 	return u.Update(func(s *IntelligenceRunUpsert) {
 		s.UpdateModelID()
+	})
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (u *IntelligenceRunUpsertOne) SetReasoningEffort(v string) *IntelligenceRunUpsertOne {
+	return u.Update(func(s *IntelligenceRunUpsert) {
+		s.SetReasoningEffort(v)
+	})
+}
+
+// UpdateReasoningEffort sets the "reasoning_effort" field to the value that was provided on create.
+func (u *IntelligenceRunUpsertOne) UpdateReasoningEffort() *IntelligenceRunUpsertOne {
+	return u.Update(func(s *IntelligenceRunUpsert) {
+		s.UpdateReasoningEffort()
 	})
 }
 
@@ -1121,6 +1172,20 @@ func (u *IntelligenceRunUpsertBulk) SetModelID(v string) *IntelligenceRunUpsertB
 func (u *IntelligenceRunUpsertBulk) UpdateModelID() *IntelligenceRunUpsertBulk {
 	return u.Update(func(s *IntelligenceRunUpsert) {
 		s.UpdateModelID()
+	})
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (u *IntelligenceRunUpsertBulk) SetReasoningEffort(v string) *IntelligenceRunUpsertBulk {
+	return u.Update(func(s *IntelligenceRunUpsert) {
+		s.SetReasoningEffort(v)
+	})
+}
+
+// UpdateReasoningEffort sets the "reasoning_effort" field to the value that was provided on create.
+func (u *IntelligenceRunUpsertBulk) UpdateReasoningEffort() *IntelligenceRunUpsertBulk {
+	return u.Update(func(s *IntelligenceRunUpsert) {
+		s.UpdateReasoningEffort()
 	})
 }
 

@@ -11,28 +11,42 @@ export interface HistoryFilter {
   modelID?: string;
   // Masked key prefix, matched against the keys a run evaluated.
   keyPrefix?: string;
+  // Thinking level the run requested. The empty string is its own choice: runs
+  // recorded before the field existed, and those that used the provider default.
+  reasoningEffort?: string;
 }
 
 export const DEFAULT_HISTORY_FILTER: HistoryFilter = { verdict: 'all' };
 
 export function isHistoryFilterActive(filter: HistoryFilter): boolean {
-  return filter.verdict !== 'all' || Boolean(filter.modelID) || Boolean(filter.keyPrefix);
+  return (
+    filter.verdict !== 'all' ||
+    Boolean(filter.modelID) ||
+    Boolean(filter.keyPrefix) ||
+    filter.reasoningEffort !== undefined
+  );
 }
 
 // historyFilterOptions lists what the loaded runs actually contain, so the
 // pickers never offer a model or key that has no records behind it.
-export function historyFilterOptions(runs: IntelligenceRun[]): { models: string[]; keys: string[] } {
+export function historyFilterOptions(runs: IntelligenceRun[]): {
+  models: string[];
+  keys: string[];
+  efforts: string[];
+} {
   const models = new Set<string>();
   const keys = new Set<string>();
+  const efforts = new Set<string>();
 
   for (const run of runs) {
     if (run.modelID) models.add(run.modelID);
+    if (run.reasoningEffort) efforts.add(run.reasoningEffort);
     for (const result of run.results) {
       if (result.keyPrefix) keys.add(result.keyPrefix);
     }
   }
 
-  return { models: [...models].sort(), keys: [...keys].sort() };
+  return { models: [...models].sort(), keys: [...keys].sort(), efforts: [...efforts].sort() };
 }
 
 // narrowToKey answers "what did this one key do" by dropping the run's other
@@ -70,6 +84,7 @@ export function filterRuns(runs: IntelligenceRun[], filter: HistoryFilter): Inte
     }
 
     if (filter.modelID && candidate.modelID !== filter.modelID) continue;
+    if (filter.reasoningEffort !== undefined && candidate.reasoningEffort !== filter.reasoningEffort) continue;
     if (filter.verdict !== 'all' && runIntelligenceVerdict(candidate) !== filter.verdict) continue;
 
     filtered.push(candidate);

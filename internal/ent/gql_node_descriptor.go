@@ -946,7 +946,7 @@ func (_m *IntelligenceRun) Node(ctx context.Context) (node *Node, err error) {
 	node = &Node{
 		ID:     _m.ID,
 		Type:   "IntelligenceRun",
-		Fields: make([]*Field, 12),
+		Fields: make([]*Field, 13),
 		Edges:  make([]*Edge, 0),
 	}
 	var buf []byte
@@ -990,10 +990,18 @@ func (_m *IntelligenceRun) Node(ctx context.Context) (node *Node, err error) {
 		Name:  "model_id",
 		Value: string(buf),
 	}
-	if buf, err = json.Marshal(_m.Trigger); err != nil {
+	if buf, err = json.Marshal(_m.ReasoningEffort); err != nil {
 		return nil, err
 	}
 	node.Fields[5] = &Field{
+		Type:  "string",
+		Name:  "reasoning_effort",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.Trigger); err != nil {
+		return nil, err
+	}
+	node.Fields[6] = &Field{
 		Type:  "string",
 		Name:  "trigger",
 		Value: string(buf),
@@ -1001,7 +1009,7 @@ func (_m *IntelligenceRun) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.Status); err != nil {
 		return nil, err
 	}
-	node.Fields[6] = &Field{
+	node.Fields[7] = &Field{
 		Type:  "intelligencerun.Status",
 		Name:  "status",
 		Value: string(buf),
@@ -1009,7 +1017,7 @@ func (_m *IntelligenceRun) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.TotalKeys); err != nil {
 		return nil, err
 	}
-	node.Fields[7] = &Field{
+	node.Fields[8] = &Field{
 		Type:  "int",
 		Name:  "total_keys",
 		Value: string(buf),
@@ -1017,7 +1025,7 @@ func (_m *IntelligenceRun) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.SuccessKeys); err != nil {
 		return nil, err
 	}
-	node.Fields[8] = &Field{
+	node.Fields[9] = &Field{
 		Type:  "int",
 		Name:  "success_keys",
 		Value: string(buf),
@@ -1025,7 +1033,7 @@ func (_m *IntelligenceRun) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.FailedKeys); err != nil {
 		return nil, err
 	}
-	node.Fields[9] = &Field{
+	node.Fields[10] = &Field{
 		Type:  "int",
 		Name:  "failed_keys",
 		Value: string(buf),
@@ -1033,7 +1041,7 @@ func (_m *IntelligenceRun) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.DurationMs); err != nil {
 		return nil, err
 	}
-	node.Fields[10] = &Field{
+	node.Fields[11] = &Field{
 		Type:  "int",
 		Name:  "duration_ms",
 		Value: string(buf),
@@ -1041,7 +1049,7 @@ func (_m *IntelligenceRun) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.Results); err != nil {
 		return nil, err
 	}
-	node.Fields[11] = &Field{
+	node.Fields[12] = &Field{
 		Type:  "[]objects.IntelligenceKeyResult",
 		Name:  "results",
 		Value: string(buf),

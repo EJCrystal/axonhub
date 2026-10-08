@@ -2327,6 +2327,10 @@ type IntelligenceRun implements Node {
   """
   modelID: String!
   """
+  Thinking level requested for this run; empty when the provider default applied
+  """
+  reasoningEffort: String!
+  """
   What started the run: manual or scheduled
   """
   trigger: String!
@@ -2497,6 +2501,22 @@ input IntelligenceRunWhereInput {
   modelIDHasSuffix: String
   modelIDEqualFold: String
   modelIDContainsFold: String
+  """
+  reasoning_effort field predicates
+  """
+  reasoningEffort: String
+  reasoningEffortNEQ: String
+  reasoningEffortIn: [String!]
+  reasoningEffortNotIn: [String!]
+  reasoningEffortGT: String
+  reasoningEffortGTE: String
+  reasoningEffortLT: String
+  reasoningEffortLTE: String
+  reasoningEffortContains: String
+  reasoningEffortHasPrefix: String
+  reasoningEffortHasSuffix: String
+  reasoningEffortEqualFold: String
+  reasoningEffortContainsFold: String
   """
   trigger field predicates
   """

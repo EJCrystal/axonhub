@@ -239,19 +239,20 @@ var schemaGraph = func() *sqlgraph.Schema {
 		},
 		Type: "IntelligenceRun",
 		Fields: map[string]*sqlgraph.FieldSpec{
-			intelligencerun.FieldCreatedAt:   {Type: field.TypeTime, Column: intelligencerun.FieldCreatedAt},
-			intelligencerun.FieldUpdatedAt:   {Type: field.TypeTime, Column: intelligencerun.FieldUpdatedAt},
-			intelligencerun.FieldDeletedAt:   {Type: field.TypeInt, Column: intelligencerun.FieldDeletedAt},
-			intelligencerun.FieldChannelID:   {Type: field.TypeInt, Column: intelligencerun.FieldChannelID},
-			intelligencerun.FieldChannelName: {Type: field.TypeString, Column: intelligencerun.FieldChannelName},
-			intelligencerun.FieldModelID:     {Type: field.TypeString, Column: intelligencerun.FieldModelID},
-			intelligencerun.FieldTrigger:     {Type: field.TypeString, Column: intelligencerun.FieldTrigger},
-			intelligencerun.FieldStatus:      {Type: field.TypeEnum, Column: intelligencerun.FieldStatus},
-			intelligencerun.FieldTotalKeys:   {Type: field.TypeInt, Column: intelligencerun.FieldTotalKeys},
-			intelligencerun.FieldSuccessKeys: {Type: field.TypeInt, Column: intelligencerun.FieldSuccessKeys},
-			intelligencerun.FieldFailedKeys:  {Type: field.TypeInt, Column: intelligencerun.FieldFailedKeys},
-			intelligencerun.FieldDurationMs:  {Type: field.TypeInt, Column: intelligencerun.FieldDurationMs},
-			intelligencerun.FieldResults:     {Type: field.TypeJSON, Column: intelligencerun.FieldResults},
+			intelligencerun.FieldCreatedAt:       {Type: field.TypeTime, Column: intelligencerun.FieldCreatedAt},
+			intelligencerun.FieldUpdatedAt:       {Type: field.TypeTime, Column: intelligencerun.FieldUpdatedAt},
+			intelligencerun.FieldDeletedAt:       {Type: field.TypeInt, Column: intelligencerun.FieldDeletedAt},
+			intelligencerun.FieldChannelID:       {Type: field.TypeInt, Column: intelligencerun.FieldChannelID},
+			intelligencerun.FieldChannelName:     {Type: field.TypeString, Column: intelligencerun.FieldChannelName},
+			intelligencerun.FieldModelID:         {Type: field.TypeString, Column: intelligencerun.FieldModelID},
+			intelligencerun.FieldReasoningEffort: {Type: field.TypeString, Column: intelligencerun.FieldReasoningEffort},
+			intelligencerun.FieldTrigger:         {Type: field.TypeString, Column: intelligencerun.FieldTrigger},
+			intelligencerun.FieldStatus:          {Type: field.TypeEnum, Column: intelligencerun.FieldStatus},
+			intelligencerun.FieldTotalKeys:       {Type: field.TypeInt, Column: intelligencerun.FieldTotalKeys},
+			intelligencerun.FieldSuccessKeys:     {Type: field.TypeInt, Column: intelligencerun.FieldSuccessKeys},
+			intelligencerun.FieldFailedKeys:      {Type: field.TypeInt, Column: intelligencerun.FieldFailedKeys},
+			intelligencerun.FieldDurationMs:      {Type: field.TypeInt, Column: intelligencerun.FieldDurationMs},
+			intelligencerun.FieldResults:         {Type: field.TypeJSON, Column: intelligencerun.FieldResults},
 		},
 	}
 	graph.Nodes[9] = &sqlgraph.Node{
@@ -2491,6 +2492,11 @@ func (f *IntelligenceRunFilter) WhereChannelName(p entql.StringP) {
 // WhereModelID applies the entql string predicate on the model_id field.
 func (f *IntelligenceRunFilter) WhereModelID(p entql.StringP) {
 	f.Where(p.Field(intelligencerun.FieldModelID))
+}
+
+// WhereReasoningEffort applies the entql string predicate on the reasoning_effort field.
+func (f *IntelligenceRunFilter) WhereReasoningEffort(p entql.StringP) {
+	f.Where(p.Field(intelligencerun.FieldReasoningEffort))
 }
 
 // WhereTrigger applies the entql string predicate on the trigger field.

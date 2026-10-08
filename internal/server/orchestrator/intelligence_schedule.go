@@ -346,6 +346,7 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		SetChannelID(channel.ID).
 		SetChannelName(channel.Name).
 		SetModelID(target.ModelID).
+		SetReasoningEffort(strings.TrimSpace(target.ReasoningEffort)).
 		SetTrigger(trigger).
 		SetStatus(intelligencerun.Status(status)).
 		SetTotalKeys(result.Total).

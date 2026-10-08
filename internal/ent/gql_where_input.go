@@ -3722,6 +3722,21 @@ type IntelligenceRunWhereInput struct {
 	ModelIDEqualFold    *string  `json:"modelIDEqualFold,omitempty"`
 	ModelIDContainsFold *string  `json:"modelIDContainsFold,omitempty"`
 
+	// "reasoning_effort" field predicates.
+	ReasoningEffort             *string  `json:"reasoningEffort,omitempty"`
+	ReasoningEffortNEQ          *string  `json:"reasoningEffortNEQ,omitempty"`
+	ReasoningEffortIn           []string `json:"reasoningEffortIn,omitempty"`
+	ReasoningEffortNotIn        []string `json:"reasoningEffortNotIn,omitempty"`
+	ReasoningEffortGT           *string  `json:"reasoningEffortGT,omitempty"`
+	ReasoningEffortGTE          *string  `json:"reasoningEffortGTE,omitempty"`
+	ReasoningEffortLT           *string  `json:"reasoningEffortLT,omitempty"`
+	ReasoningEffortLTE          *string  `json:"reasoningEffortLTE,omitempty"`
+	ReasoningEffortContains     *string  `json:"reasoningEffortContains,omitempty"`
+	ReasoningEffortHasPrefix    *string  `json:"reasoningEffortHasPrefix,omitempty"`
+	ReasoningEffortHasSuffix    *string  `json:"reasoningEffortHasSuffix,omitempty"`
+	ReasoningEffortEqualFold    *string  `json:"reasoningEffortEqualFold,omitempty"`
+	ReasoningEffortContainsFold *string  `json:"reasoningEffortContainsFold,omitempty"`
+
 	// "trigger" field predicates.
 	Trigger             *string  `json:"trigger,omitempty"`
 	TriggerNEQ          *string  `json:"triggerNEQ,omitempty"`
@@ -4028,6 +4043,45 @@ func (i *IntelligenceRunWhereInput) P() (predicate.IntelligenceRun, error) {
 	}
 	if i.ModelIDContainsFold != nil {
 		predicates = append(predicates, intelligencerun.ModelIDContainsFold(*i.ModelIDContainsFold))
+	}
+	if i.ReasoningEffort != nil {
+		predicates = append(predicates, intelligencerun.ReasoningEffortEQ(*i.ReasoningEffort))
+	}
+	if i.ReasoningEffortNEQ != nil {
+		predicates = append(predicates, intelligencerun.ReasoningEffortNEQ(*i.ReasoningEffortNEQ))
+	}
+	if len(i.ReasoningEffortIn) > 0 {
+		predicates = append(predicates, intelligencerun.ReasoningEffortIn(i.ReasoningEffortIn...))
+	}
+	if len(i.ReasoningEffortNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.ReasoningEffortNotIn(i.ReasoningEffortNotIn...))
+	}
+	if i.ReasoningEffortGT != nil {
+		predicates = append(predicates, intelligencerun.ReasoningEffortGT(*i.ReasoningEffortGT))
+	}
+	if i.ReasoningEffortGTE != nil {
+		predicates = append(predicates, intelligencerun.ReasoningEffortGTE(*i.ReasoningEffortGTE))
+	}
+	if i.ReasoningEffortLT != nil {
+		predicates = append(predicates, intelligencerun.ReasoningEffortLT(*i.ReasoningEffortLT))
+	}
+	if i.ReasoningEffortLTE != nil {
+		predicates = append(predicates, intelligencerun.ReasoningEffortLTE(*i.ReasoningEffortLTE))
+	}
+	if i.ReasoningEffortContains != nil {
+		predicates = append(predicates, intelligencerun.ReasoningEffortContains(*i.ReasoningEffortContains))
+	}
+	if i.ReasoningEffortHasPrefix != nil {
+		predicates = append(predicates, intelligencerun.ReasoningEffortHasPrefix(*i.ReasoningEffortHasPrefix))
+	}
+	if i.ReasoningEffortHasSuffix != nil {
+		predicates = append(predicates, intelligencerun.ReasoningEffortHasSuffix(*i.ReasoningEffortHasSuffix))
+	}
+	if i.ReasoningEffortEqualFold != nil {
+		predicates = append(predicates, intelligencerun.ReasoningEffortEqualFold(*i.ReasoningEffortEqualFold))
+	}
+	if i.ReasoningEffortContainsFold != nil {
+		predicates = append(predicates, intelligencerun.ReasoningEffortContainsFold(*i.ReasoningEffortContainsFold))
 	}
 	if i.Trigger != nil {
 		predicates = append(predicates, intelligencerun.TriggerEQ(*i.Trigger))
