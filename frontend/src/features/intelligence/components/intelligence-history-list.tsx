@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ErrorDisplay } from '@/features/channels/utils/error-formatter';
 import { IntelligenceHTMLPreview } from './intelligence-html-preview';
 import {
+  canRecordManualVerdict,
   intelligenceVerdict,
   runIntelligenceVerdict,
   verdictBadgeClass,
@@ -154,8 +155,10 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                               </div>
                             )}
                             {/* Automatic scoring can leave no usable verdict; a human then
-                                has to judge the source and record the decision here. */}
-                            {!key.manualVerdict && intelligenceVerdict(key) === 'failed' && (
+                                has to judge the source and record the decision here. A run
+                                that failed before any page was generated has nothing to
+                                review, so the buttons stay hidden for it. */}
+                            {canRecordManualVerdict(key) && (
                               <div className='mt-2 flex flex-wrap items-center gap-2'>
                                 <Button
                                   variant='outline'

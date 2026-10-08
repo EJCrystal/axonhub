@@ -12,7 +12,9 @@ const transpiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023 },
 }).outputText;
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(transpiled).toString('base64')}`;
-const { intelligenceVerdict, runIntelligenceVerdict, verdictBadgeVariant, verdictBadgeClass } = await import(moduleUrl);
+const { intelligenceVerdict, runIntelligenceVerdict, canRecordManualVerdict } = await import(moduleUrl);
+const { verdictBadgeVariant } = await import(moduleUrl);
+const { verdictBadgeClass } = await import(moduleUrl);
 
 test('a normal assessment maps to normal', () => {
   assert.equal(intelligenceVerdict({ success: true, quality: 'normal' }), 'normal');
@@ -134,4 +136,34 @@ test('each verdict maps to its own colour family', () => {
 
   const classes = new Set(['normal', 'degraded', 'failed'].map(verdictBadgeClass));
   assert.equal(classes.size, 3, 'the three verdicts must not share a colour');
+});
+
+// A manual verdict is only offered when there is a page to judge. A run that
+// died before generating anything has nothing to review, so the buttons would
+// ask the operator for a decision they cannot make.
+test('a key with no generated page cannot be judged by hand', () => {
+  assert.equal(canRecordManualVerdict({ success: false, quality: '', html: '' }), false, 'empty source');
+  assert.equal(canRecordManualVerdict({ success: false, quality: '', html: null }), false, 'null source');
+  assert.equal(canRecordManualVerdict({ success: false, quality: '', html: '   ' }), false, 'whitespace source');
+  assert.equal(canRecordManualVerdict({ success: false, quality: '' }), false, 'absent source');
+});
+
+// The case the buttons exist for: the source is there, scoring could not settle
+// it, so a human reads the page and decides.
+test('a generated page whose scoring failed can be judged by hand', () => {
+  assert.equal(canRecordManualVerdict({ success: false, quality: '', html: '<html></html>' }), true);
+  assert.equal(canRecordManualVerdict({ success: true, quality: 'unknown', html: '<html></html>' }), true);
+});
+
+// Once a verdict is recorded the buttons give way to the clear action, and a
+// key that already has a verdict needs no decision.
+test('a key that already carries a verdict is not offered again', () => {
+  assert.equal(canRecordManualVerdict({ success: false, quality: '', html: '<html></html>', manualVerdict: 'degraded' }), false);
+  assert.equal(canRecordManualVerdict({ success: false, quality: '', html: '<html></html>', manualVerdict: 'normal' }), false);
+});
+
+// Keys that scored cleanly are not up for review either.
+test('a normal or degraded automatic result needs no human decision', () => {
+  assert.equal(canRecordManualVerdict({ success: true, quality: 'normal', html: '<html></html>' }), false);
+  assert.equal(canRecordManualVerdict({ success: true, quality: 'degraded', html: '<html></html>' }), false);
 });

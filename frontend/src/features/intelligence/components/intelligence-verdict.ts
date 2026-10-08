@@ -80,3 +80,18 @@ export function verdictBadgeClass(verdict: IntelligenceVerdict): string {
       return 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400';
   }
 }
+
+// canRecordManualVerdict reports whether an operator can still decide a key's
+// outcome by hand.
+//
+// That only makes sense once the model actually produced a page: a run that
+// failed before generation has no source to review, so offering the buttons
+// would invite a judgement nobody is able to make. The buttons are for the
+// narrower case where the page exists but automatic scoring could not settle
+// it, so the source is there for a human to read.
+export function canRecordManualVerdict(result: VerdictInput & { html?: string | null }): boolean {
+  if (result.manualVerdict) return false;
+  if (!result.html || result.html.trim() === '') return false;
+
+  return intelligenceVerdict(result) === 'failed';
+}
