@@ -363,11 +363,12 @@ type IntelligenceConfigInput struct {
 }
 
 type IntelligenceEvaluateInput struct {
-	ChannelID objects.GUID `json:"channelID"`
-	ModelID   *string      `json:"modelID,omitempty"`
-	Keys      []string     `json:"keys,omitempty"`
-	Prompt    *string      `json:"prompt,omitempty"`
-	BaseURL   *string      `json:"baseURL,omitempty"`
+	ChannelID       objects.GUID `json:"channelID"`
+	ModelID         *string      `json:"modelID,omitempty"`
+	Keys            []string     `json:"keys,omitempty"`
+	Prompt          *string      `json:"prompt,omitempty"`
+	BaseURL         *string      `json:"baseURL,omitempty"`
+	ReasoningEffort *string      `json:"reasoningEffort,omitempty"`
 }
 
 type IntelligenceEvaluatePayload struct {
@@ -394,16 +395,18 @@ type IntelligenceKeyResult struct {
 }
 
 type IntelligenceTarget struct {
-	ChannelID   objects.GUID `json:"channelID"`
-	ChannelName string       `json:"channelName"`
-	ModelID     string       `json:"modelID"`
-	APIKey      *string      `json:"apiKey,omitempty"`
+	ChannelID       objects.GUID `json:"channelID"`
+	ChannelName     string       `json:"channelName"`
+	ModelID         string       `json:"modelID"`
+	APIKey          *string      `json:"apiKey,omitempty"`
+	ReasoningEffort *string      `json:"reasoningEffort,omitempty"`
 }
 
 type IntelligenceTargetInput struct {
-	ChannelID objects.GUID `json:"channelID"`
-	ModelID   string       `json:"modelID"`
-	APIKey    *string      `json:"apiKey,omitempty"`
+	ChannelID       objects.GUID `json:"channelID"`
+	ModelID         string       `json:"modelID"`
+	APIKey          *string      `json:"apiKey,omitempty"`
+	ReasoningEffort *string      `json:"reasoningEffort,omitempty"`
 }
 
 type LoadAPIKeyProfileTemplateInput struct {

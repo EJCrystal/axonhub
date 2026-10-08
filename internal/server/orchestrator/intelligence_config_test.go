@@ -55,6 +55,27 @@ func TestIntelligenceTaskSpecFollowsInterval(t *testing.T) {
 	}
 }
 
+// TestAllowedReasoningEfforts pins the levels a target may request: the seven
+// the transformers understand, plus the empty value that means "leave it alone".
+func TestAllowedReasoningEfforts(t *testing.T) {
+	require.Equal(t,
+		[]string{"none", "minimal", "low", "medium", "high", "xhigh", "max"},
+		allowedReasoningEfforts)
+
+	require.True(t, isAllowedReasoningEffort(""), "an unset level is always allowed")
+	require.True(t, isAllowedReasoningEffort("   "), "whitespace counts as unset")
+	for _, effort := range allowedReasoningEfforts {
+		require.True(t, isAllowedReasoningEffort(effort), effort)
+		require.True(t, isAllowedReasoningEffort(" "+effort+" "), "surrounding space is tolerated")
+	}
+
+	// Anything else would be forwarded verbatim and rejected upstream, so the
+	// save has to catch it while the operator is still looking.
+	for _, effort := range []string{"ultra", "HIGH", "0", "x-high", "Max"} {
+		require.False(t, isAllowedReasoningEffort(effort), effort)
+	}
+}
+
 func TestRunStatus(t *testing.T) {
 	key := func(success bool, quality string) objects.IntelligenceKeyResult {
 		return objects.IntelligenceKeyResult{Success: success, Quality: quality}

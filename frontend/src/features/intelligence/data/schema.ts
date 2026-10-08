@@ -61,6 +61,9 @@ export const intelligenceTargetSchema = z.object({
   modelID: z.string().default(''),
   // The single key this target evaluates. Null when every enabled key runs.
   apiKey: z.string().optional().nullable(),
+  // Thinking level requested for this target. Null means the provider default;
+  // a bare default('') only covers undefined, and GraphQL sends null here.
+  reasoningEffort: z.string().nullish().transform((value) => value ?? ''),
 });
 export type IntelligenceTarget = z.infer<typeof intelligenceTargetSchema>;
 

@@ -25,6 +25,9 @@ type IntelligenceTarget struct {
 	ChannelID int    `json:"channelId"`
 	ModelID   string `json:"modelId"`
 	APIKey    string `json:"apiKey,omitempty"`
+	// ReasoningEffort overrides the model's thinking level for this target. An
+	// empty value leaves the request untouched, so the provider default applies.
+	ReasoningEffort string `json:"reasoningEffort,omitempty"`
 }
 
 // IntelligenceRunStatus is the terminal state of one scheduled or manual run.

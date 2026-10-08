@@ -26,9 +26,10 @@ func (r *mutationResolver) intelligenceConfigPayload(ctx context.Context) (*Inte
 		}
 
 		entry := &IntelligenceTarget{
-			ChannelID:   objects.GUID{Type: ent.TypeChannel, ID: target.ChannelID},
-			ChannelName: name,
-			ModelID:     target.ModelID,
+			ChannelID:       objects.GUID{Type: ent.TypeChannel, ID: target.ChannelID},
+			ChannelName:     name,
+			ModelID:         target.ModelID,
+			ReasoningEffort: intelStringOrNil(target.ReasoningEffort),
 		}
 		if target.APIKey != "" {
 			entry.APIKey = lo.ToPtr(target.APIKey)

@@ -277,6 +277,7 @@ func (processor *TestChannelOrchestrator) EvaluateChannelIntelligence(
 	keys []string,
 	prompt *string,
 	baseURL *string,
+	reasoningEffort *string,
 ) (*IntelligenceEvaluateResult, error) {
 	channel, err := processor.channelService.GetChannel(ctx, channelID.ID)
 	if err != nil {
@@ -319,7 +320,8 @@ func (processor *TestChannelOrchestrator) EvaluateChannelIntelligence(
 
 	for index, key := range resolvedKeys {
 		group.Go(func() error {
-			results[index] = processor.evaluateIntelligenceKey(groupCtx, channel, key, model, generationPrompt, evaluator)
+			results[index] = processor.evaluateIntelligenceKey(
+				groupCtx, channel, key, model, generationPrompt, evaluator, lo.FromPtr(reasoningEffort))
 			return nil
 		})
 	}
@@ -388,11 +390,12 @@ func (processor *TestChannelOrchestrator) evaluateIntelligenceKey(
 	model string,
 	prompt string,
 	evaluator *intelligenceEvaluator,
+	reasoningEffort string,
 ) *IntelligenceKeyResult {
 	result := &IntelligenceKeyResult{KeyPrefix: maskAPIKey(key)}
 	startedAt := time.Now()
 
-	html, err := processor.generateIntelligenceHTML(ctx, channel, key, model, prompt)
+	html, err := processor.generateIntelligenceHTML(ctx, channel, key, model, prompt, reasoningEffort)
 	if err != nil {
 		result.DurationMs = int(time.Since(startedAt).Milliseconds())
 		result.Error = lo.ToPtr(err.Error())
@@ -454,6 +457,7 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 	key string,
 	model string,
 	prompt string,
+	reasoningEffort string,
 ) (string, error) {
 	// The channel's own API format decides the request shape and the inbound
 	// transformer, matching how the channel test builds its request: a Decisions
@@ -490,6 +494,12 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 	llmRequest := buildChannelTestRequest(model, useStream, "", prompt, responsesWebSocket, apiFormat)
 	if !responsesWebSocket {
 		llmRequest.MaxCompletionTokens = lo.ToPtr(int64(intelligenceGenerateMaxTokens))
+	}
+
+	// The configured thinking level wins over whatever the model name or the
+	// auto-reasoning middleware would otherwise decide for this run.
+	if strings.TrimSpace(reasoningEffort) != "" {
+		llmRequest.ReasoningEffort = strings.TrimSpace(reasoningEffort)
 	}
 
 	body, err := json.Marshal(llmRequest)
