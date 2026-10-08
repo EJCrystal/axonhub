@@ -22,7 +22,7 @@ const filterSource = load(join(dataDir, 'history-filter.ts')).replace("'../compo
 const filterUrl = `data:text/javascript;base64,${Buffer.from(filterSource).toString('base64')}`;
 const { filterRuns, historyFilterOptions, isHistoryFilterActive, DEFAULT_HISTORY_FILTER } = await import(filterUrl);
 
-const key = (keyPrefix, { success = true, quality = 'normal', manualVerdict = '' } = {}) => ({
+const key = (keyPrefix, { success = true, quality = 'normal', manualVerdict = '', html = '' } = {}) => ({
   keyPrefix,
   success,
   quality,
@@ -31,10 +31,13 @@ const key = (keyPrefix, { success = true, quality = 'normal', manualVerdict = ''
   taskID: '',
   generationMs: 0,
   durationMs: 0,
-  html: '',
+  html,
   error: null,
   manualVerdict,
 });
+
+// A page that exists but could not be scored: the case a human closes out.
+const UNSCORED_HTML = '<html></html>';
 
 const run = (id, { channelName = 'chan', modelID = 'm1', results }) => ({
   id,
@@ -54,14 +57,17 @@ const run = (id, { channelName = 'chan', modelID = 'm1', results }) => ({
 const DEGRADED_RUN = run('r-degraded', { results: [key('k1', { quality: 'degraded' })] });
 const NORMAL_RUN = run('r-normal', { results: [key('k1', { quality: 'normal' })] });
 const FAILED_RUN = run('r-failed', { results: [key('k1', { success: false, quality: '', error: 'boom' })] });
+const INCONCLUSIVE_RUN = run('r-unscored', {
+  results: [key('k1', { success: false, quality: '', html: UNSCORED_HTML, error: 'scoring unavailable' })],
+});
 const OTHER_MODEL = run('r-other', { modelID: 'm2', results: [key('k1', { quality: 'normal' })] });
-const ALL = [DEGRADED_RUN, NORMAL_RUN, FAILED_RUN, OTHER_MODEL];
+const ALL = [DEGRADED_RUN, NORMAL_RUN, FAILED_RUN, INCONCLUSIVE_RUN, OTHER_MODEL];
 
 test('the default filter keeps everything', () => {
   const out = filterRuns(ALL, DEFAULT_HISTORY_FILTER);
   assert.deepEqual(
     out.map((r) => r.id),
-    ['r-degraded', 'r-normal', 'r-failed', 'r-other']
+    ['r-degraded', 'r-normal', 'r-failed', 'r-unscored', 'r-other']
   );
   assert.equal(isHistoryFilterActive(DEFAULT_HISTORY_FILTER), false);
 });
@@ -75,12 +81,21 @@ test('filtering by degraded returns only the degraded runs', () => {
   assert.equal(isHistoryFilterActive({ verdict: 'degraded' }), true);
 });
 
-// "Automatic scoring failed" is its own bucket: no verdict was produced.
-test('filtering by failed returns the runs with no automatic verdict', () => {
+// The two no-verdict buckets are separate: a run with no page is a failure,
+// while one with a page waits on a human.
+test('filtering by failed returns the runs that generated nothing', () => {
   const out = filterRuns(ALL, { verdict: 'failed' });
   assert.deepEqual(
     out.map((r) => r.id),
     ['r-failed']
+  );
+});
+
+test('filtering by inconclusive returns the runs awaiting a human', () => {
+  const out = filterRuns(ALL, { verdict: 'inconclusive' });
+  assert.deepEqual(
+    out.map((r) => r.id),
+    ['r-unscored']
   );
 });
 

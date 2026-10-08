@@ -145,8 +145,10 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                             {key.error && <ErrorDisplay error={key.error} messageClassName='mt-2 text-xs text-red-600' />}
                             {/* A run can fail after the model already produced its answer. The
                                 reader then has to judge the source themselves, so the call to
-                                action comes first and the cause follows. */}
-                            {key.error && key.html && (
+                                action comes first and the cause follows. Only the inconclusive
+                                case gets this: a run that generated nothing is a plain failure
+                                with no source to review. */}
+                            {intelligenceVerdict(key) === 'inconclusive' && (
                               <div className='mt-2 rounded-md border border-dashed p-2'>
                                 <p className='font-medium'>{t('intelligence.history.previewAfterFailure')}</p>
                                 <p className='text-muted-foreground mt-1'>
