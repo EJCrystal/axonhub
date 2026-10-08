@@ -108,6 +108,69 @@ func TestNarrowIntelligenceConfig(t *testing.T) {
 	require.Contains(t, err.Error(), "not configured")
 }
 
+// TestRunsToTrimPerKey pins the retention rule: each API key keeps its own
+// newest limit runs, so a busy key cannot crowd out the others.
+func TestRunsToTrimPerKey(t *testing.T) {
+	run := func(id int, keys ...string) trimRun {
+		return trimRun{ID: id, Keys: keys}
+	}
+
+	// Runs are newest first, which is the order the query returns.
+	t.Run("one key keeps its newest ten", func(t *testing.T) {
+		runs := make([]trimRun, 0, 13)
+		for id := 13; id >= 1; id-- {
+			runs = append(runs, run(id, "k1"))
+		}
+
+		dropped := runsToTrim(runs, 10)
+		require.Equal(t, []int{3, 2, 1}, dropped)
+	})
+
+	t.Run("each key keeps ten of its own", func(t *testing.T) {
+		var runs []trimRun
+		// Twelve runs of k1, interleaved with three of k2.
+		for id := 15; id >= 1; id-- {
+			if id <= 3 {
+				runs = append(runs, run(id, "k2"))
+				continue
+			}
+			runs = append(runs, run(id, "k1"))
+		}
+
+		dropped := runsToTrim(runs, 10)
+		// The two oldest k1 runs go; every k2 run survives.
+		require.ElementsMatch(t, []int{5, 4}, dropped)
+	})
+
+	t.Run("a run covering several keys is kept while any of them needs it", func(t *testing.T) {
+		var runs []trimRun
+		for id := 12; id >= 1; id-- {
+			runs = append(runs, run(id, "k1"))
+		}
+		// The oldest run also covers k2, which has nothing else.
+		runs = append(runs, trimRun{ID: 0, Keys: []string{"k1", "k2"}})
+
+		dropped := runsToTrim(runs, 10)
+		// Runs 2 and 1 are k1-only and beyond the bound; run 0 stays for k2.
+		require.Equal(t, []int{2, 1}, dropped)
+		require.NotContains(t, dropped, 0)
+	})
+
+	t.Run("runs with no key share one bucket", func(t *testing.T) {
+		var runs []trimRun
+		for id := 12; id >= 1; id-- {
+			runs = append(runs, trimRun{ID: id})
+		}
+
+		dropped := runsToTrim(runs, 10)
+		require.Equal(t, []int{2, 1}, dropped)
+	})
+
+	t.Run("nothing to drop below the limit", func(t *testing.T) {
+		require.Empty(t, runsToTrim([]trimRun{run(1, "k1"), run(2, "k2")}, 10))
+	})
+}
+
 func TestRunStatus(t *testing.T) {
 	key := func(success bool, quality string) objects.IntelligenceKeyResult {
 		return objects.IntelligenceKeyResult{Success: success, Quality: quality}

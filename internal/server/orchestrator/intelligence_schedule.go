@@ -29,8 +29,13 @@ const (
 	// configuration.
 	IntelligenceConfigKey = "intelligence_check_config"
 
-	// intelligenceMaxRunsPerChannel bounds the history kept per channel.
+	// intelligenceMaxRunsPerChannel bounds the rows a single history read may
+	// return. The retention limit below is what actually trims storage.
 	intelligenceMaxRunsPerChannel = 100
+
+	// intelligenceMaxRunsPerKey bounds the history kept for one API key of one
+	// channel, so a busy key cannot crowd out the others.
+	intelligenceMaxRunsPerKey = 10
 
 	// intelligenceSchedulerTask is the name of the scheduled task.
 	intelligenceSchedulerTask = "intelligence-check"
@@ -405,16 +410,84 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 	return nil
 }
 
-// trimHistory keeps only the newest runs of a channel.
+// trimRun is the part of a recorded run the retention pass needs: which row it
+// is, and which API keys it evaluated.
+type trimRun struct {
+	ID   int
+	Keys []string
+}
+
+// unnamedIntelligenceKey buckets runs that produced no per-key result.
+const unnamedIntelligenceKey = ""
+
+// runsToTrim picks the runs to delete so that at most limit runs remain per API
+// key, newest first.
+//
+// A run is dropped only when every key it covers already has limit newer runs,
+// so a run that one key still needs is kept even if another key has moved on.
+// That keeps the per-key bound honest without discarding the only record of a
+// key. Runs that evaluated no key at all — an evaluation that failed before it
+// reached any of them — share one bucket, so they cannot pile up either.
+func runsToTrim(runs []trimRun, limit int) []int {
+	seen := make(map[string]int, 4)
+	var drop []int
+
+	for _, run := range runs {
+		keys := run.Keys
+		if len(keys) == 0 {
+			keys = []string{unnamedIntelligenceKey}
+		}
+
+		beyond := true
+		for _, key := range keys {
+			if seen[key] < limit {
+				beyond = false
+				break
+			}
+		}
+
+		// A dropped run does not count towards any key's budget; otherwise one
+		// extra key would silently halve another key's history.
+		if beyond {
+			drop = append(drop, run.ID)
+			continue
+		}
+
+		for _, key := range keys {
+			seen[key]++
+		}
+	}
+
+	return drop
+}
+
+// trimHistory keeps only the newest intelligenceMaxRunsPerKey runs of each API
+// key of a channel.
 func (s *IntelligenceService) trimHistory(ctx context.Context, channelID int) error {
-	ids, err := s.ent.IntelligenceRun.Query().
+	runs, err := s.ent.IntelligenceRun.Query().
 		Where(intelligencerun.ChannelIDEQ(channelID)).
 		Order(ent.Desc(intelligencerun.FieldCreatedAt)).
-		Offset(intelligenceMaxRunsPerChannel).
-		IDs(ctx)
+		Select(intelligencerun.FieldID, intelligencerun.FieldResults).
+		All(ctx)
 	if err != nil {
 		return err
 	}
+
+	trim := make([]trimRun, 0, len(runs))
+	for _, run := range runs {
+		keys := make([]string, 0, len(run.Results))
+		seen := make(map[string]struct{}, len(run.Results))
+		for _, result := range run.Results {
+			if _, ok := seen[result.KeyPrefix]; ok {
+				continue
+			}
+			seen[result.KeyPrefix] = struct{}{}
+			keys = append(keys, result.KeyPrefix)
+		}
+		trim = append(trim, trimRun{ID: run.ID, Keys: keys})
+	}
+
+	ids := runsToTrim(trim, intelligenceMaxRunsPerKey)
 	if len(ids) == 0 {
 		return nil
 	}
