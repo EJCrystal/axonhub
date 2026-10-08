@@ -1061,8 +1061,11 @@ type Mutation {
   evaluateChannelIntelligence(input: IntelligenceEvaluateInput!): IntelligenceEvaluatePayload!
   """Persists the scheduled check configuration."""
   setIntelligenceConfig(input: IntelligenceConfigInput!): IntelligenceConfig!
-  """Runs every configured target now. Returns how many channels were queued."""
-  runIntelligenceCheckNow: Int!
+  """
+  Runs the configured targets now, or only the named channel when channelID is
+  given. Returns how many channels were queued.
+  """
+  runIntelligenceCheckNow(channelID: ID): Int!
   # Records an operator's verdict for one key of a run, or clears it when
   # verdict is omitted. Used when automatic scoring failed.
   setIntelligenceRunVerdict(input: SetIntelligenceRunVerdictInput!): IntelligenceRun!

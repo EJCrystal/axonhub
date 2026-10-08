@@ -1125,7 +1125,7 @@ type ComplexityRoot struct {
 		RetainThread                          func(childComplexity int, id objects.GUID) int
 		RetainTrace                           func(childComplexity int, id objects.GUID) int
 		RotateAPIKey                          func(childComplexity int, id objects.GUID) int
-		RunIntelligenceCheckNow               func(childComplexity int) int
+		RunIntelligenceCheckNow               func(childComplexity int, channelID *objects.GUID) int
 		SaveChannelEndpoints                  func(childComplexity int, input biz.SaveChannelEndpointsInput) int
 		SaveChannelModelPrices                func(childComplexity int, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput) int
 		SaveProxyPreset                       func(childComplexity int, input biz.ProxyPreset) int
@@ -2357,7 +2357,7 @@ type MutationResolver interface {
 	TestChannelAPIKey(ctx context.Context, channelID objects.GUID, key string, modelID *string) (*TestAPIKeyResult, error)
 	EvaluateChannelIntelligence(ctx context.Context, input IntelligenceEvaluateInput) (*IntelligenceEvaluatePayload, error)
 	SetIntelligenceConfig(ctx context.Context, input IntelligenceConfigInput) (*IntelligenceConfig, error)
-	RunIntelligenceCheckNow(ctx context.Context) (int, error)
+	RunIntelligenceCheckNow(ctx context.Context, channelID *objects.GUID) (int, error)
 	SetIntelligenceRunVerdict(ctx context.Context, input SetIntelligenceRunVerdictInput) (*ent.IntelligenceRun, error)
 	BulkImportChannels(ctx context.Context, input BulkImportChannelsInput) (*biz.BulkImportChannelsResult, error)
 	BulkUpdateChannelOrdering(ctx context.Context, input BulkUpdateChannelOrderingInput) (*BulkUpdateChannelOrderingResult, error)
@@ -7061,7 +7061,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.complexity.Mutation.RunIntelligenceCheckNow(childComplexity), true
+		args, err := ec.field_Mutation_runIntelligenceCheckNow_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RunIntelligenceCheckNow(childComplexity, args["channelID"].(*objects.GUID)), true
 	case "Mutation.saveChannelEndpoints":
 		if e.complexity.Mutation.SaveChannelEndpoints == nil {
 			break
@@ -13749,6 +13754,17 @@ func (ec *executionContext) field_Mutation_rotateAPIKey_args(ctx context.Context
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_runIntelligenceCheckNow_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "channelID", ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID)
+	if err != nil {
+		return nil, err
+	}
+	args["channelID"] = arg0
 	return args, nil
 }
 
@@ -36083,7 +36099,8 @@ func (ec *executionContext) _Mutation_runIntelligenceCheckNow(ctx context.Contex
 		field,
 		ec.fieldContext_Mutation_runIntelligenceCheckNow,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Mutation().RunIntelligenceCheckNow(ctx)
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().RunIntelligenceCheckNow(ctx, fc.Args["channelID"].(*objects.GUID))
 		},
 		nil,
 		ec.marshalNInt2int,
@@ -36092,7 +36109,7 @@ func (ec *executionContext) _Mutation_runIntelligenceCheckNow(ctx context.Contex
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_runIntelligenceCheckNow(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_runIntelligenceCheckNow(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -36101,6 +36118,17 @@ func (ec *executionContext) fieldContext_Mutation_runIntelligenceCheckNow(_ cont
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_runIntelligenceCheckNow_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
