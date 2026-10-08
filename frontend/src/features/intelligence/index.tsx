@@ -27,8 +27,10 @@ import {
   HistoryFilter,
   VerdictFilter,
   filterRuns,
+  groupRunsByChannel,
   historyFilterOptions,
   isHistoryFilterActive,
+  pickActiveChannel,
 } from './data/history-filter';
 import {
   useAllIntelligenceRuns,
@@ -75,6 +77,9 @@ export default function IntelligenceManagement() {
   const [apiKey, setApiKey] = useState<string>();
   const [modelID, setModelID] = useState<string>();
   const [effort, setEffort] = useState<string>();
+  // Which channel's records the merged view shows. Empty means "not chosen yet",
+  // so the first channel with records can claim the tab on its own.
+  const [activeChannelTab, setActiveChannelTab] = useState<string>('');
 
   // The filter lists every channel, not just the configured ones: a channel
   // that was removed from the configuration still has history worth reading.
@@ -153,21 +158,17 @@ export default function IntelligenceManagement() {
   // Without a channel filter the page merges every channel's runs, keeping the
   // newest-first order and grouping runs by their channel.
   const groups = useMemo<ChannelRunGroup[]>(() => {
-    const order: number[] = [];
-    const byChannel = new Map<number, ChannelRunGroup>();
-
-    for (const node of filteredRuns) {
-      let group = byChannel.get(node.channelID);
-      if (!group) {
-        group = { channelID: node.channelID, channelName: node.channelName, edges: [] };
-        byChannel.set(node.channelID, group);
-        order.push(node.channelID);
-      }
-      group.edges.push({ node, cursor: node.id });
-    }
-
-    return order.map((id) => byChannel.get(id)!).filter(Boolean);
+    return groupRunsByChannel(filteredRuns).map((group) => ({
+      channelID: group.channelID,
+      channelName: group.channelName,
+      edges: group.runs.map((node) => ({ node, cursor: node.id })),
+    }));
   }, [filteredRuns]);
+
+  // The channel the merged view is showing. The filter can remove the channel
+  // that was selected, so fall back to the first one that still has records
+  // rather than rendering nothing.
+  const selectedGroup = useMemo(() => pickActiveChannel(groups, activeChannelTab), [groups, activeChannelTab]);
 
   const loading = showingAll ? allRuns.isLoading : historyQuery.isLoading;
   const fetching = showingAll ? allRuns.isFetching : historyQuery.isFetching;
@@ -379,24 +380,31 @@ export default function IntelligenceManagement() {
 
         <TabsContent value='history'>
           {showingAll ? (
-            groups.length > 0 ? (
-              <div className='space-y-6'>
-                {groups.map((group) => (
-                  <div key={group.channelID} className='space-y-2'>
-                    <div className='flex items-center gap-2'>
-                      <h3 className='text-sm font-medium'>{group.channelName || '#' + group.channelID}</h3>
-                      <span className='text-muted-foreground text-xs'>
-                        {t('intelligence.history.groupCount', { count: group.edges.length })}
-                      </span>
-                    </div>
-                    <IntelligenceHistoryList
-                      history={toConnection(group.edges.map((edge) => edge.node))}
-                      loading={false}
-                      configured={configured}
-                    />
-                  </div>
-                ))}
-              </div>
+            groups.length > 0 && selectedGroup ? (
+              // Channels run across the top rather than down the page: with a
+              // long history per channel, a vertical stack buries the one the
+              // reader wants below several screens of records.
+              <Tabs
+                value={String(selectedGroup.channelID)}
+                onValueChange={setActiveChannelTab}
+                className='space-y-3'
+              >
+                <TabsList className='h-auto w-full flex-wrap justify-start gap-1'>
+                  {groups.map((group) => (
+                    <TabsTrigger key={group.channelID} value={String(group.channelID)} className='flex-none px-3'>
+                      {group.channelName || '#' + group.channelID}
+                      <span className='text-muted-foreground ml-1 text-xs'>({group.edges.length})</span>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                <TabsContent value={String(selectedGroup.channelID)}>
+                  <IntelligenceHistoryList
+                    history={toConnection(selectedGroup.edges.map((edge) => edge.node))}
+                    loading={false}
+                    configured={configured}
+                  />
+                </TabsContent>
+              </Tabs>
             ) : (
               <IntelligenceHistoryList history={undefined} loading={loading} configured={configured} />
             )

@@ -20,7 +20,8 @@ function load(file) {
 const verdictUrl = `data:text/javascript;base64,${Buffer.from(load(join(componentDir, 'intelligence-verdict.ts'))).toString('base64')}`;
 const filterSource = load(join(dataDir, 'history-filter.ts')).replace("'../components/intelligence-verdict'", `'${verdictUrl}'`);
 const filterUrl = `data:text/javascript;base64,${Buffer.from(filterSource).toString('base64')}`;
-const { filterRuns, historyFilterOptions, isHistoryFilterActive, DEFAULT_HISTORY_FILTER } = await import(filterUrl);
+const { filterRuns, historyFilterOptions, isHistoryFilterActive, DEFAULT_HISTORY_FILTER, groupRunsByChannel, pickActiveChannel } =
+  await import(filterUrl);
 
 const key = (keyPrefix, { success = true, quality = 'normal', manualVerdict = '', html = '' } = {}) => ({
   keyPrefix,
@@ -202,4 +203,47 @@ test('the level picker only offers levels the loaded runs used', () => {
 
   // The unset runs contribute nothing: the UI offers that bucket on its own.
   assert.deepEqual(historyFilterOptions(runs).efforts, ['high', 'low']);
+});
+
+// The merged view shows one tab per channel. The order and membership of those
+// tabs is what the grouping decides, newest-first runs preserved.
+test('runs group by channel, newest first and in first-seen order', () => {
+  const a1 = run('a1', { results: [key('k1')] });
+  const a1b = { ...a1, channelID: 1 };
+  const b1 = { ...a1, id: 'b1', channelID: 2 };
+  const a2 = { ...a1, id: 'a2', channelID: 1 };
+
+  const groups = groupRunsByChannel([a1b, b1, a2]);
+  assert.deepEqual(
+    groups.map((g) => g.channelID),
+    [1, 2],
+    'first-seen order'
+  );
+  assert.deepEqual(
+    groups[0].runs.map((r) => r.id),
+    ['a1', 'a2'],
+    'newest first within a channel'
+  );
+  assert.deepEqual(
+    groups[1].runs.map((r) => r.id),
+    ['b1']
+  );
+});
+
+test('no runs produce no groups', () => {
+  assert.deepEqual(groupRunsByChannel([]), []);
+});
+
+// The default tab is the first channel, and a filter that removes the selected
+// channel must not leave the view blank.
+test('the active channel defaults to the first and falls back when it disappears', () => {
+  const groups = [
+    { channelID: 6, channelName: 'a', runs: [] },
+    { channelID: 2, channelName: 'b', runs: [] },
+  ];
+
+  assert.equal(pickActiveChannel(groups, '')?.channelID, 6, 'nothing chosen yet -> the first');
+  assert.equal(pickActiveChannel(groups, '2')?.channelID, 2, 'a live choice wins');
+  assert.equal(pickActiveChannel(groups, '404')?.channelID, 6, 'a vanished choice falls back to the first');
+  assert.equal(pickActiveChannel([], '6'), undefined, 'no groups -> nothing to show');
 });

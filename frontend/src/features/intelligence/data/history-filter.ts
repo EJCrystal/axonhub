@@ -92,3 +92,38 @@ export function filterRuns(runs: IntelligenceRun[], filter: HistoryFilter): Inte
 
   return filtered;
 }
+
+// groupRunsByChannel collects runs per channel, keeping the newest-first order
+// both across and within the groups. The merged history view stacks one tab per
+// channel, so the grouping is what decides which channels appear and in what
+// order.
+export function groupRunsByChannel<T extends { channelID: number; channelName: string }>(
+  runs: T[]
+): { channelID: number; channelName: string; runs: T[] }[] {
+  const order: number[] = [];
+  const byChannel = new Map<number, { channelID: number; channelName: string; runs: T[] }>();
+
+  for (const run of runs) {
+    let group = byChannel.get(run.channelID);
+    if (!group) {
+      group = { channelID: run.channelID, channelName: run.channelName, runs: [] };
+      byChannel.set(run.channelID, group);
+      order.push(run.channelID);
+    }
+    group.runs.push(run);
+  }
+
+  return order.map((id) => byChannel.get(id)!);
+}
+
+// pickActiveChannel decides which channel tab is shown: the requested one when
+// it still has records, otherwise the first one that does. A filter can remove
+// the channel that was selected, and the view must not end up blank.
+export function pickActiveChannel<T extends { channelID: number }>(
+  groups: T[],
+  requested: string
+): T | undefined {
+  if (groups.length === 0) return undefined;
+
+  return groups.find((group) => String(group.channelID) === requested) ?? groups[0];
+}
