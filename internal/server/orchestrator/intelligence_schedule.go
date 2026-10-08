@@ -239,15 +239,26 @@ func (s *IntelligenceService) runScheduled(ctx context.Context) {
 	s.runConfiguredTargets(runCtx, config, "scheduled")
 }
 
-// RunManual evaluates every configured target immediately, whatever the
-// schedule says.
-func (s *IntelligenceService) RunManual(ctx context.Context) (int, error) {
+// RunManual evaluates the configured targets immediately, whatever the schedule
+// says. A non-zero channelID narrows the run to that channel, which is what the
+// split button offers: re-checking one suspicious channel should not re-run and
+// re-bill every other one.
+func (s *IntelligenceService) RunManual(ctx context.Context, channelID int) (int, error) {
 	config, err := s.IntelligenceConfig(ctx)
 	if err != nil {
 		return 0, err
 	}
 	if len(config.Targets) == 0 {
 		return 0, fmt.Errorf("no channel is configured for the intelligence check")
+	}
+
+	if channelID != 0 {
+		narrowed, err := narrowIntelligenceConfig(config, channelID)
+		if err != nil {
+			return 0, err
+		}
+
+		config = narrowed
 	}
 
 	// The run outlives the GraphQL request: detach the context so the request
@@ -266,6 +277,27 @@ func (s *IntelligenceService) RunManual(ctx context.Context) (int, error) {
 	}()
 
 	return len(config.Targets), nil
+}
+
+// narrowIntelligenceConfig keeps only the named channel's target, so a manual
+// run can re-check one channel without touching the rest. A channel that is not
+// configured is an error rather than an empty run.
+func narrowIntelligenceConfig(config *objects.IntelligenceConfig, channelID int) (*objects.IntelligenceConfig, error) {
+	selected := make([]objects.IntelligenceTarget, 0, 1)
+	for _, target := range config.Targets {
+		if target.ChannelID == channelID {
+			selected = append(selected, target)
+		}
+	}
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("channel %d is not configured for the intelligence check", channelID)
+	}
+
+	return &objects.IntelligenceConfig{
+		Enabled:         config.Enabled,
+		IntervalMinutes: config.IntervalMinutes,
+		Targets:         selected,
+	}, nil
 }
 
 // runConfiguredTargets evaluates every target, one channel at a time so a run

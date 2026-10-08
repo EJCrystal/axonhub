@@ -76,6 +76,38 @@ func TestAllowedReasoningEfforts(t *testing.T) {
 	}
 }
 
+// TestNarrowIntelligenceConfig covers the split button: naming a channel must
+// keep only that channel's target, and naming one that is not configured has to
+// fail loudly rather than silently running everything.
+func TestNarrowIntelligenceConfig(t *testing.T) {
+	config := &objects.IntelligenceConfig{
+		Enabled:         true,
+		IntervalMinutes: 30,
+		Targets: []objects.IntelligenceTarget{
+			{ChannelID: 6, ModelID: "gpt-6.1-sol", ReasoningEffort: "high"},
+			{ChannelID: 9, ModelID: "other", ReasoningEffort: "low"},
+		},
+	}
+
+	narrowed, err := narrowIntelligenceConfig(config, 9)
+	require.NoError(t, err)
+	require.Len(t, narrowed.Targets, 1)
+	require.Equal(t, 9, narrowed.Targets[0].ChannelID)
+	require.Equal(t, "low", narrowed.Targets[0].ReasoningEffort, "the level travels with the target")
+
+	// The schedule settings survive the narrowing untouched.
+	require.True(t, narrowed.Enabled)
+	require.Equal(t, 30, narrowed.IntervalMinutes)
+
+	// The original is not mutated, so the scheduled path is unaffected.
+	require.Len(t, config.Targets, 2)
+
+	// A channel outside the configuration is an error the caller reports.
+	_, err = narrowIntelligenceConfig(config, 404)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not configured")
+}
+
 func TestRunStatus(t *testing.T) {
 	key := func(success bool, quality string) objects.IntelligenceKeyResult {
 		return objects.IntelligenceKeyResult{Success: success, Quality: quality}
