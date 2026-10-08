@@ -14,7 +14,11 @@ import { modelsForAPIKey } from '../data/api-key-models';
 import { maskAPIKey } from '../data/mask-key';
 import { channelIdKey, sameChannelId } from '../data/channel-id';
 import { INTELLIGENCE_INTERVALS, IntelligenceConfig, IntelligenceInterval } from '../data/schema';
+import { REASONING_EFFORTS } from '@/features/models/data/reasoning-efforts';
 import { useSetIntelligenceConfig } from '../data/intelligence';
+
+// Radix Select reserves the empty string, so "provider default" needs its own value.
+const NO_EFFORT = '__default__';
 
 interface Props {
   config?: IntelligenceConfig;
@@ -26,6 +30,8 @@ interface DraftTarget {
   channelID: string;
   apiKey: string;
   modelID: string;
+  // Empty means "leave the thinking level alone".
+  reasoningEffort: string;
 }
 
 
@@ -46,7 +52,14 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
     if (!config) return;
     setEnabled(config.enabled);
     setIntervalMinutes((config.intervalMinutes as IntelligenceInterval) ?? 60);
-    setTargets(config.targets.map((target) => ({ channelID: target.channelID, apiKey: target.apiKey ?? '', modelID: target.modelID })));
+    setTargets(
+      config.targets.map((target) => ({
+        channelID: target.channelID,
+        apiKey: target.apiKey ?? '',
+        modelID: target.modelID,
+        reasoningEffort: target.reasoningEffort ?? '',
+      }))
+    );
   }, [config]);
 
   const channelOptions = useMemo(
@@ -86,7 +99,10 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
     const next = channelOptions.find((channel) => !targets.some((target) => sameChannelId(target.channelID, channel.id)));
     if (!next) return;
     const apiKey = keysFor(next.id)[0] ?? '';
-    setTargets((prev) => [...prev, { channelID: next.id, apiKey, modelID: modelsFor(next.id, apiKey)[0] ?? '' }]);
+    setTargets((prev) => [
+      ...prev,
+      { channelID: next.id, apiKey, modelID: modelsFor(next.id, apiKey)[0] ?? '', reasoningEffort: '' },
+    ]);
   };
 
   const updateTarget = (index: number, patch: Partial<DraftTarget>) => {
@@ -101,7 +117,13 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
     save.mutate({
       enabled,
       intervalMinutes,
-      targets: targets.map((target) => ({ channelID: target.channelID, modelID: target.modelID, apiKey: target.apiKey })),
+      targets: targets.map((target) => ({
+        channelID: target.channelID,
+        modelID: target.modelID,
+        apiKey: target.apiKey,
+        // Omit rather than send an empty string, so the backend stores nothing.
+        reasoningEffort: target.reasoningEffort || undefined,
+      })),
     });
   };
 
@@ -157,13 +179,14 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                   <TableHead>{t('intelligence.settings.channelColumn')}</TableHead>
                   <TableHead>{t('intelligence.settings.keyColumn')}</TableHead>
                   <TableHead>{t('intelligence.settings.modelColumn')}</TableHead>
+                  <TableHead>{t('intelligence.settings.effortColumn')}</TableHead>
                   <TableHead className='w-16'></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {targets.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className='text-muted-foreground text-center text-xs'>
+                    <TableCell colSpan={5} className='text-muted-foreground text-center text-xs'>
                       {t('intelligence.settings.noTargets')}
                     </TableCell>
                   </TableRow>
@@ -228,6 +251,29 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                             {models.map((model) => (
                               <SelectItem key={model} value={model}>
                                 {model}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        {/* Not every model accepts every level, and an empty
+                            choice lets the provider apply its own default. */}
+                        <Select
+                          value={target.reasoningEffort || NO_EFFORT}
+                          onValueChange={(value) =>
+                            updateTarget(index, { reasoningEffort: value === NO_EFFORT ? '' : value })
+                          }
+                          disabled={readOnly}
+                        >
+                          <SelectTrigger className='w-36'>
+                            <SelectValue placeholder={t('intelligence.settings.effortPlaceholder')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NO_EFFORT}>{t('intelligence.settings.effortDefault')}</SelectItem>
+                            {REASONING_EFFORTS.map((effort) => (
+                              <SelectItem key={effort} value={effort}>
+                                {effort}
                               </SelectItem>
                             ))}
                           </SelectContent>

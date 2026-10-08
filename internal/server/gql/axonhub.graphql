@@ -416,6 +416,9 @@ input IntelligenceEvaluateInput {
   prompt: String
   # Overrides the detection endpoint, e.g. a self-hosted deployment.
   baseURL: String
+  # Thinking level to request, one of llm/reasoning.go. Omit for the provider
+  # default.
+  reasoningEffort: String
 }
 
 type IntelligenceKeyResult {
@@ -445,6 +448,9 @@ input IntelligenceTargetInput {
   modelID: String!
   # Narrows the run to one API key. Omit to evaluate every enabled key.
   apiKey: String
+  # Thinking level to request, one of llm/reasoning.go. Omit for the provider
+  # default.
+  reasoningEffort: String
 }
 
 type IntelligenceTarget {
@@ -453,6 +459,9 @@ type IntelligenceTarget {
   modelID: String!
   # The single key this target evaluates. Null when every enabled key runs.
   apiKey: String
+  # Thinking level requested for this target. Null when the provider default is
+  # used.
+  reasoningEffort: String
 }
 
 input IntelligenceConfigInput {

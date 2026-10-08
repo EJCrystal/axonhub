@@ -893,10 +893,11 @@ type ComplexityRoot struct {
 	}
 
 	IntelligenceTarget struct {
-		APIKey      func(childComplexity int) int
-		ChannelID   func(childComplexity int) int
-		ChannelName func(childComplexity int) int
-		ModelID     func(childComplexity int) int
+		APIKey          func(childComplexity int) int
+		ChannelID       func(childComplexity int) int
+		ChannelName     func(childComplexity int) int
+		ModelID         func(childComplexity int) int
+		ReasoningEffort func(childComplexity int) int
 	}
 
 	Model struct {
@@ -5690,6 +5691,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.IntelligenceTarget.ModelID(childComplexity), true
+	case "IntelligenceTarget.reasoningEffort":
+		if e.complexity.IntelligenceTarget.ReasoningEffort == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceTarget.ReasoningEffort(childComplexity), true
 
 	case "Model.associatedChannelCount":
 		if e.complexity.Model.AssociatedChannelCount == nil {
@@ -30719,6 +30726,8 @@ func (ec *executionContext) fieldContext_IntelligenceConfig_targets(_ context.Co
 				return ec.fieldContext_IntelligenceTarget_modelID(ctx, field)
 			case "apiKey":
 				return ec.fieldContext_IntelligenceTarget_apiKey(ctx, field)
+			case "reasoningEffort":
+				return ec.fieldContext_IntelligenceTarget_reasoningEffort(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IntelligenceTarget", field.Name)
 		},
@@ -31937,6 +31946,35 @@ func (ec *executionContext) _IntelligenceTarget_apiKey(ctx context.Context, fiel
 }
 
 func (ec *executionContext) fieldContext_IntelligenceTarget_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceTarget",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceTarget_reasoningEffort(ctx context.Context, field graphql.CollectedField, obj *IntelligenceTarget) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceTarget_reasoningEffort,
+		func(ctx context.Context) (any, error) {
+			return obj.ReasoningEffort, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceTarget_reasoningEffort(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "IntelligenceTarget",
 		Field:      field,
@@ -76480,7 +76518,7 @@ func (ec *executionContext) unmarshalInputIntelligenceEvaluateInput(ctx context.
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"channelID", "modelID", "keys", "prompt", "baseURL"}
+	fieldsInOrder := [...]string{"channelID", "modelID", "keys", "prompt", "baseURL", "reasoningEffort"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -76522,6 +76560,13 @@ func (ec *executionContext) unmarshalInputIntelligenceEvaluateInput(ctx context.
 				return it, err
 			}
 			it.BaseURL = data
+		case "reasoningEffort":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffort"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffort = data
 		}
 	}
 
@@ -77395,7 +77440,7 @@ func (ec *executionContext) unmarshalInputIntelligenceTargetInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"channelID", "modelID", "apiKey"}
+	fieldsInOrder := [...]string{"channelID", "modelID", "apiKey", "reasoningEffort"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -77423,6 +77468,13 @@ func (ec *executionContext) unmarshalInputIntelligenceTargetInput(ctx context.Co
 				return it, err
 			}
 			it.APIKey = data
+		case "reasoningEffort":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffort"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReasoningEffort = data
 		}
 	}
 
@@ -102585,6 +102637,8 @@ func (ec *executionContext) _IntelligenceTarget(ctx context.Context, sel ast.Sel
 			}
 		case "apiKey":
 			out.Values[i] = ec._IntelligenceTarget_apiKey(ctx, field, obj)
+		case "reasoningEffort":
+			out.Values[i] = ec._IntelligenceTarget_reasoningEffort(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

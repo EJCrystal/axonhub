@@ -21,6 +21,7 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/scheduler"
+	"github.com/looplj/axonhub/llm"
 )
 
 const (
@@ -37,6 +38,29 @@ const (
 
 // allowedIntelligenceIntervals are the intervals the configuration accepts.
 var allowedIntelligenceIntervals = []int{10, 30, 60}
+
+// allowedReasoningEfforts are the thinking levels a target may request. These
+// mirror llm/reasoning.go; an empty value means "use the provider default" and
+// is always allowed.
+var allowedReasoningEfforts = []string{
+	llm.ReasoningEffortNone,
+	llm.ReasoningEffortMinimal,
+	llm.ReasoningEffortLow,
+	llm.ReasoningEffortMedium,
+	llm.ReasoningEffortHigh,
+	llm.ReasoningEffortXHigh,
+	llm.ReasoningEffortMax,
+}
+
+// isAllowedReasoningEffort reports whether the target may request this level.
+// The empty value is allowed and means the request is left alone.
+func isAllowedReasoningEffort(effort string) bool {
+	if strings.TrimSpace(effort) == "" {
+		return true
+	}
+
+	return slices.Contains(allowedReasoningEfforts, strings.TrimSpace(effort))
+}
 
 // defaultIntelligenceConfig is used until the admin saves a configuration.
 func defaultIntelligenceConfig() *objects.IntelligenceConfig {
@@ -153,6 +177,11 @@ func (s *IntelligenceService) SetIntelligenceConfig(ctx context.Context, config 
 		}
 		if strings.TrimSpace(target.ModelID) == "" {
 			return fmt.Errorf("every target needs a model")
+		}
+		// An effort the transformers do not know would be forwarded verbatim and
+		// rejected upstream, so catch it while the operator is still looking.
+		if !isAllowedReasoningEffort(target.ReasoningEffort) {
+			return fmt.Errorf("reasoning effort must be one of %v", allowedReasoningEfforts)
 		}
 		if _, ok := seen[target.ChannelID]; ok {
 			return fmt.Errorf("channel %d is configured twice", target.ChannelID)
@@ -285,7 +314,9 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 	}
 
 	runCtx := contexts.WithSource(ctx, request.SourceTest)
-	result, err := s.testSvc.EvaluateChannelIntelligence(runCtx, objects.GUID{Type: "channel", ID: channel.ID}, lo.ToPtr(target.ModelID), keys, nil, nil)
+	result, err := s.testSvc.EvaluateChannelIntelligence(
+		runCtx, objects.GUID{Type: "channel", ID: channel.ID}, lo.ToPtr(target.ModelID), keys, nil, nil,
+		lo.ToPtr(target.ReasoningEffort))
 	if err != nil {
 		return fmt.Errorf("failed to evaluate channel %d: %w", channel.ID, err)
 	}

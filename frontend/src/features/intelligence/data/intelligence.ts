@@ -22,6 +22,7 @@ const INTELLIGENCE_CONFIG_QUERY = `
         channelName
         modelID
         apiKey
+        reasoningEffort
       }
     }
   }
@@ -37,6 +38,7 @@ const SET_INTELLIGENCE_CONFIG_MUTATION = `
         channelName
         modelID
         apiKey
+        reasoningEffort
       }
     }
   }
@@ -147,7 +149,7 @@ export function useSetIntelligenceConfig() {
     mutationFn: async (input: {
       enabled: boolean;
       intervalMinutes: IntelligenceInterval;
-      targets: { channelID: string; modelID: string; apiKey?: string }[];
+      targets: { channelID: string; modelID: string; apiKey?: string; reasoningEffort?: string }[];
     }) => {
       const data = await graphqlRequest<{ setIntelligenceConfig: unknown }>(SET_INTELLIGENCE_CONFIG_MUTATION, { input });
       return intelligenceConfigSchema.parse(data.setIntelligenceConfig);
