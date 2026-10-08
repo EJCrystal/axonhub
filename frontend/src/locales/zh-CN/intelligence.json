@@ -58,6 +58,7 @@
   "intelligence.history.verdictFilter.label": "结论",
   "intelligence.history.verdictFilter.all": "全部结论",
   "intelligence.history.verdictFilter.degraded": "只看降智",
-  "intelligence.history.verdictFilter.failed": "只看判定失败",
+  "intelligence.history.verdictFilter.failed": "只看失败",
+  "intelligence.history.verdictFilter.inconclusive": "只看自动判定失败",
   "intelligence.history.verdictFilter.normal": "只看正常"
 }

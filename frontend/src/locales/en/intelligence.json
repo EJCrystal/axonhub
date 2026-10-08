@@ -58,6 +58,7 @@
   "intelligence.history.verdictFilter.label": "Verdict",
   "intelligence.history.verdictFilter.all": "All verdicts",
   "intelligence.history.verdictFilter.degraded": "Degraded only",
-  "intelligence.history.verdictFilter.failed": "Scoring failed only",
+  "intelligence.history.verdictFilter.failed": "Failed only",
+  "intelligence.history.verdictFilter.inconclusive": "Scoring failed only",
   "intelligence.history.verdictFilter.normal": "Normal only"
 }

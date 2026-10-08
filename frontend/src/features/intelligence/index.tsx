@@ -234,6 +234,7 @@ export default function IntelligenceManagement() {
         <SelectContent>
           <SelectItem value='all'>{t('intelligence.history.verdictFilter.all')}</SelectItem>
           <SelectItem value='degraded'>{t('intelligence.history.verdictFilter.degraded')}</SelectItem>
+          <SelectItem value='inconclusive'>{t('intelligence.history.verdictFilter.inconclusive')}</SelectItem>
           <SelectItem value='failed'>{t('intelligence.history.verdictFilter.failed')}</SelectItem>
           <SelectItem value='normal'>{t('intelligence.history.verdictFilter.normal')}</SelectItem>
         </SelectContent>

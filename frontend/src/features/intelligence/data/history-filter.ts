@@ -1,9 +1,8 @@
 import { IntelligenceRun } from './schema';
 import { IntelligenceVerdict, intelligenceVerdict, runIntelligenceVerdict } from '../components/intelligence-verdict';
 
-// The verdict filter offers "all" plus the three verdicts, so a reader can ask
-// for just the degraded runs or just the ones automatic scoring could not
-// decide.
+// The verdict filter offers "all" plus every verdict, so a reader can ask for
+// just the degraded runs or just the ones automatic scoring could not decide.
 export type VerdictFilter = 'all' | IntelligenceVerdict;
 
 export interface HistoryFilter {

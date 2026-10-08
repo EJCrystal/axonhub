@@ -16,6 +16,8 @@ const { intelligenceVerdict, runIntelligenceVerdict, canRecordManualVerdict } = 
 const { verdictBadgeVariant } = await import(moduleUrl);
 const { verdictBadgeClass } = await import(moduleUrl);
 
+const ALL_VERDICTS = ['normal', 'degraded', 'inconclusive', 'failed'];
+
 test('a normal assessment maps to normal', () => {
   assert.equal(intelligenceVerdict({ success: true, quality: 'normal' }), 'normal');
 });
@@ -25,15 +27,32 @@ test('degraded and the historical suspicious label both map to degraded', () => 
   assert.equal(intelligenceVerdict({ success: true, quality: 'suspicious' }), 'degraded');
 });
 
-// The three states answer one question: was there an automatic verdict at all?
-test('an inconclusive assessment collapses into failed', () => {
-  assert.equal(intelligenceVerdict({ success: true, quality: 'unknown' }), 'failed');
-  assert.equal(intelligenceVerdict({ success: true, quality: '' }), 'failed');
+// No automatic verdict with a page in hand is the case a person has to close
+// out, so it reads as inconclusive rather than a failure.
+test('an assessment nobody could settle, with a page, is inconclusive', () => {
+  const html = '<html></html>';
+  assert.equal(intelligenceVerdict({ success: true, quality: 'unknown', html }), 'inconclusive');
+  assert.equal(intelligenceVerdict({ success: true, quality: '', html }), 'inconclusive');
+  assert.equal(intelligenceVerdict({ success: false, quality: '', html }), 'inconclusive');
+  assert.equal(intelligenceVerdict({ success: false, quality: 'normal', html }), 'inconclusive');
 });
 
+// The same outcomes without a page are plain failures, because there is nothing
+// for a human to look at.
 test('a key that never produced an answer is failed', () => {
   assert.equal(intelligenceVerdict({ success: false, quality: '' }), 'failed');
   assert.equal(intelligenceVerdict({ success: false, quality: 'normal' }), 'failed');
+  assert.equal(intelligenceVerdict({ success: true, quality: 'unknown' }), 'failed');
+  assert.equal(intelligenceVerdict({ success: true, quality: '', html: '' }), 'failed');
+  assert.equal(intelligenceVerdict({ success: false, quality: '', html: '   ' }), 'failed');
+  assert.equal(intelligenceVerdict({ success: false, quality: '', html: null }), 'failed');
+});
+
+// An oversized document has its html dropped by the backend, so a decisive
+// automatic verdict must still be reported from the scoring alone.
+test('a decisive verdict survives a dropped source', () => {
+  assert.equal(intelligenceVerdict({ success: true, quality: 'normal', html: '' }), 'normal');
+  assert.equal(intelligenceVerdict({ success: true, quality: 'degraded', html: null }), 'degraded');
 });
 
 test('a manual verdict wins over the automatic result', () => {
@@ -95,13 +114,32 @@ test('a run with no successful key is failed', () => {
   assert.equal(runIntelligenceVerdict({ successKeys: 0, results: [] }), 'failed');
 });
 
-test('a run of inconclusive keys is failed', () => {
+test('a run of unscored keys with pages is inconclusive', () => {
   assert.equal(
     runIntelligenceVerdict({
       successKeys: 1,
-      results: [{ success: true, quality: 'unknown' }],
+      results: [{ success: true, quality: 'unknown', html: '<html></html>' }],
     }),
-    'failed'
+    'inconclusive'
+  );
+});
+
+// A run that generated nothing at all is a failure, not a question for a human.
+test('a run with no generated pages is failed', () => {
+  assert.equal(runIntelligenceVerdict({ results: [{ success: false, quality: '' }] }), 'failed');
+});
+
+// Degraded outranks inconclusive: a run with one degraded key is degraded even
+// if another key could not be scored.
+test('degraded outranks an unscored key', () => {
+  assert.equal(
+    runIntelligenceVerdict({
+      results: [
+        { success: true, quality: 'degraded', html: '<html></html>' },
+        { success: true, quality: 'unknown', html: '<html></html>' },
+      ],
+    }),
+    'degraded'
   );
 });
 
@@ -126,16 +164,17 @@ test('degraded is the alarming badge, normal the positive one, failed neutral', 
 test('each verdict maps to its own colour family', () => {
   assert.match(verdictBadgeClass('normal'), /emerald/, 'normal is green');
   assert.match(verdictBadgeClass('degraded'), /amber/, 'degraded is amber');
+  assert.match(verdictBadgeClass('inconclusive'), /slate/, 'inconclusive is muted');
   assert.match(verdictBadgeClass('failed'), /red/, 'failed is red');
 
   // A dark-mode pair has to ship with each one, otherwise the badge is
   // unreadable in the theme the operator actually uses.
-  for (const verdict of ['normal', 'degraded', 'failed']) {
+  for (const verdict of ALL_VERDICTS) {
     assert.match(verdictBadgeClass(verdict), /dark:/, `${verdict} needs a dark variant`);
   }
 
-  const classes = new Set(['normal', 'degraded', 'failed'].map(verdictBadgeClass));
-  assert.equal(classes.size, 3, 'the three verdicts must not share a colour');
+  const classes = new Set(ALL_VERDICTS.map(verdictBadgeClass));
+  assert.equal(classes.size, ALL_VERDICTS.length, 'the verdicts must not share a colour');
 });
 
 // A manual verdict is only offered when there is a page to judge. A run that

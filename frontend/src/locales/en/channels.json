@@ -749,6 +749,7 @@
   "channels.dialogs.testAPIKeys.requestFailed": "Request failed",
   "channels.dialogs.intelligence.verdict.normal": "Normal",
   "channels.dialogs.intelligence.verdict.degraded": "Degraded",
+  "channels.dialogs.intelligence.verdict.inconclusive": "Automatic scoring failed, needs manual review",
   "channels.dialogs.intelligence.preview.title": "Generated result preview",
   "channels.dialogs.intelligence.preview.expand": "Open full size",
   "channels.dialogs.intelligence.preview.missing": "Nothing to preview for this run (it failed, or the source exceeded the size cap).",
