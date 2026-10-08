@@ -279,10 +279,10 @@ func (s *IntelligenceService) runScheduled(ctx context.Context) {
 }
 
 // RunManual evaluates the configured targets immediately, whatever the schedule
-// says. A non-zero channelID narrows the run to that channel, which is what the
-// split button offers: re-checking one suspicious channel should not re-run and
-// re-bill every other one.
-func (s *IntelligenceService) RunManual(ctx context.Context, channelID int) (int, error) {
+// says. A non-zero channelID narrows the run to that channel and an apiKey
+// narrows it to one target, which is what the split button offers: re-checking
+// one suspicious key should not re-run and re-bill the others.
+func (s *IntelligenceService) RunManual(ctx context.Context, channelID int, apiKey string) (int, error) {
 	config, err := s.IntelligenceConfig(ctx)
 	if err != nil {
 		return 0, err
@@ -291,8 +291,8 @@ func (s *IntelligenceService) RunManual(ctx context.Context, channelID int) (int
 		return 0, fmt.Errorf("no channel is configured for the intelligence check")
 	}
 
-	if channelID != 0 {
-		narrowed, err := narrowIntelligenceConfig(config, channelID)
+	if channelID != 0 || strings.TrimSpace(apiKey) != "" {
+		narrowed, err := narrowIntelligenceConfig(config, channelID, strings.TrimSpace(apiKey))
 		if err != nil {
 			return 0, err
 		}
@@ -321,14 +321,27 @@ func (s *IntelligenceService) RunManual(ctx context.Context, channelID int) (int
 // narrowIntelligenceConfig keeps only the named channel's target, so a manual
 // run can re-check one channel without touching the rest. A channel that is not
 // configured is an error rather than an empty run.
-func narrowIntelligenceConfig(config *objects.IntelligenceConfig, channelID int) (*objects.IntelligenceConfig, error) {
+// narrowIntelligenceConfig keeps only the target the run asked for. A channel
+// may carry several targets, one per key, so naming just the channel would run
+// all of its keys; apiKey, when given, is what selects between them.
+func narrowIntelligenceConfig(config *objects.IntelligenceConfig, channelID int, apiKey string) (*objects.IntelligenceConfig, error) {
 	selected := make([]objects.IntelligenceTarget, 0, 1)
 	for _, target := range config.Targets {
-		if target.ChannelID == channelID {
-			selected = append(selected, target)
+		if target.ChannelID != channelID {
+			continue
 		}
+		if apiKey != "" && target.APIKey != apiKey {
+			continue
+		}
+
+		selected = append(selected, target)
 	}
 	if len(selected) == 0 {
+		if apiKey != "" {
+			return nil, fmt.Errorf("key %s of channel %d is not configured for the intelligence check",
+				maskIntelligenceTargetKey(apiKey), channelID)
+		}
+
 		return nil, fmt.Errorf("channel %d is not configured for the intelligence check", channelID)
 	}
 

@@ -89,7 +89,7 @@ func TestNarrowIntelligenceConfig(t *testing.T) {
 		},
 	}
 
-	narrowed, err := narrowIntelligenceConfig(config, 9)
+	narrowed, err := narrowIntelligenceConfig(config, 9, "")
 	require.NoError(t, err)
 	require.Len(t, narrowed.Targets, 1)
 	require.Equal(t, 9, narrowed.Targets[0].ChannelID)
@@ -103,9 +103,41 @@ func TestNarrowIntelligenceConfig(t *testing.T) {
 	require.Len(t, config.Targets, 2)
 
 	// A channel outside the configuration is an error the caller reports.
-	_, err = narrowIntelligenceConfig(config, 404)
+	_, err = narrowIntelligenceConfig(config, 404, "")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not configured")
+}
+
+// TestNarrowIntelligenceConfigByKey covers the split button on a channel that
+// carries several keys: naming the channel alone would run all of them, so the
+// key has to pick one out.
+func TestNarrowIntelligenceConfigByKey(t *testing.T) {
+	config := &objects.IntelligenceConfig{
+		Enabled:         true,
+		IntervalMinutes: 60,
+		Targets: []objects.IntelligenceTarget{
+			{ChannelID: 6, APIKey: "sk-aaa", ModelID: "gpt-6.1-sol", ReasoningEffort: "high"},
+			{ChannelID: 6, APIKey: "sk-bbb", ModelID: "gpt-6-astra", ReasoningEffort: "low"},
+			{ChannelID: 6, APIKey: "sk-ccc", ModelID: "gpt-5.6-sol"},
+		},
+	}
+
+	// Without a key the whole channel runs, which is the previous behaviour.
+	all, err := narrowIntelligenceConfig(config, 6, "")
+	require.NoError(t, err)
+	require.Len(t, all.Targets, 3)
+
+	one, err := narrowIntelligenceConfig(config, 6, "sk-bbb")
+	require.NoError(t, err)
+	require.Len(t, one.Targets, 1)
+	require.Equal(t, "gpt-6-astra", one.Targets[0].ModelID)
+	require.Equal(t, "low", one.Targets[0].ReasoningEffort)
+
+	// An unknown key is reported, and the message must not leak the secret.
+	_, err = narrowIntelligenceConfig(config, 6, "sk-missing-1234567890")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not configured")
+	require.NotContains(t, err.Error(), "sk-missing-1234567890")
 }
 
 // TestRunsToTrimPerKey pins the retention rule: each API key keeps its own

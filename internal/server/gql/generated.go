@@ -1125,7 +1125,7 @@ type ComplexityRoot struct {
 		RetainThread                          func(childComplexity int, id objects.GUID) int
 		RetainTrace                           func(childComplexity int, id objects.GUID) int
 		RotateAPIKey                          func(childComplexity int, id objects.GUID) int
-		RunIntelligenceCheckNow               func(childComplexity int, channelID *objects.GUID) int
+		RunIntelligenceCheckNow               func(childComplexity int, channelID *objects.GUID, apiKey *string) int
 		SaveChannelEndpoints                  func(childComplexity int, input biz.SaveChannelEndpointsInput) int
 		SaveChannelModelPrices                func(childComplexity int, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput) int
 		SaveProxyPreset                       func(childComplexity int, input biz.ProxyPreset) int
@@ -2357,7 +2357,7 @@ type MutationResolver interface {
 	TestChannelAPIKey(ctx context.Context, channelID objects.GUID, key string, modelID *string) (*TestAPIKeyResult, error)
 	EvaluateChannelIntelligence(ctx context.Context, input IntelligenceEvaluateInput) (*IntelligenceEvaluatePayload, error)
 	SetIntelligenceConfig(ctx context.Context, input IntelligenceConfigInput) (*IntelligenceConfig, error)
-	RunIntelligenceCheckNow(ctx context.Context, channelID *objects.GUID) (int, error)
+	RunIntelligenceCheckNow(ctx context.Context, channelID *objects.GUID, apiKey *string) (int, error)
 	SetIntelligenceRunVerdict(ctx context.Context, input SetIntelligenceRunVerdictInput) (*ent.IntelligenceRun, error)
 	BulkImportChannels(ctx context.Context, input BulkImportChannelsInput) (*biz.BulkImportChannelsResult, error)
 	BulkUpdateChannelOrdering(ctx context.Context, input BulkUpdateChannelOrderingInput) (*BulkUpdateChannelOrderingResult, error)
@@ -7066,7 +7066,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.RunIntelligenceCheckNow(childComplexity, args["channelID"].(*objects.GUID)), true
+		return e.complexity.Mutation.RunIntelligenceCheckNow(childComplexity, args["channelID"].(*objects.GUID), args["apiKey"].(*string)), true
 	case "Mutation.saveChannelEndpoints":
 		if e.complexity.Mutation.SaveChannelEndpoints == nil {
 			break
@@ -13765,6 +13765,11 @@ func (ec *executionContext) field_Mutation_runIntelligenceCheckNow_args(ctx cont
 		return nil, err
 	}
 	args["channelID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "apiKey", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["apiKey"] = arg1
 	return args, nil
 }
 
@@ -36100,7 +36105,7 @@ func (ec *executionContext) _Mutation_runIntelligenceCheckNow(ctx context.Contex
 		ec.fieldContext_Mutation_runIntelligenceCheckNow,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().RunIntelligenceCheckNow(ctx, fc.Args["channelID"].(*objects.GUID))
+			return ec.resolvers.Mutation().RunIntelligenceCheckNow(ctx, fc.Args["channelID"].(*objects.GUID), fc.Args["apiKey"].(*string))
 		},
 		nil,
 		ec.marshalNInt2int,

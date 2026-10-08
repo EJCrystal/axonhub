@@ -45,8 +45,8 @@ const SET_INTELLIGENCE_CONFIG_MUTATION = `
 `;
 
 const RUN_INTELLIGENCE_CHECK_NOW_MUTATION = `
-  mutation RunIntelligenceCheckNow($channelID: ID) {
-    runIntelligenceCheckNow(channelID: $channelID)
+  mutation RunIntelligenceCheckNow($channelID: ID, $apiKey: String) {
+    runIntelligenceCheckNow(channelID: $channelID, apiKey: $apiKey)
   }
 `;
 
@@ -170,11 +170,13 @@ export function useRunIntelligenceCheckNow() {
   const { handleError } = useErrorHandler();
 
   return useMutation({
-    // No channel means every configured target, which is what the button's
-    // default action does; a channel narrows the run to that one.
-    mutationFn: async (channelID?: string) => {
+    // Nothing means every configured target, which is what the button's default
+    // action does. A channel narrows the run to it, and a key narrows it to one
+    // target, since a channel may be configured once per key.
+    mutationFn: async (target?: { channelID?: string; apiKey?: string }) => {
       const data = await graphqlRequest<{ runIntelligenceCheckNow: number }>(RUN_INTELLIGENCE_CHECK_NOW_MUTATION, {
-        channelID: channelID ?? null,
+        channelID: target?.channelID ?? null,
+        apiKey: target?.apiKey ?? null,
       });
       return data.runIntelligenceCheckNow;
     },
