@@ -1,5 +1,9 @@
 name: Fork Build Docker Image
 
+# The run list shows the version being built instead of the workflow name on
+# every row, so a build can be identified without opening it.
+run-name: Build ${{ inputs.version || github.ref_name }}
+
 on:
   workflow_dispatch:
     inputs:

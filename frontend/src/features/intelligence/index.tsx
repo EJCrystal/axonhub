@@ -300,8 +300,9 @@ export default function IntelligenceManagement() {
     </div>
   );
 
-  // The menu lists the configured channels by name, so a re-check names its
-  // target instead of exposing an opaque id.
+  // One menu entry per configured target. A channel can appear several times, so
+  // the entry has to say which key it will exercise and with what — a bare
+  // channel name would leave two rows looking identical.
   const configuredTargets = useMemo(
     () =>
       (config?.targets ?? []).map((target) => ({
@@ -310,6 +311,10 @@ export default function IntelligenceManagement() {
           target.channelName ||
           channelOptions.find((option) => option.id === target.channelID)?.name ||
           '',
+        modelID: target.modelID,
+        apiKey: target.apiKey ?? '',
+        keyLabel: target.apiKey ? maskAPIKey(target.apiKey) : '',
+        reasoningEffort: target.reasoningEffort ?? '',
       })),
     [config, channelOptions]
   );
@@ -354,13 +359,34 @@ export default function IntelligenceManagement() {
         <DropdownMenuContent align='end'>
           <DropdownMenuLabel>{t('intelligence.runNowSingle')}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {configuredTargets.map((target) => (
+          {configuredTargets.map((target, index) => (
             <DropdownMenuItem
-              key={target.channelID}
-              onSelect={() => runNow.mutate(target.channelID)}
+              // A channel can be configured more than once, so the pair is what
+              // identifies the entry.
+              key={target.channelID + '::' + target.keyLabel + '::' + index}
+              onSelect={() =>
+                // Pass the key too: without it a channel with several keys would
+                // run all of them.
+                runNow.mutate({ channelID: target.channelID, apiKey: target.apiKey })
+              }
               disabled={runNow.isPending}
+              className='flex flex-col items-start gap-0.5 py-2'
             >
-              {target.channelName || t('intelligence.history.channelFallback', { id: target.channelID })}
+              <span className='flex items-center gap-2 font-medium'>
+                {target.channelName || t('intelligence.history.channelFallback', { id: target.channelID })}
+                {target.keyLabel && (
+                  <span className='text-muted-foreground font-mono text-[11px]'>{target.keyLabel}</span>
+                )}
+              </span>
+              <span className='text-muted-foreground flex items-center gap-1.5 text-[11px]'>
+                <span className='font-mono'>{target.modelID}</span>
+                {target.reasoningEffort && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>{target.reasoningEffort}</span>
+                  </>
+                )}
+              </span>
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
