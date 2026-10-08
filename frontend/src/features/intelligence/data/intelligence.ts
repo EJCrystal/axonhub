@@ -68,6 +68,7 @@ const INTELLIGENCE_HISTORY_QUERY = `
           channelID
           channelName
           modelID
+          reasoningEffort
           trigger
           status
           totalKeys
@@ -105,6 +106,7 @@ const ALL_INTELLIGENCE_RUNS_QUERY = `
           channelID
           channelName
           modelID
+          reasoningEffort
           trigger
           status
           totalKeys
@@ -221,6 +223,7 @@ const SET_INTELLIGENCE_RUN_VERDICT_MUTATION = `
       channelID
       channelName
       modelID
+      reasoningEffort
       trigger
       status
       totalKeys

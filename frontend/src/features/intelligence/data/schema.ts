@@ -29,6 +29,9 @@ export const intelligenceRunSchema = z.object({
   channelID: z.number(),
   channelName: z.string().default(''),
   modelID: z.string().default(''),
+  // Thinking level the run requested. Empty on runs recorded before the field
+  // existed, and when the provider default applied.
+  reasoningEffort: z.string().default(''),
   trigger: z.string().default('manual'),
   status: z.enum(['succeeded', 'failed', 'partial']),
   totalKeys: z.number().default(0),

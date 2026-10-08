@@ -39,12 +39,13 @@ const key = (keyPrefix, { success = true, quality = 'normal', manualVerdict = ''
 // A page that exists but could not be scored: the case a human closes out.
 const UNSCORED_HTML = '<html></html>';
 
-const run = (id, { channelName = 'chan', modelID = 'm1', results }) => ({
+const run = (id, { channelName = 'chan', modelID = 'm1', reasoningEffort = '', results }) => ({
   id,
   createdAt: '2026-10-06T00:00:00Z',
   channelID: 1,
   channelName,
   modelID,
+  reasoningEffort,
   trigger: 'manual',
   status: 'succeeded',
   totalKeys: results.length,
@@ -156,4 +157,49 @@ test('the pickers only offer what the loaded runs contain', () => {
   const options = historyFilterOptions(ALL);
   assert.deepEqual(options.models, ['m1', 'm2']);
   assert.deepEqual(options.keys, ['k1']);
+});
+
+// The level is part of what a run tested, so it filters like the model does.
+// The empty string is a real bucket: runs recorded before the field existed,
+// and runs that used the provider default.
+test('filtering by thinking level keeps only that level', () => {
+  const high = run('r-high', { reasoningEffort: 'high', results: [key('k1')] });
+  const low = run('r-low', { reasoningEffort: 'low', results: [key('k1')] });
+  const unset = run('r-unset', { reasoningEffort: '', results: [key('k1')] });
+
+  const all = [high, low, unset];
+
+  assert.deepEqual(
+    filterRuns(all, { verdict: 'all', reasoningEffort: 'high' }).map((r) => r.id),
+    ['r-high']
+  );
+  assert.deepEqual(
+    filterRuns(all, { verdict: 'all', reasoningEffort: 'low' }).map((r) => r.id),
+    ['r-low']
+  );
+  assert.deepEqual(
+    filterRuns(all, { verdict: 'all', reasoningEffort: '' }).map((r) => r.id),
+    ['r-unset'],
+    'the unset level is its own bucket, not everything'
+  );
+
+  // undefined is the absence of a filter, which must keep everything.
+  assert.equal(filterRuns(all, { verdict: 'all' }).length, 3);
+});
+
+test('the effort filter counts as an active filter', () => {
+  assert.equal(isHistoryFilterActive({ verdict: 'all', reasoningEffort: 'high' }), true);
+  assert.equal(isHistoryFilterActive({ verdict: 'all', reasoningEffort: '' }), true, 'unset is a choice');
+  assert.equal(isHistoryFilterActive({ verdict: 'all' }), false);
+});
+
+test('the level picker only offers levels the loaded runs used', () => {
+  const runs = [
+    run('r-high', { reasoningEffort: 'high', results: [key('k1')] }),
+    run('r-low', { reasoningEffort: 'low', results: [key('k1')] }),
+    run('r-unset', { reasoningEffort: '', results: [key('k1')] }),
+  ];
+
+  // The unset runs contribute nothing: the UI offers that bucket on its own.
+  assert.deepEqual(historyFilterOptions(runs).efforts, ['high', 'low']);
 });

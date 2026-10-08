@@ -92,7 +92,14 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                     </Button>
                   </TableCell>
                   <TableCell className='text-xs'>{new Date(run.createdAt).toLocaleString()}</TableCell>
-                  <TableCell className='font-mono text-xs'>{run.modelID}</TableCell>
+                  <TableCell className='font-mono text-xs'>
+                    {run.modelID}
+                    {/* The level belongs next to the model: the same model at a
+                        different level is a different check. */}
+                    {run.reasoningEffort && (
+                      <span className='text-muted-foreground ml-1'>({run.reasoningEffort})</span>
+                    )}
+                  </TableCell>
                   <TableCell className='text-xs'>{t(`intelligence.trigger.${run.trigger}`)}</TableCell>
                   <TableCell>
                     <div className='flex items-center gap-2'>

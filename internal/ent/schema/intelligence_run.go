@@ -45,6 +45,9 @@ func (IntelligenceRun) Fields() []ent.Field {
 			Comment("Channel name captured at run time, so history survives a rename"),
 		field.String("model_id").
 			Comment("Model the channel was asked to generate with"),
+		field.String("reasoning_effort").
+			Default("").
+			Comment("Thinking level requested for this run; empty when the provider default applied"),
 		field.String("trigger").
 			Default("manual").
 			Comment("What started the run: manual or scheduled"),
