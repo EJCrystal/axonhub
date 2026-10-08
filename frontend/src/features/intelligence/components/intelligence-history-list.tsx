@@ -11,6 +11,7 @@ import { IntelligenceHTMLPreview } from './intelligence-html-preview';
 import {
   canRecordManualVerdict,
   intelligenceVerdict,
+  isRunInFlight,
   runIntelligenceVerdict,
   verdictBadgeClass,
 } from './intelligence-verdict';
@@ -67,6 +68,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
         <TableBody>
           {runs.map((run) => {
             const isOpen = expanded[run.id] ?? false;
+            const inFlight = isRunInFlight(run);
             const verdict = runIntelligenceVerdict(run);
             return (
               <>
@@ -103,18 +105,27 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                   <TableCell className='text-xs'>{t(`intelligence.trigger.${run.trigger}`)}</TableCell>
                   <TableCell>
                     <div className='flex items-center gap-2'>
-                      <Badge variant='outline' className={verdictBadgeClass(verdict)}>
-                        {t(`channels.dialogs.intelligence.verdict.${verdict}`)}
-                      </Badge>
-                      <span className='text-muted-foreground text-xs'>
-                        {t('intelligence.history.keysSummary', {
-                          success: run.successKeys,
-                          total: run.totalKeys,
-                        })}
-                      </span>
+                      {inFlight ? (
+                        <Badge variant='outline' className='border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300'>
+                          <IconLoader2 className='mr-1 h-3 w-3 animate-spin' />
+                          {t('intelligence.history.running')}
+                        </Badge>
+                      ) : (
+                        <>
+                          <Badge variant='outline' className={verdictBadgeClass(verdict)}>
+                            {t(`channels.dialogs.intelligence.verdict.${verdict}`)}
+                          </Badge>
+                          <span className='text-muted-foreground text-xs'>
+                            {t('intelligence.history.keysSummary', {
+                              success: run.successKeys,
+                              total: run.totalKeys,
+                            })}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </TableCell>
-                  <TableCell className='text-xs'>{(run.durationMs / 1000).toFixed(1)}s</TableCell>
+                  <TableCell className='text-xs'>{inFlight ? '—' : (run.durationMs / 1000).toFixed(1) + 's'}</TableCell>
                 </TableRow>
 
                 {isOpen && (

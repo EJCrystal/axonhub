@@ -17,6 +17,7 @@
   "intelligence.history.previewAfterFailure": "Automatic scoring failed. Please review the output for degradation yourself.",
   "intelligence.history.previewAfterFailureDetail": "The HTML was generated, but the manxue.ai scoring call failed.",
   "intelligence.history.loading": "Loading...",
+  "intelligence.history.running": "Running",
   "intelligence.history.columns.time": "Time",
   "intelligence.history.columns.model": "Model",
   "intelligence.history.columns.trigger": "Trigger",

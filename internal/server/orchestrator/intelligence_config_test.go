@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -261,6 +262,85 @@ func TestValidateIntelligenceTargets(t *testing.T) {
 		require.Error(t, err)
 		require.NotContains(t, err.Error(), secret)
 	})
+}
+
+// TestFinalizeRunRecordsOutcome covers the two-step lifecycle: the row is
+// created as running so the history can show it, then finalized with the
+// outcome. A run that failed before producing results must still end up with a
+// terminal status and an explanation, never left running.
+func TestFinalizeRunRecordsOutcome(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:finalize-run?mode=memory&_fk=1")
+	defer client.Close()
+
+	ctx := authz.WithTestBypass(ent.NewContext(t.Context(), client))
+	service := &IntelligenceService{ent: client}
+
+	start := func() *ent.IntelligenceRun {
+		run, err := client.IntelligenceRun.Create().
+			SetChannelID(6).
+			SetChannelName("chan").
+			SetModelID("m").
+			SetTrigger("manual").
+			SetStatus(intelligencerun.StatusRunning).
+			Save(ctx)
+		require.NoError(t, err)
+		return run
+	}
+
+	t.Run("a healthy run ends succeeded with its counters", func(t *testing.T) {
+		run := start()
+		require.Equal(t, intelligencerun.StatusRunning, run.Status, "a fresh row is running")
+
+		results := []objects.IntelligenceKeyResult{{KeyPrefix: "sk-a", Success: true, Quality: "normal"}}
+		require.NoError(t, service.finalizeRun(ctx, run.ID, results, 1234, nil))
+
+		got, err := client.IntelligenceRun.Get(ctx, run.ID)
+		require.NoError(t, err)
+		require.Equal(t, intelligencerun.StatusSucceeded, got.Status)
+		require.Equal(t, 1, got.SuccessKeys)
+		require.Equal(t, 0, got.FailedKeys)
+		require.Equal(t, 1234, got.DurationMs)
+	})
+
+	t.Run("a run that could not start ends failed with a reason", func(t *testing.T) {
+		run := start()
+		require.NoError(t, service.finalizeRun(ctx, run.ID, nil, 42, errors.New("upstream refused")))
+
+		got, err := client.IntelligenceRun.Get(ctx, run.ID)
+		require.NoError(t, err)
+		require.Equal(t, intelligencerun.StatusFailed, got.Status)
+		require.Len(t, got.Results, 1)
+		require.NotNil(t, got.Results[0].Error)
+		require.Contains(t, *got.Results[0].Error, "upstream refused")
+	})
+}
+
+// TestReapInterruptedRuns closes rows left running by a restart, which nothing
+// else can finish.
+func TestReapInterruptedRuns(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:reap-runs?mode=memory&_fk=1")
+	defer client.Close()
+
+	ctx := authz.WithTestBypass(ent.NewContext(t.Context(), client))
+	service := &IntelligenceService{ent: client}
+
+	stale, err := client.IntelligenceRun.Create().SetChannelID(1).SetModelID("m").
+		SetStatus(intelligencerun.StatusRunning).Save(ctx)
+	require.NoError(t, err)
+	done, err := client.IntelligenceRun.Create().SetChannelID(1).SetModelID("m").
+		SetStatus(intelligencerun.StatusSucceeded).Save(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, service.reapInterruptedRuns(ctx))
+
+	reaped, err := client.IntelligenceRun.Get(ctx, stale.ID)
+	require.NoError(t, err)
+	require.Equal(t, intelligencerun.StatusFailed, reaped.Status)
+	require.Len(t, reaped.Results, 1, "the reason is recorded")
+
+	kept, err := client.IntelligenceRun.Get(ctx, done.ID)
+	require.NoError(t, err)
+	require.Equal(t, intelligencerun.StatusSucceeded, kept.Status, "a finished run is untouched")
 }
 
 func TestRunStatus(t *testing.T) {

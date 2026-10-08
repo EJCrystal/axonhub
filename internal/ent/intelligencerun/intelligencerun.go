@@ -114,11 +114,12 @@ var (
 // Status defines the type for the "status" enum field.
 type Status string
 
-// StatusFailed is the default value of the Status enum.
-const DefaultStatus = StatusFailed
+// StatusRunning is the default value of the Status enum.
+const DefaultStatus = StatusRunning
 
 // Status values.
 const (
+	StatusRunning   Status = "running"
 	StatusSucceeded Status = "succeeded"
 	StatusFailed    Status = "failed"
 	StatusPartial   Status = "partial"
@@ -131,7 +132,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusSucceeded, StatusFailed, StatusPartial:
+	case StatusRunning, StatusSucceeded, StatusFailed, StatusPartial:
 		return nil
 	default:
 		return fmt.Errorf("intelligencerun: invalid enum value for status field: %q", s)

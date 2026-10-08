@@ -25,13 +25,27 @@ test('the chevron stops its click from also toggling the row', () => {
   assert.match(row, /event\.stopPropagation\(\)/, 'the inner button must stop propagation');
 });
 
-// Both the run badge and each key badge paint with the verdict colour, so the
-// three outcomes are distinguishable without reading the label.
-test('every verdict badge uses the colour helper', () => {
+// The run and key badges paint with the verdict colour, so the three outcomes
+// are distinguishable without reading the label. The in-flight badge is its own
+// state and deliberately does not use a verdict colour.
+test('every outcome badge uses the colour helper', () => {
   const badges = source.match(/<Badge[^>]*>/g) ?? [];
-  assert.ok(badges.length >= 2, 'the run and key badges must both render');
-  for (const badge of badges) {
+  assert.ok(badges.length >= 3, 'the running, run and key badges all render');
+
+  const outcome = badges.filter((badge) => !badge.includes('sky'));
+  assert.ok(outcome.length >= 2, 'the run and key outcome badges are present');
+  for (const badge of outcome) {
     assert.match(badge, /verdictBadgeClass\(/, `badge must paint by verdict: ${badge}`);
   }
+
   assert.doesNotMatch(source, /verdictBadgeVariant/, 'the colourless variant must be gone');
+});
+
+// A run in flight has no outcome yet, so it gets its own badge and the duration
+// column shows nothing rather than a misleading zero.
+test('a running run shows a spinner badge instead of a verdict', () => {
+  assert.match(source, /const inFlight = isRunInFlight\(run\)/);
+  assert.match(source, /inFlight \? \(/, 'the row branches on it');
+  assert.match(source, /intelligence\.history\.running/, 'the in-flight label is rendered');
+  assert.match(source, /animate-spin/, 'and it is visibly in progress');
 });

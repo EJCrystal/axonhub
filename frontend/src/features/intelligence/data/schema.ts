@@ -33,7 +33,8 @@ export const intelligenceRunSchema = z.object({
   // existed, and when the provider default applied.
   reasoningEffort: z.string().default(''),
   trigger: z.string().default('manual'),
-  status: z.enum(['succeeded', 'failed', 'partial']),
+  // running while the check is in flight; the rest are terminal.
+  status: z.enum(['running', 'succeeded', 'failed', 'partial']),
   totalKeys: z.number().default(0),
   successKeys: z.number().default(0),
   failedKeys: z.number().default(0),
