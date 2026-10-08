@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useQueryChannels } from '@/features/channels/data/channels';
 import { modelsForAPIKey } from '../data/api-key-models';
 import { maskAPIKey } from '../data/mask-key';
-import { channelIdKey, sameChannelId } from '../data/channel-id';
+import { sameChannelId } from '../data/channel-id';
 import { INTELLIGENCE_INTERVALS, IntelligenceConfig, IntelligenceInterval } from '../data/schema';
 import { REASONING_EFFORTS } from '@/features/models/data/reasoning-efforts';
 import { useSetIntelligenceConfig } from '../data/intelligence';
@@ -95,13 +95,44 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
     return modelsForAPIKey(channel.credentials, channel.supportedModels, apiKey);
   };
 
+  // A channel may be added several times, once per key: the key is what the row
+  // is about, and each one runs its own model and thinking level. What must not
+  // repeat is the channel+key pair.
+  const isPairConfigured = (channelID: string, apiKey: string, skipIndex?: number) =>
+    targets.some(
+      (target, index) =>
+        index !== skipIndex && sameChannelId(target.channelID, channelID) && target.apiKey === apiKey
+    );
+
+  // The first pair still free. Returns null when every enabled key of every
+  // channel is already configured, so the caller can keep the button disabled.
+  const firstFreePair = (): { channelID: string; apiKey: string } | null => {
+    for (const channel of channelOptions) {
+      for (const apiKey of keysFor(channel.id)) {
+        if (!isPairConfigured(channel.id, apiKey)) {
+          return { channelID: channel.id, apiKey };
+        }
+      }
+    }
+
+    return null;
+  };
+
+  // Keys still free on a channel, so its row only offers what is not taken.
+  const freeKeysFor = (channelID: string, skipIndex: number) =>
+    keysFor(channelID).filter((key) => !isPairConfigured(channelID, key, skipIndex));
+
   const addTarget = () => {
-    const next = channelOptions.find((channel) => !targets.some((target) => sameChannelId(target.channelID, channel.id)));
-    if (!next) return;
-    const apiKey = keysFor(next.id)[0] ?? '';
+    const pair = firstFreePair();
+    if (!pair) return;
     setTargets((prev) => [
       ...prev,
-      { channelID: next.id, apiKey, modelID: modelsFor(next.id, apiKey)[0] ?? '', reasoningEffort: '' },
+      {
+        channelID: pair.channelID,
+        apiKey: pair.apiKey,
+        modelID: modelsFor(pair.channelID, pair.apiKey)[0] ?? '',
+        reasoningEffort: '',
+      },
     ]);
   };
 
@@ -166,7 +197,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
         <div className='space-y-2'>
           <div className='flex items-center justify-between'>
             <Label>{t('intelligence.settings.targets')}</Label>
-            <Button variant='outline' size='sm' onClick={addTarget} disabled={readOnly || loading}>
+            <Button variant='outline' size='sm' onClick={addTarget} disabled={readOnly || loading || !firstFreePair()}>
               <IconPlus className='mr-1 h-4 w-4' />
               {t('intelligence.settings.addTarget')}
             </Button>
@@ -192,8 +223,10 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                   </TableRow>
                 )}
                 {targets.map((target, index) => {
-                  const used = new Set(targets.filter((_, i) => i !== index).map((item) => channelIdKey(item.channelID)));
-                  const keys = keysFor(target.channelID);
+                  const keys = freeKeysFor(target.channelID, index);
+                  // Keep the row's own key selectable even when it is the reason
+                  // the pair reads as taken, so the current value still renders.
+                  if (target.apiKey && !keys.includes(target.apiKey)) keys.unshift(target.apiKey);
                   const models = modelsFor(target.channelID, target.apiKey);
                   return (
                     <TableRow key={`${target.channelID}-${index}`}>
@@ -201,7 +234,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                         <Select
                           value={target.channelID}
                           onValueChange={(value) => {
-                            const apiKey = keysFor(value)[0] ?? '';
+                            const apiKey = keysFor(value).find((key) => !isPairConfigured(value, key, index)) ?? '';
                             updateTarget(index, { channelID: value, apiKey, modelID: modelsFor(value, apiKey)[0] ?? '' });
                           }}
                           disabled={readOnly}
@@ -210,9 +243,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {channelOptions
-                              .filter((channel) => !used.has(channelIdKey(channel.id)))
-                              .map((channel) => (
+                            {channelOptions.map((channel) => (
                                 <SelectItem key={channel.id} value={channel.id}>
                                   {channel.name}
                                 </SelectItem>

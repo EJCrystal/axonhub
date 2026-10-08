@@ -41,6 +41,22 @@ const (
 	intelligenceSchedulerTask = "intelligence-check"
 )
 
+// intelligenceTargetKey identifies one target: a key may run several models on
+// the same channel, but never the same key twice.
+type intelligenceTargetKey struct {
+	ChannelID int
+	APIKey    string
+}
+
+// maskIntelligenceTargetKey keeps an error message from echoing a full secret.
+func maskIntelligenceTargetKey(key string) string {
+	if len(key) <= 8 {
+		return "***"
+	}
+
+	return key[:4] + "****" + key[len(key)-4:]
+}
+
 // allowedIntelligenceIntervals are the intervals the configuration accepts.
 var allowedIntelligenceIntervals = []int{10, 30, 60}
 
@@ -139,6 +155,39 @@ func (s *IntelligenceService) RegisterScheduledTasks(ctx context.Context, sched 
 	return sched.Register(ctx, intelligenceTaskSpec(config.IntervalMinutes), s.runScheduled)
 }
 
+// validateIntelligenceTargets checks a target list before it is stored. It is
+// kept separate from the save so the rules can be exercised on their own.
+func validateIntelligenceTargets(targets []objects.IntelligenceTarget) error {
+	seen := make(map[intelligenceTargetKey]struct{}, len(targets))
+	// A channel may appear more than once so each of its keys can run against a
+	// different model and thinking level; the key is what identifies a target.
+	for _, target := range targets {
+		if target.ChannelID <= 0 {
+			return fmt.Errorf("every target needs a channel")
+		}
+		// Without a key the target would fan out to every enabled key of the
+		// channel, which can overlap another target's key and re-run it.
+		if strings.TrimSpace(target.APIKey) == "" {
+			return fmt.Errorf("every target needs an API key")
+		}
+		if strings.TrimSpace(target.ModelID) == "" {
+			return fmt.Errorf("every target needs a model")
+		}
+		// An effort the transformers do not know would be forwarded verbatim and
+		// rejected upstream, so catch it while the operator is still looking.
+		if !isAllowedReasoningEffort(target.ReasoningEffort) {
+			return fmt.Errorf("reasoning effort must be one of %v", allowedReasoningEfforts)
+		}
+
+		identity := intelligenceTargetKey{ChannelID: target.ChannelID, APIKey: strings.TrimSpace(target.APIKey)}
+		if _, ok := seen[identity]; ok {
+			return fmt.Errorf("key %s of channel %d is configured twice", maskIntelligenceTargetKey(identity.APIKey), target.ChannelID)
+		}
+		seen[identity] = struct{}{}
+	}
+	return nil
+}
+
 // IntelligenceConfig returns the stored configuration, falling back to the
 // default when nothing has been saved yet.
 func (s *IntelligenceService) IntelligenceConfig(ctx context.Context) (*objects.IntelligenceConfig, error) {
@@ -175,23 +224,8 @@ func (s *IntelligenceService) SetIntelligenceConfig(ctx context.Context, config 
 		return fmt.Errorf("interval must be one of %v minutes", allowedIntelligenceIntervals)
 	}
 
-	seen := make(map[int]struct{}, len(config.Targets))
-	for _, target := range config.Targets {
-		if target.ChannelID <= 0 {
-			return fmt.Errorf("every target needs a channel")
-		}
-		if strings.TrimSpace(target.ModelID) == "" {
-			return fmt.Errorf("every target needs a model")
-		}
-		// An effort the transformers do not know would be forwarded verbatim and
-		// rejected upstream, so catch it while the operator is still looking.
-		if !isAllowedReasoningEffort(target.ReasoningEffort) {
-			return fmt.Errorf("reasoning effort must be one of %v", allowedReasoningEfforts)
-		}
-		if _, ok := seen[target.ChannelID]; ok {
-			return fmt.Errorf("channel %d is configured twice", target.ChannelID)
-		}
-		seen[target.ChannelID] = struct{}{}
+	if err := validateIntelligenceTargets(config.Targets); err != nil {
+		return err
 	}
 
 	body, err := json.Marshal(config)

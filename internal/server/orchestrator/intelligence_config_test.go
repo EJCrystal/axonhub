@@ -171,6 +171,66 @@ func TestRunsToTrimPerKey(t *testing.T) {
 	})
 }
 
+// TestValidateIntelligenceTargets covers the target rules: several rows may
+// share a channel so each key gets its own model and thinking level, but a key
+// must be named and must not be configured twice.
+func TestValidateIntelligenceTargets(t *testing.T) {
+	target := func(channelID int, apiKey, model, effort string) objects.IntelligenceTarget {
+		return objects.IntelligenceTarget{ChannelID: channelID, APIKey: apiKey, ModelID: model, ReasoningEffort: effort}
+	}
+
+	t.Run("one channel may carry several keys, each with its own model and level", func(t *testing.T) {
+		err := validateIntelligenceTargets([]objects.IntelligenceTarget{
+			target(6, "sk-aaa", "gpt-6.1-sol", "high"),
+			target(6, "sk-bbb", "gpt-6-astra", "low"),
+			target(6, "sk-ccc", "gpt-5.6-sol", ""),
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("the same key twice on a channel is rejected", func(t *testing.T) {
+		err := validateIntelligenceTargets([]objects.IntelligenceTarget{
+			target(6, "sk-aaa", "gpt-6.1-sol", ""),
+			target(6, "sk-aaa", "gpt-6-astra", "high"),
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "configured twice")
+	})
+
+	t.Run("the same key on different channels is fine", func(t *testing.T) {
+		err := validateIntelligenceTargets([]objects.IntelligenceTarget{
+			target(6, "sk-aaa", "m", ""),
+			target(2, "sk-aaa", "m", ""),
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("an empty key is rejected", func(t *testing.T) {
+		for _, key := range []string{"", "   "} {
+			err := validateIntelligenceTargets([]objects.IntelligenceTarget{target(6, key, "m", "")})
+			require.Error(t, err, "key %q must be rejected", key)
+			require.Contains(t, err.Error(), "API key")
+		}
+	})
+
+	t.Run("the other required fields still apply", func(t *testing.T) {
+		require.Error(t, validateIntelligenceTargets([]objects.IntelligenceTarget{target(0, "sk-a", "m", "")}))
+		require.Error(t, validateIntelligenceTargets([]objects.IntelligenceTarget{target(6, "sk-a", "", "")}))
+		require.Error(t, validateIntelligenceTargets([]objects.IntelligenceTarget{target(6, "sk-a", "m", "ultra")}))
+		require.NoError(t, validateIntelligenceTargets(nil))
+	})
+
+	t.Run("the error does not echo the whole secret", func(t *testing.T) {
+		secret := "sk-1234567890abcdef"
+		err := validateIntelligenceTargets([]objects.IntelligenceTarget{
+			target(6, secret, "m", ""),
+			target(6, secret, "m", ""),
+		})
+		require.Error(t, err)
+		require.NotContains(t, err.Error(), secret)
+	})
+}
+
 func TestRunStatus(t *testing.T) {
 	key := func(success bool, quality string) objects.IntelligenceKeyResult {
 		return objects.IntelligenceKeyResult{Success: success, Quality: quality}
