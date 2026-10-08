@@ -21,7 +21,6 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/pipeline/stream"
-	"github.com/looplj/axonhub/llm/transformer/openai"
 )
 
 const (
@@ -456,7 +455,11 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 	model string,
 	prompt string,
 ) (string, error) {
-	inbound := openai.NewInboundTransformer()
+	// The channel's own API format decides the request shape and the inbound
+	// transformer, matching how the channel test builds its request: a Decisions
+	// channel needs the Decisions body, not a chat completion.
+	apiFormat := channelTestAPIFormat(channel)
+	inbound := channelTestInbound(apiFormat)
 
 	chatProcessor := &ChatCompletionOrchestrator{
 		channelSelector: &SpecifiedChannelSelector{
@@ -484,7 +487,7 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 	useStream := channel.Policies.Stream == objects.CapabilityPolicyRequire
 	responsesWebSocket := usesResponsesWebSocket(channel)
 
-	llmRequest := buildChannelTestRequest(model, useStream, "", prompt, responsesWebSocket)
+	llmRequest := buildChannelTestRequest(model, useStream, "", prompt, responsesWebSocket, apiFormat)
 	if !responsesWebSocket {
 		llmRequest.MaxCompletionTokens = lo.ToPtr(int64(intelligenceGenerateMaxTokens))
 	}
