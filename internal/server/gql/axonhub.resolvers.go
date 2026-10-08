@@ -442,8 +442,13 @@ func (r *mutationResolver) SetIntelligenceConfig(ctx context.Context, input Inte
 }
 
 // RunIntelligenceCheckNow is the resolver for the runIntelligenceCheckNow field.
-func (r *mutationResolver) RunIntelligenceCheckNow(ctx context.Context) (int, error) {
-	return r.intelligenceService.RunManual(ctx)
+func (r *mutationResolver) RunIntelligenceCheckNow(ctx context.Context, channelID *objects.GUID) (int, error) {
+	selected := 0
+	if channelID != nil {
+		selected = channelID.ID
+	}
+
+	return r.intelligenceService.RunManual(ctx, selected)
 }
 
 // SetIntelligenceRunVerdict is the resolver for the setIntelligenceRunVerdict field.

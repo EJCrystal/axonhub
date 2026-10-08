@@ -2,10 +2,18 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { IconBrain, IconRefresh } from '@tabler/icons-react';
+import { IconBrain, IconChevronDown, IconRefresh } from '@tabler/icons-react';
 import { Main } from '@/components/layout/main';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -291,6 +299,26 @@ export default function IntelligenceManagement() {
     </div>
   );
 
+  // The menu lists the configured channels by name, so a re-check names its
+  // target instead of exposing an opaque id.
+  const configuredTargets = useMemo(
+    () =>
+      (config?.targets ?? []).map((target) => ({
+        channelID: target.channelID,
+        channelName:
+          target.channelName ||
+          channelOptions.find((option) => option.id === target.channelID)?.name ||
+          '',
+      })),
+    [config, channelOptions]
+  );
+
+  const runDisabled =
+    !canRun ||
+    runNow.isPending ||
+    (config?.targets.length ?? 0) === 0 ||
+    configuredTargets.length === 0;
+
   const actions = (
     <div className='flex flex-wrap items-center gap-2'>
       {filters}
@@ -298,15 +326,44 @@ export default function IntelligenceManagement() {
         <IconRefresh className='mr-1 h-4 w-4' />
         {t('intelligence.history.refresh')}
       </Button>
+      {/* The primary action runs every configured channel, which is minutes of
+          upstream time; the menu narrows it to one channel so a single
+          suspicious result can be re-checked without re-billing the rest. */}
       <Button
         size='sm'
-        onClick={() => runNow.mutate()}
-        disabled={!canRun || runNow.isPending || (config?.targets.length ?? 0) === 0}
+        onClick={() => runNow.mutate(undefined)}
+        disabled={runDisabled || runNow.isPending}
         data-testid='run-intelligence-now'
       >
         <IconBrain className='mr-1 h-4 w-4' />
         {runNow.isPending ? t('intelligence.running') : t('intelligence.runNow')}
       </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size='icon'
+            className='h-8 w-7'
+            disabled={runDisabled || runNow.isPending}
+            aria-label={t('intelligence.runNowOptions')}
+            data-testid='run-intelligence-now-menu'
+          >
+            <IconChevronDown className='h-4 w-4' />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align='end'>
+          <DropdownMenuLabel>{t('intelligence.runNowSingle')}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {configuredTargets.map((target) => (
+            <DropdownMenuItem
+              key={target.channelID}
+              onSelect={() => runNow.mutate(target.channelID)}
+              disabled={runNow.isPending}
+            >
+              {target.channelName || t('intelligence.history.channelFallback', { id: target.channelID })}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 
