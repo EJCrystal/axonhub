@@ -34,10 +34,21 @@ type IntelligenceTarget struct {
 type IntelligenceRunStatus string
 
 const (
+	// IntelligenceRunRunning is the state a run holds while the check is in
+	// flight, so the history can show it without waiting for the result.
+	IntelligenceRunRunning IntelligenceRunStatus = "running"
+
 	IntelligenceRunSucceeded IntelligenceRunStatus = "succeeded"
 	IntelligenceRunFailed    IntelligenceRunStatus = "failed"
 	IntelligenceRunPartial   IntelligenceRunStatus = "partial"
 )
+
+// IntelligenceRunTerminalStatuses are the states a finished run can hold.
+var IntelligenceRunTerminalStatuses = []IntelligenceRunStatus{
+	IntelligenceRunSucceeded,
+	IntelligenceRunFailed,
+	IntelligenceRunPartial,
+}
 
 // IntelligenceKeyResult is the outcome for a single API key within a run.
 type IntelligenceKeyResult struct {

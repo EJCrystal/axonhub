@@ -146,6 +146,12 @@ func (s *IntelligenceService) RegisterScheduledTasks(ctx context.Context, sched 
 	// system bypass, matching the backup and video storage registrations.
 	ctx = authz.WithSystemBypass(ctx, "intelligence-check-register")
 
+	// A run in flight when the process stopped never reaches its finalize step, so
+	// its row would sit in "running" forever. Close those out first.
+	if err := s.reapInterruptedRuns(ctx); err != nil {
+		log.Warn(ctx, "intelligence check: failed to close interrupted runs", log.Cause(err))
+	}
+
 	config, err := s.IntelligenceConfig(ctx)
 	if err != nil {
 		log.Warn(ctx, "intelligence check: falling back to the default interval", log.Cause(err))
@@ -153,6 +159,37 @@ func (s *IntelligenceService) RegisterScheduledTasks(ctx context.Context, sched 
 	}
 
 	return sched.Register(ctx, intelligenceTaskSpec(config.IntervalMinutes), s.runScheduled)
+}
+
+// reapInterruptedRuns marks any leftover running rows as failed. Nothing else
+// can finish them, and a row stuck in "running" is worse than an honest failure
+// because the history would never settle.
+func (s *IntelligenceService) reapInterruptedRuns(ctx context.Context) error {
+	stale, err := s.ent.IntelligenceRun.Query().
+		Where(intelligencerun.StatusEQ(intelligencerun.StatusRunning)).
+		IDs(ctx)
+	if err != nil {
+		return err
+	}
+	if len(stale) == 0 {
+		return nil
+	}
+
+	_, err = s.ent.IntelligenceRun.Update().
+		Where(intelligencerun.IDIn(stale...)).
+		SetStatus(intelligencerun.StatusFailed).
+		SetResults([]objects.IntelligenceKeyResult{{
+			Success: false,
+			Error:   lo.ToPtr("the run was interrupted before it finished"),
+		}}).
+		Save(ctx)
+	if err != nil {
+		return err
+	}
+
+	log.Warn(ctx, "intelligence check: closed runs interrupted by a restart", log.Int("count", len(stale)))
+
+	return nil
 }
 
 // validateIntelligenceTargets checks a target list before it is stored. It is
@@ -397,11 +434,32 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		keys = []string{target.APIKey}
 	}
 
+	// The row is created before the check so the history can show it as running
+	// straight away; a run takes minutes and an empty page in the meantime reads
+	// as if the click did nothing.
+	run, err := s.ent.IntelligenceRun.Create().
+		SetChannelID(channel.ID).
+		SetChannelName(channel.Name).
+		SetModelID(target.ModelID).
+		SetReasoningEffort(strings.TrimSpace(target.ReasoningEffort)).
+		SetTrigger(trigger).
+		SetStatus(intelligencerun.StatusRunning).
+		SetResults([]objects.IntelligenceKeyResult{}).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to record run: %w", err)
+	}
+
 	runCtx := contexts.WithSource(ctx, request.SourceTest)
 	result, err := s.testSvc.EvaluateChannelIntelligence(
 		runCtx, objects.GUID{Type: "channel", ID: channel.ID}, lo.ToPtr(target.ModelID), keys, nil, nil,
 		lo.ToPtr(target.ReasoningEffort))
 	if err != nil {
+		// Leave a finished row behind rather than a run that never ends.
+		if finalizeErr := s.finalizeRun(ctx, run.ID, nil, int(time.Since(startedAt).Milliseconds()), err); finalizeErr != nil {
+			log.Warn(ctx, "intelligence check: failed to finalize run", log.Cause(finalizeErr))
+		}
+
 		return fmt.Errorf("failed to evaluate channel %d: %w", channel.ID, err)
 	}
 
@@ -424,23 +482,8 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		results = append(results, entry)
 	}
 
-	status := runStatus(results)
-
-	saved, err := s.ent.IntelligenceRun.Create().
-		SetChannelID(channel.ID).
-		SetChannelName(channel.Name).
-		SetModelID(target.ModelID).
-		SetReasoningEffort(strings.TrimSpace(target.ReasoningEffort)).
-		SetTrigger(trigger).
-		SetStatus(intelligencerun.Status(status)).
-		SetTotalKeys(result.Total).
-		SetSuccessKeys(result.SuccessCount).
-		SetFailedKeys(result.FailedCount).
-		SetDurationMs(int(time.Since(startedAt).Milliseconds())).
-		SetResults(results).
-		Save(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to record run: %w", err)
+	if err := s.finalizeRun(ctx, run.ID, results, int(time.Since(startedAt).Milliseconds()), nil); err != nil {
+		return err
 	}
 
 	if err := s.trimHistory(ctx, channel.ID); err != nil {
@@ -449,12 +492,63 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 
 	log.Info(ctx, "intelligence check: run recorded",
 		log.Int("channel_id", channel.ID),
-		log.Int("run_id", saved.ID),
+		log.Int("run_id", run.ID),
 		log.String("trigger", trigger),
 		log.Int("total", result.Total),
 		log.Int("success", result.SuccessCount))
 
 	return nil
+}
+
+// finalizeRun moves a run out of the running state. A failure is recorded on the
+// row itself so the history explains what happened instead of leaving the row
+// looking like it is still in flight.
+func (s *IntelligenceService) finalizeRun(
+	ctx context.Context,
+	runID int,
+	results []objects.IntelligenceKeyResult,
+	durationMs int,
+	runErr error,
+) error {
+	if runErr != nil {
+		results = []objects.IntelligenceKeyResult{{
+			Success:    false,
+			DurationMs: durationMs,
+			Error:      lo.ToPtr(runErr.Error()),
+		}}
+	}
+
+	status := runStatus(results)
+	success, failed := countKeyOutcomes(results)
+
+	_, err := s.ent.IntelligenceRun.UpdateOneID(runID).
+		SetStatus(intelligencerun.Status(status)).
+		SetTotalKeys(len(results)).
+		SetSuccessKeys(success).
+		SetFailedKeys(failed).
+		SetDurationMs(durationMs).
+		SetResults(results).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to record run: %w", err)
+	}
+
+	return nil
+}
+
+// countKeyOutcomes splits results into the keys that passed and those that did
+// not, matching how runStatus reads them.
+func countKeyOutcomes(results []objects.IntelligenceKeyResult) (success int, failed int) {
+	for _, result := range results {
+		if keyVerdict(result) == objects.IntelligenceManualVerdictNormal {
+			success++
+			continue
+		}
+
+		failed++
+	}
+
+	return success, failed
 }
 
 // trimRun is the part of a recorded run the retention pass needs: which row it

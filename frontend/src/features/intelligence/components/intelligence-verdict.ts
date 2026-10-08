@@ -120,3 +120,11 @@ export function canRecordManualVerdict(result: VerdictInput): boolean {
 
   return intelligenceVerdict(result) === 'inconclusive';
 }
+
+// isRunInFlight reports whether a run has not finished yet. The verdict helpers
+// describe outcomes, which a run in flight does not have — it must be shown as
+// in progress rather than folded into "failed", which would claim a result that
+// has not happened.
+export function isRunInFlight(run: { status?: string }): boolean {
+  return run.status === 'running';
+}

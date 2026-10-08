@@ -35,7 +35,7 @@ type IntelligenceRun struct {
 	ReasoningEffort string `json:"reasoning_effort,omitempty"`
 	// What started the run: manual or scheduled
 	Trigger string `json:"trigger,omitempty"`
-	// succeeded when every key passed, failed when none did, partial in between
+	// running while the check is in flight; then succeeded, partial or failed
 	Status intelligencerun.Status `json:"status,omitempty"`
 	// Number of API keys evaluated
 	TotalKeys int `json:"total_keys,omitempty"`

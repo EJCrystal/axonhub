@@ -296,7 +296,7 @@ var (
 		{Name: "model_id", Type: field.TypeString},
 		{Name: "reasoning_effort", Type: field.TypeString, Default: ""},
 		{Name: "trigger", Type: field.TypeString, Default: "manual"},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"succeeded", "failed", "partial"}, Default: "failed"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"running", "succeeded", "failed", "partial"}, Default: "running"},
 		{Name: "total_keys", Type: field.TypeInt, Default: 0},
 		{Name: "success_keys", Type: field.TypeInt, Default: 0},
 		{Name: "failed_keys", Type: field.TypeInt, Default: 0},

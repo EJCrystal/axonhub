@@ -2335,7 +2335,7 @@ type IntelligenceRun implements Node {
   """
   trigger: String!
   """
-  succeeded when every key passed, failed when none did, partial in between
+  running while the check is in flight; then succeeded, partial or failed
   """
   status: IntelligenceRunStatus!
   """
@@ -2413,6 +2413,7 @@ enum IntelligenceRunOrderField {
 IntelligenceRunStatus is enum for the field status
 """
 enum IntelligenceRunStatus @goModel(model: "github.com/looplj/axonhub/internal/ent/intelligencerun.Status") {
+  running
   succeeded
   failed
   partial

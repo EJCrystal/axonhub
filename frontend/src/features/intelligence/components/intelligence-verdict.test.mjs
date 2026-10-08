@@ -12,7 +12,7 @@ const transpiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023 },
 }).outputText;
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(transpiled).toString('base64')}`;
-const { intelligenceVerdict, runIntelligenceVerdict, canRecordManualVerdict } = await import(moduleUrl);
+const { intelligenceVerdict, runIntelligenceVerdict, canRecordManualVerdict, isRunInFlight } = await import(moduleUrl);
 const { verdictBadgeVariant } = await import(moduleUrl);
 const { verdictBadgeClass } = await import(moduleUrl);
 
@@ -205,4 +205,14 @@ test('a key that already carries a verdict is not offered again', () => {
 test('a normal or degraded automatic result needs no human decision', () => {
   assert.equal(canRecordManualVerdict({ success: true, quality: 'normal', html: '<html></html>' }), false);
   assert.equal(canRecordManualVerdict({ success: true, quality: 'degraded', html: '<html></html>' }), false);
+});
+
+// A run in flight has no outcome yet, so it must be told apart from a finished
+// one; folding it into failed would claim a result that has not happened.
+test('a running run is in flight, a finished one is not', () => {
+  assert.equal(isRunInFlight({ status: 'running' }), true);
+  for (const status of ['succeeded', 'failed', 'partial', '']) {
+    assert.equal(isRunInFlight({ status }), false, status);
+  }
+  assert.equal(isRunInFlight({}), false, 'a missing status is not in flight');
 });

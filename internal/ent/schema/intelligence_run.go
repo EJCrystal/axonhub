@@ -52,9 +52,9 @@ func (IntelligenceRun) Fields() []ent.Field {
 			Default("manual").
 			Comment("What started the run: manual or scheduled"),
 		field.Enum("status").
-			Values("succeeded", "failed", "partial").
-			Default("failed").
-			Comment("succeeded when every key passed, failed when none did, partial in between"),
+			Values("running", "succeeded", "failed", "partial").
+			Default("running").
+			Comment("running while the check is in flight; then succeeded, partial or failed"),
 		field.Int("total_keys").
 			Default(0).
 			Comment("Number of API keys evaluated"),
