@@ -49,3 +49,17 @@ test('a running run shows a spinner badge instead of a verdict', () => {
   assert.match(source, /intelligence\.history\.running/, 'the in-flight label is rendered');
   assert.match(source, /animate-spin/, 'and it is visibly in progress');
 });
+
+// Each history row now names the key it exercised, so a reader no longer has
+// to expand a run to find out which credential produced the verdict.
+test('the run row shows the api key column', () => {
+  assert.match(source, /intelligence\.history\.columns\.apiKey/, 'the header names the column');
+  assert.match(row, /runKeyLabel\(run\)/, 'the row renders the key label');
+});
+
+test('a run covering several keys lists every prefix', () => {
+  const fn = source.slice(source.indexOf('function runKeyLabel'), source.indexOf('interface Props'));
+  assert.match(fn, /run\.results\.map/, 'it reads the per-key results');
+  assert.match(fn, /join\(', '\)/, 'several keys are all shown');
+  assert.match(fn, /'—'/, 'a run with no key still renders a placeholder');
+});

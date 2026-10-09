@@ -15,8 +15,17 @@ import {
   runIntelligenceVerdict,
   verdictBadgeClass,
 } from './intelligence-verdict';
-import { IntelligenceRunConnection } from '../data/schema';
+import { IntelligenceRun, IntelligenceRunConnection } from '../data/schema';
 import { useSetIntelligenceRunVerdict } from '../data/intelligence';
+
+// The API key a run exercised, rendered the way the rest of the page masks
+// secrets. A run normally targets one key; when it covers several, joining the
+// prefixes keeps every one of them visible rather than showing only the first.
+function runKeyLabel(run: IntelligenceRun): string {
+  const prefixes = run.results.map((result) => result.keyPrefix).filter((prefix) => prefix.trim() !== '');
+
+  return prefixes.length > 0 ? prefixes.join(', ') : '—';
+}
 
 interface Props {
   history?: IntelligenceRunConnection;
@@ -60,6 +69,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
             <TableHead className='w-10'></TableHead>
             <TableHead>{t('intelligence.history.columns.time')}</TableHead>
             <TableHead>{t('intelligence.history.columns.model')}</TableHead>
+            <TableHead>{t('intelligence.history.columns.apiKey')}</TableHead>
             <TableHead>{t('intelligence.history.columns.trigger')}</TableHead>
             <TableHead>{t('intelligence.history.columns.result')}</TableHead>
             <TableHead>{t('intelligence.history.columns.duration')}</TableHead>
@@ -102,6 +112,11 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                       <span className='text-muted-foreground ml-1'>({run.reasoningEffort})</span>
                     )}
                   </TableCell>
+                  <TableCell className='font-mono text-xs'>
+                    {/* A run targets one key, so the row shows it directly; a run
+                        covering several keys lists them instead of guessing. */}
+                    {runKeyLabel(run)}
+                  </TableCell>
                   <TableCell className='text-xs'>{t(`intelligence.trigger.${run.trigger}`)}</TableCell>
                   <TableCell>
                     <div className='flex items-center gap-2'>
@@ -130,7 +145,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
 
                 {isOpen && (
                   <TableRow key={`${run.id}-detail`}>
-                    <TableCell colSpan={6} className='bg-muted/30'>
+                    <TableCell colSpan={7} className='bg-muted/30'>
                       <div className='space-y-3 py-2'>
                         {run.results.map((key) => (
                           <div key={key.keyPrefix} className='rounded-md border p-3 text-xs'>
