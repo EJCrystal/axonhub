@@ -21,6 +21,7 @@ import { useQueryChannels } from '@/features/channels/data/channels';
 import { IntelligenceSettings } from './components/intelligence-settings';
 import { IntelligenceHistoryList } from './components/intelligence-history-list';
 import { modelsForAPIKey } from './data/api-key-models';
+import { channelIdKey } from './data/channel-id';
 import { maskAPIKey } from './data/mask-key';
 import {
   DEFAULT_HISTORY_FILTER,
@@ -81,13 +82,38 @@ export default function IntelligenceManagement() {
   // so the first channel with records can claim the tab on its own.
   const [activeChannelTab, setActiveChannelTab] = useState<string>('');
 
-  // The filter lists every channel, not just the configured ones: a channel
-  // that was removed from the configuration still has history worth reading.
-  // The full option is required because the key picker reads the credentials.
+  // The history view follows the test configuration: only the channels that are
+  // currently configured get a filter entry or a channel tab, so removing a
+  // channel there also removes it from the history. The full channel query stays
+  // because the key picker needs each channel's credentials.
   const { data: channels } = useQueryChannels({ first: 200, full: true });
+  const channelByID = useMemo(() => {
+    const byID = new Map<string, { id: string; name: string }>();
+    for (const edge of channels?.edges ?? []) {
+      byID.set(channelIdKey(edge.node.id), { id: edge.node.id, name: edge.node.name });
+    }
+    return byID;
+  }, [channels]);
+
+  const configuredChannelIDs = useMemo(() => {
+    const ids: string[] = [];
+    for (const target of config?.targets ?? []) {
+      const id = channelIdKey(target.channelID);
+      if (!ids.includes(id)) ids.push(id);
+    }
+    return ids;
+  }, [config]);
+
   const channelOptions = useMemo(
-    () => (channels?.edges ?? []).map((edge) => ({ id: edge.node.id, name: edge.node.name })),
-    [channels]
+    () =>
+      configuredChannelIDs.map((id) => {
+        const known = channelByID.get(id);
+        return {
+          id: known?.id ?? id,
+          name: known?.name ?? t('intelligence.history.channelFallback', { id }),
+        };
+      }),
+    [configuredChannelIDs, channelByID, t]
   );
 
   const allRuns = useAllIntelligenceRuns(200);
@@ -158,12 +184,18 @@ export default function IntelligenceManagement() {
   // Without a channel filter the page merges every channel's runs, keeping the
   // newest-first order and grouping runs by their channel.
   const groups = useMemo<ChannelRunGroup[]>(() => {
-    return groupRunsByChannel(filteredRuns).map((group) => ({
-      channelID: group.channelID,
-      channelName: group.channelName,
-      edges: group.runs.map((node) => ({ node, cursor: node.id })),
-    }));
-  }, [filteredRuns]);
+    return (
+      groupRunsByChannel(filteredRuns)
+        // History follows the configuration, so a channel removed from the
+        // settings tab stops appearing here even though its rows still exist.
+        .filter((group) => configuredChannelIDs.includes(String(group.channelID)))
+        .map((group) => ({
+          channelID: group.channelID,
+          channelName: group.channelName,
+          edges: group.runs.map((node) => ({ node, cursor: node.id })),
+        }))
+    );
+  }, [filteredRuns, configuredChannelIDs]);
 
   // The channel the merged view is showing. The filter can remove the channel
   // that was selected, so fall back to the first one that still has records
