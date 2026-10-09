@@ -488,7 +488,14 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 		modelCircuitBreaker:        processor.modelCircuitBreaker,
 	}
 
-	useStream := channel.Policies.Stream == objects.CapabilityPolicyRequire
+	// The generation is always streamed. A full HTML document takes minutes to
+	// produce, and the tested channels sit behind Cloudflare's 120-second proxy
+	// read timeout: a non-streamed request must deliver its whole body inside that
+	// window, so a slow model is cut off with a 524 before it finishes, while a
+	// streamed one keeps sending and holds the connection open. The channel's own
+	// stream policy does not apply, because this is a request the check issues
+	// itself rather than one a client sent.
+	useStream := true
 	responsesWebSocket := usesResponsesWebSocket(channel)
 
 	llmRequest := buildChannelTestRequest(model, useStream, "", prompt, responsesWebSocket, apiFormat)
