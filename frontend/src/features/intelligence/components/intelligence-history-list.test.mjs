@@ -85,3 +85,20 @@ test('a removed channel is dropped from the merged groups', () => {
   const groups = page.slice(page.indexOf('const groups = useMemo'), page.indexOf('const selectedGroup'));
   assert.match(groups, /configuredChannelIDs\.includes\(String\(group\.channelID\)\)/, 'groups are filtered by the config');
 });
+
+// A run in flight has no outcome yet. The row is seeded with the key under test,
+// so without a guard that seeded entry would render as a plain failure and the
+// reader would see a verdict for a check that has not finished.
+test('a running run does not show a verdict for its seeded key', () => {
+  const detail = source.slice(source.indexOf('{run.results.map'));
+  assert.match(detail, /inFlight \? \(/, 'the per-key badge branches on the in-flight state');
+
+  // The seeded entry carries no quality and no html, so intelligenceVerdict
+  // would answer "failed". That call has to sit after the in-flight branch.
+  const badgeAt = detail.indexOf('verdictBadgeClass(intelligenceVerdict(key))');
+  const branchAt = detail.indexOf('{inFlight ? (');
+  assert.ok(branchAt !== -1 && badgeAt > branchAt, 'the verdict badge must be in the not-in-flight branch');
+
+  assert.match(source, /!inFlight && \([\s\S]{0,40}?<IntelligenceHTMLPreview/, 'no preview until a result exists');
+  assert.match(source, /!inFlight && canRecordManualVerdict\(key\)/, 'no manual verdict while in flight');
+});

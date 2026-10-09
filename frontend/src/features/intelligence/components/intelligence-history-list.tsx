@@ -151,9 +151,23 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                           <div key={key.keyPrefix} className='rounded-md border p-3 text-xs'>
                             <div className='flex flex-wrap items-center gap-2'>
                               <span className='font-mono'>{key.keyPrefix}</span>
-                              <Badge variant='outline' className={verdictBadgeClass(intelligenceVerdict(key))}>
-                                {t(`channels.dialogs.intelligence.verdict.${intelligenceVerdict(key)}`)}
-                              </Badge>
+                              {/* A run in flight has no outcome yet. Its seeded
+                                  key entry would otherwise read as a plain
+                                  failure, claiming a verdict that has not
+                                  happened. */}
+                              {inFlight ? (
+                                <Badge
+                                  variant='outline'
+                                  className='border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300'
+                                >
+                                  <IconLoader2 className='mr-1 h-3 w-3 animate-spin' />
+                                  {t('intelligence.history.running')}
+                                </Badge>
+                              ) : (
+                                <Badge variant='outline' className={verdictBadgeClass(intelligenceVerdict(key))}>
+                                  {t(`channels.dialogs.intelligence.verdict.${intelligenceVerdict(key)}`)}
+                                </Badge>
+                              )}
                               {key.manualVerdict && (
                                 <span className='text-muted-foreground'>
                                   {t('intelligence.history.manual.label', {
@@ -181,7 +195,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                                 action comes first and the cause follows. Only the inconclusive
                                 case gets this: a run that generated nothing is a plain failure
                                 with no source to review. */}
-                            {intelligenceVerdict(key) === 'inconclusive' && (
+                            {!inFlight && intelligenceVerdict(key) === 'inconclusive' && (
                               <div className='mt-2 rounded-md border border-dashed p-2'>
                                 <p className='font-medium'>{t('intelligence.history.previewAfterFailure')}</p>
                                 <p className='text-muted-foreground mt-1'>
@@ -192,8 +206,9 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                             {/* Automatic scoring can leave no usable verdict; a human then
                                 has to judge the source and record the decision here. A run
                                 that failed before any page was generated has nothing to
-                                review, so the buttons stay hidden for it. */}
-                            {canRecordManualVerdict(key) && (
+                                review, so the buttons stay hidden for it, as does a run
+                                still in flight. */}
+                            {!inFlight && canRecordManualVerdict(key) && (
                               <div className='mt-2 flex flex-wrap items-center gap-2'>
                                 <Button
                                   variant='outline'
@@ -232,7 +247,12 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                                 </Button>
                               </div>
                             )}
-                            <IntelligenceHTMLPreview html={key.html} verdict={intelligenceVerdict(key)} compact />
+                            {/* Nothing has been generated yet while the run is in
+                                flight, so the preview would claim a failure it cannot
+                                know about. It appears once there is a result to show. */}
+                            {!inFlight && (
+                              <IntelligenceHTMLPreview html={key.html} verdict={intelligenceVerdict(key)} compact />
+                            )}
                           </div>
                         ))}
                       </div>
