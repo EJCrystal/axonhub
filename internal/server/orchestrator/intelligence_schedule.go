@@ -30,13 +30,13 @@ const (
 	// configuration.
 	IntelligenceConfigKey = "intelligence_check_config"
 
-	// intelligenceMaxRunsPerChannel bounds the rows a single history read may
+	// intelligenceMaxRunsPerRead bounds the rows a single history read may
 	// return. The retention limit below is what actually trims storage.
-	intelligenceMaxRunsPerChannel = 100
+	intelligenceMaxRunsPerRead = 100
 
-	// intelligenceMaxRunsPerKey bounds the history kept for one API key of one
-	// channel, so a busy key cannot crowd out the others.
-	intelligenceMaxRunsPerKey = 10
+	// intelligenceMaxRunsPerChannel bounds the history kept for one channel. The
+	// newest runs survive; older ones are dropped, whatever key they covered.
+	intelligenceMaxRunsPerChannel = 10
 
 	// intelligenceMaxTargetConcurrency caps how many configured targets run at
 	// the same time. Every target is a multi-minute generation, so running them
@@ -484,7 +484,9 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 
 	// The row is created before the check so the history can show it as running
 	// straight away; a run takes minutes and an empty page in the meantime reads
-	// as if the click did nothing.
+	// as if the click did nothing. The key is already known here, so its masked
+	// prefix is recorded up front: the history can then name the key under test
+	// instead of showing an empty cell while the run is in flight.
 	run, err := s.ent.IntelligenceRun.Create().
 		SetChannelID(channel.ID).
 		SetChannelName(channel.Name).
@@ -492,7 +494,7 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		SetReasoningEffort(strings.TrimSpace(target.ReasoningEffort)).
 		SetTrigger(trigger).
 		SetStatus(intelligencerun.StatusRunning).
-		SetResults([]objects.IntelligenceKeyResult{}).
+		SetResults(intelligencePendingResults(target.APIKey)).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to record run: %w", err)
@@ -599,64 +601,56 @@ func countKeyOutcomes(results []objects.IntelligenceKeyResult) (success int, fai
 	return success, failed
 }
 
-// trimRun is the part of a recorded run the retention pass needs: which row it
-// is, and which API keys it evaluated.
+// trimRun is the part of a recorded run the retention pass needs: the row id of
+// a run, collected newest first.
 type trimRun struct {
-	ID   int
-	Keys []string
+	ID int
 }
 
-// unnamedIntelligenceKey buckets runs that produced no per-key result.
-const unnamedIntelligenceKey = ""
+// intelligencePendingResults seeds a running row with the key it will evaluate,
+// so the history can name the key straight away. A target without a key covers
+// every enabled key of the channel, and there is nothing single to name, so the
+// row starts empty and fills in as the results arrive.
+func intelligencePendingResults(apiKey string) []objects.IntelligenceKeyResult {
+	if strings.TrimSpace(apiKey) == "" {
+		return []objects.IntelligenceKeyResult{}
+	}
 
-// runsToTrim picks the runs to delete so that at most limit runs remain per API
-// key, newest first.
+	return []objects.IntelligenceKeyResult{{
+		KeyPrefix: maskIntelligenceTargetKey(strings.TrimSpace(apiKey)),
+	}}
+}
+
+// runsToTrim picks the run ids to delete so that at most limit runs remain for
+// the channel, newest first.
 //
-// A run is dropped only when every key it covers already has limit newer runs,
-// so a run that one key still needs is kept even if another key has moved on.
-// That keeps the per-key bound honest without discarding the only record of a
-// key. Runs that evaluated no key at all — an evaluation that failed before it
-// reached any of them — share one bucket, so they cannot pile up either.
+// Retention is per channel, not per key: the history is a short window on the
+// channel's recent behaviour, so adding keys must not multiply the rows kept.
 func runsToTrim(runs []trimRun, limit int) []int {
-	seen := make(map[string]int, 4)
-	var drop []int
+	if limit < 0 {
+		limit = 0
+	}
+	if len(runs) <= limit {
+		return nil
+	}
 
-	for _, run := range runs {
-		keys := run.Keys
-		if len(keys) == 0 {
-			keys = []string{unnamedIntelligenceKey}
-		}
-
-		beyond := true
-		for _, key := range keys {
-			if seen[key] < limit {
-				beyond = false
-				break
-			}
-		}
-
-		// A dropped run does not count towards any key's budget; otherwise one
-		// extra key would silently halve another key's history.
-		if beyond {
-			drop = append(drop, run.ID)
-			continue
-		}
-
-		for _, key := range keys {
-			seen[key]++
-		}
+	drop := make([]int, 0, len(runs)-limit)
+	for _, run := range runs[limit:] {
+		drop = append(drop, run.ID)
 	}
 
 	return drop
 }
 
-// trimHistory keeps only the newest intelligenceMaxRunsPerKey runs of each API
-// key of a channel.
+// trimHistory keeps only the newest intelligenceMaxRunsPerChannel runs of a
+// channel. Older rows are deleted outright: the retention window is meant to
+// bound what the history page shows, and the read query returns the same newest
+// slice.
 func (s *IntelligenceService) trimHistory(ctx context.Context, channelID int) error {
 	runs, err := s.ent.IntelligenceRun.Query().
 		Where(intelligencerun.ChannelIDEQ(channelID)).
 		Order(ent.Desc(intelligencerun.FieldCreatedAt)).
-		Select(intelligencerun.FieldID, intelligencerun.FieldResults).
+		Select(intelligencerun.FieldID).
 		All(ctx)
 	if err != nil {
 		return err
@@ -664,24 +658,16 @@ func (s *IntelligenceService) trimHistory(ctx context.Context, channelID int) er
 
 	trim := make([]trimRun, 0, len(runs))
 	for _, run := range runs {
-		keys := make([]string, 0, len(run.Results))
-		seen := make(map[string]struct{}, len(run.Results))
-		for _, result := range run.Results {
-			if _, ok := seen[result.KeyPrefix]; ok {
-				continue
-			}
-			seen[result.KeyPrefix] = struct{}{}
-			keys = append(keys, result.KeyPrefix)
-		}
-		trim = append(trim, trimRun{ID: run.ID, Keys: keys})
+		trim = append(trim, trimRun{ID: run.ID})
 	}
 
-	ids := runsToTrim(trim, intelligenceMaxRunsPerKey)
+	ids := runsToTrim(trim, intelligenceMaxRunsPerChannel)
 	if len(ids) == 0 {
 		return nil
 	}
 
 	_, err = s.ent.IntelligenceRun.Delete().Where(intelligencerun.IDIn(ids...)).Exec(ctx)
+
 	return err
 }
 
@@ -745,7 +731,7 @@ func (s *IntelligenceService) SetManualVerdict(ctx context.Context, runID int, k
 
 // History returns one channel's most recent runs, newest first.
 func (s *IntelligenceService) History(ctx context.Context, channelID int, first *int) (*ent.IntelligenceRunConnection, error) {
-	limit := intelligenceMaxRunsPerChannel
+	limit := intelligenceMaxRunsPerRead
 	if first != nil && *first > 0 && *first < limit {
 		limit = *first
 	}
