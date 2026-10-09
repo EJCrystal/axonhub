@@ -78,6 +78,42 @@ func TestAllowedReasoningEfforts(t *testing.T) {
 	}
 }
 
+// TestIntelligenceTargetTimeout covers the per-target budget: a target that
+// names its own timeout wins, and anything unset or out of range falls back to
+// the built-in default rather than silently shortening or extending the run.
+func TestIntelligenceTargetTimeout(t *testing.T) {
+	require.Equal(t, intelligenceTotalTimeout, intelligenceTargetTimeout(nil))
+	require.Equal(t, intelligenceTotalTimeout, intelligenceTargetTimeout(lo.ToPtr(0)))
+	require.Equal(t, intelligenceTotalTimeout, intelligenceTargetTimeout(lo.ToPtr(-5)))
+	require.Equal(t, intelligenceTotalTimeout, intelligenceTargetTimeout(lo.ToPtr(intelligenceMaxTimeoutMinutes+1)))
+
+	// A named budget is what the run actually waits for.
+	require.Equal(t, 15*time.Minute, intelligenceTargetTimeout(lo.ToPtr(15)))
+	require.Equal(t, time.Duration(intelligenceMaxTimeoutMinutes)*time.Minute,
+		intelligenceTargetTimeout(lo.ToPtr(intelligenceMaxTimeoutMinutes)))
+}
+
+// TestValidateIntelligenceTargetTimeout pins the save-time guard: a budget the
+// run could never honour is rejected before it is stored, and the boundary
+// values stay accepted.
+func TestValidateIntelligenceTargetTimeout(t *testing.T) {
+	valid := []objects.IntelligenceTarget{
+		{ChannelID: 6, ModelID: "gpt-6.1-sol", APIKey: "sk-a"},
+		{ChannelID: 6, ModelID: "gpt-6.1-sol", APIKey: "sk-b", TimeoutMinutes: 0},
+		{ChannelID: 6, ModelID: "gpt-6.1-sol", APIKey: "sk-c", TimeoutMinutes: 15},
+		{ChannelID: 6, ModelID: "gpt-6.1-sol", APIKey: "sk-d", TimeoutMinutes: intelligenceMaxTimeoutMinutes},
+	}
+	require.NoError(t, validateIntelligenceTargets(valid))
+
+	for _, minutes := range []int{-1, intelligenceMaxTimeoutMinutes + 1} {
+		err := validateIntelligenceTargets([]objects.IntelligenceTarget{
+			{ChannelID: 6, ModelID: "gpt-6.1-sol", APIKey: "sk-a", TimeoutMinutes: minutes},
+		})
+		require.Error(t, err, minutes)
+		require.Contains(t, err.Error(), "timeout")
+	}
+}
+
 // TestNarrowIntelligenceConfig covers the split button: naming a channel must
 // keep only that channel's target, and naming one that is not configured has to
 // fail loudly rather than silently running everything.

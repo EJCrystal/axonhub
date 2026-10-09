@@ -56,15 +56,19 @@ const (
 	// intelligencePollTimeout mirrors the documented 10 minute task ceiling.
 	intelligencePollTimeout = 5 * time.Minute
 
-	// intelligenceTotalTimeout bounds a whole evaluation run. The admin GraphQL
-	// route grants this operation the server's LLM request timeout
-	// (adminGraphQLTimeout in the server package), so the run gives up before
-	// that budget expires and reports a readable error instead of letting the
+	// intelligenceTotalTimeout bounds a whole evaluation run unless the target
+	// asks for a different budget. A run gives up before the server's request
+	// budget expires so it can report a readable error instead of letting the
 	// connection drop. It is deliberately shorter than the LLM request timeout
 	// deployments configure, because a slow channel can spend over eight minutes
 	// generating the HTML and the run still needs room to submit and poll after
 	// that.
 	intelligenceTotalTimeout = 12 * time.Minute
+
+	// intelligenceMaxTimeoutMinutes caps a per-target override. Times beyond this
+	// would outlast the server's request budget and be cut off mid-flight, so the
+	// save rejects them instead of storing a value that cannot work.
+	intelligenceMaxTimeoutMinutes = 20
 
 	// intelligenceHTMLMaxBytes caps the generated source returned to the UI. The
 	// detection service accepts up to 2 MiB, but the dialog only renders the
@@ -281,13 +285,14 @@ func (processor *TestChannelOrchestrator) EvaluateChannelIntelligence(
 	prompt *string,
 	baseURL *string,
 	reasoningEffort *string,
+	timeoutMinutes *int,
 ) (*IntelligenceEvaluateResult, error) {
 	channel, err := processor.channelService.GetChannel(ctx, channelID.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, intelligenceTotalTimeout)
+	ctx, cancel := context.WithTimeout(ctx, intelligenceTargetTimeout(timeoutMinutes))
 	defer cancel()
 
 	model := strings.TrimSpace(lo.FromPtr(modelID))
@@ -554,6 +559,23 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 	}
 
 	return lo.FromPtr(response.Choices[0].Message.Content.Content), nil
+}
+
+// intelligenceTargetTimeout resolves the budget for one run. A target that
+// names its own timeout wins, because an upstream that needs over ten minutes to
+// produce the HTML cannot finish inside the default; anything unset or out of
+// range falls back to it.
+func intelligenceTargetTimeout(minutes *int) time.Duration {
+	if minutes == nil {
+		return intelligenceTotalTimeout
+	}
+
+	value := *minutes
+	if value <= 0 || value > intelligenceMaxTimeoutMinutes {
+		return intelligenceTotalTimeout
+	}
+
+	return time.Duration(value) * time.Minute
 }
 
 // stripMarkdownFence removes a wrapping code fence if the model ignored the

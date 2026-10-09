@@ -451,6 +451,9 @@ input IntelligenceTargetInput {
   # Thinking level to request, one of llm/reasoning.go. Omit for the provider
   # default.
   reasoningEffort: String
+  # Per-run budget in minutes for this target. Omit (or 0) to keep the built-in
+  # default; a slow upstream that needs over ten minutes needs a larger value.
+  timeoutMinutes: Int
 }
 
 type IntelligenceTarget {
@@ -462,6 +465,8 @@ type IntelligenceTarget {
   # Thinking level requested for this target. Null when the provider default is
   # used.
   reasoningEffort: String
+  # Per-run budget in minutes. Null when the built-in default applies.
+  timeoutMinutes: Int
 }
 
 input IntelligenceConfigInput {

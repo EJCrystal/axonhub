@@ -400,6 +400,7 @@ type IntelligenceTarget struct {
 	ModelID         string       `json:"modelID"`
 	APIKey          *string      `json:"apiKey,omitempty"`
 	ReasoningEffort *string      `json:"reasoningEffort,omitempty"`
+	TimeoutMinutes  *int         `json:"timeoutMinutes,omitempty"`
 }
 
 type IntelligenceTargetInput struct {
@@ -407,6 +408,7 @@ type IntelligenceTargetInput struct {
 	ModelID         string       `json:"modelID"`
 	APIKey          *string      `json:"apiKey,omitempty"`
 	ReasoningEffort *string      `json:"reasoningEffort,omitempty"`
+	TimeoutMinutes  *int         `json:"timeoutMinutes,omitempty"`
 }
 
 type LoadAPIKeyProfileTemplateInput struct {

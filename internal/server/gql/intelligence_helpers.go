@@ -30,6 +30,7 @@ func (r *mutationResolver) intelligenceConfigPayload(ctx context.Context) (*Inte
 			ChannelName:     name,
 			ModelID:         target.ModelID,
 			ReasoningEffort: intelStringOrNil(target.ReasoningEffort),
+			TimeoutMinutes:  intelIntOrNil(target.TimeoutMinutes),
 		}
 		if target.APIKey != "" {
 			entry.APIKey = lo.ToPtr(target.APIKey)
@@ -48,6 +49,16 @@ func (r *mutationResolver) intelligenceConfigPayload(ctx context.Context) (*Inte
 // than an empty string, so the UI can tell "not set" from "set to empty".
 func intelStringOrNil(value string) *string {
 	if value == "" {
+		return nil
+	}
+
+	return lo.ToPtr(value)
+}
+
+// intelIntOrNil keeps an absent number represented as null rather than zero, so
+// the UI can tell "not set" from "set to the minimum".
+func intelIntOrNil(value int) *int {
+	if value == 0 {
 		return nil
 	}
 

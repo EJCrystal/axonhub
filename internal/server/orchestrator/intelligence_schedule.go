@@ -221,6 +221,12 @@ func validateIntelligenceTargets(targets []objects.IntelligenceTarget) error {
 		if !isAllowedReasoningEffort(target.ReasoningEffort) {
 			return fmt.Errorf("reasoning effort must be one of %v", allowedReasoningEfforts)
 		}
+		// A budget beyond the cap would outlast the server's request budget and be
+		// cut off before the run can finish, so refuse it rather than storing a
+		// setting that cannot work.
+		if target.TimeoutMinutes < 0 || target.TimeoutMinutes > intelligenceMaxTimeoutMinutes {
+			return fmt.Errorf("timeout must be between 0 and %d minutes", intelligenceMaxTimeoutMinutes)
+		}
 
 		identity := intelligenceTargetKey{ChannelID: target.ChannelID, APIKey: strings.TrimSpace(target.APIKey)}
 		if _, ok := seen[identity]; ok {
@@ -495,7 +501,7 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 	runCtx := contexts.WithSource(ctx, request.SourceTest)
 	result, err := s.testSvc.EvaluateChannelIntelligence(
 		runCtx, objects.GUID{Type: "channel", ID: channel.ID}, lo.ToPtr(target.ModelID), keys, nil, nil,
-		lo.ToPtr(target.ReasoningEffort))
+		lo.ToPtr(target.ReasoningEffort), lo.ToPtr(target.TimeoutMinutes))
 	if err != nil {
 		// Leave a finished row behind rather than a run that never ends.
 		if finalizeErr := s.finalizeRun(ctx, run.ID, nil, int(time.Since(startedAt).Milliseconds()), err); finalizeErr != nil {

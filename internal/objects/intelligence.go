@@ -28,6 +28,11 @@ type IntelligenceTarget struct {
 	// ReasoningEffort overrides the model's thinking level for this target. An
 	// empty value leaves the request untouched, so the provider default applies.
 	ReasoningEffort string `json:"reasoningEffort,omitempty"`
+	// TimeoutMinutes overrides how long this target may spend on one run. Zero
+	// keeps the built-in default, which suits every channel but the slowest: an
+	// upstream that regularly needs over ten minutes to finish the HTML needs a
+	// longer budget than the rest of the configuration.
+	TimeoutMinutes int `json:"timeoutMinutes,omitempty"`
 }
 
 // IntelligenceRunStatus is the terminal state of one scheduled or manual run.
