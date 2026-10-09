@@ -68,6 +68,9 @@ export const intelligenceTargetSchema = z.object({
   // Thinking level requested for this target. Null means the provider default;
   // a bare default('') only covers undefined, and GraphQL sends null here.
   reasoningEffort: z.string().nullish().transform((value) => value ?? ''),
+  // Per-run budget in minutes. Null means the built-in default applies, and
+  // GraphQL sends null for that, so normalize it the same way.
+  timeoutMinutes: z.number().nullish().transform((value) => value ?? 0),
 });
 export type IntelligenceTarget = z.infer<typeof intelligenceTargetSchema>;
 

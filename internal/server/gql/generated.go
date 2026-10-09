@@ -899,6 +899,7 @@ type ComplexityRoot struct {
 		ChannelName     func(childComplexity int) int
 		ModelID         func(childComplexity int) int
 		ReasoningEffort func(childComplexity int) int
+		TimeoutMinutes  func(childComplexity int) int
 	}
 
 	Model struct {
@@ -5704,6 +5705,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.IntelligenceTarget.ReasoningEffort(childComplexity), true
+	case "IntelligenceTarget.timeoutMinutes":
+		if e.complexity.IntelligenceTarget.TimeoutMinutes == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceTarget.TimeoutMinutes(childComplexity), true
 
 	case "Model.associatedChannelCount":
 		if e.complexity.Model.AssociatedChannelCount == nil {
@@ -30756,6 +30763,8 @@ func (ec *executionContext) fieldContext_IntelligenceConfig_targets(_ context.Co
 				return ec.fieldContext_IntelligenceTarget_apiKey(ctx, field)
 			case "reasoningEffort":
 				return ec.fieldContext_IntelligenceTarget_reasoningEffort(ctx, field)
+			case "timeoutMinutes":
+				return ec.fieldContext_IntelligenceTarget_timeoutMinutes(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IntelligenceTarget", field.Name)
 		},
@@ -32041,6 +32050,35 @@ func (ec *executionContext) fieldContext_IntelligenceTarget_reasoningEffort(_ co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceTarget_timeoutMinutes(ctx context.Context, field graphql.CollectedField, obj *IntelligenceTarget) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceTarget_timeoutMinutes,
+		func(ctx context.Context) (any, error) {
+			return obj.TimeoutMinutes, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceTarget_timeoutMinutes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceTarget",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -77604,7 +77642,7 @@ func (ec *executionContext) unmarshalInputIntelligenceTargetInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"channelID", "modelID", "apiKey", "reasoningEffort"}
+	fieldsInOrder := [...]string{"channelID", "modelID", "apiKey", "reasoningEffort", "timeoutMinutes"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -77639,6 +77677,13 @@ func (ec *executionContext) unmarshalInputIntelligenceTargetInput(ctx context.Co
 				return it, err
 			}
 			it.ReasoningEffort = data
+		case "timeoutMinutes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timeoutMinutes"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TimeoutMinutes = data
 		}
 	}
 
@@ -102808,6 +102853,8 @@ func (ec *executionContext) _IntelligenceTarget(ctx context.Context, sel ast.Sel
 			out.Values[i] = ec._IntelligenceTarget_apiKey(ctx, field, obj)
 		case "reasoningEffort":
 			out.Values[i] = ec._IntelligenceTarget_reasoningEffort(ctx, field, obj)
+		case "timeoutMinutes":
+			out.Values[i] = ec._IntelligenceTarget_timeoutMinutes(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

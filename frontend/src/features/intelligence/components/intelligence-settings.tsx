@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -20,6 +21,12 @@ import { useSetIntelligenceConfig } from '../data/intelligence';
 // Radix Select reserves the empty string, so "provider default" needs its own value.
 const NO_EFFORT = '__default__';
 
+// The per-run budget the backend applies when a target sets none, plus the cap
+// it refuses to store. Kept in sync with orchestrator.intelligenceTotalTimeout
+// and orchestrator.intelligenceMaxTimeoutMinutes.
+const DEFAULT_TIMEOUT_MINUTES = 12;
+const MAX_TIMEOUT_MINUTES = 20;
+
 interface Props {
   config?: IntelligenceConfig;
   loading: boolean;
@@ -32,6 +39,8 @@ interface DraftTarget {
   modelID: string;
   // Empty means "leave the thinking level alone".
   reasoningEffort: string;
+  // Zero means "use the built-in per-run budget".
+  timeoutMinutes: number;
 }
 
 
@@ -58,6 +67,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
         apiKey: target.apiKey ?? '',
         modelID: target.modelID,
         reasoningEffort: target.reasoningEffort ?? '',
+        timeoutMinutes: target.timeoutMinutes ?? 0,
       }))
     );
   }, [config]);
@@ -132,6 +142,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
         apiKey: pair.apiKey,
         modelID: modelsFor(pair.channelID, pair.apiKey)[0] ?? '',
         reasoningEffort: '',
+        timeoutMinutes: 0,
       },
     ]);
   };
@@ -154,6 +165,8 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
         apiKey: target.apiKey,
         // Omit rather than send an empty string, so the backend stores nothing.
         reasoningEffort: target.reasoningEffort || undefined,
+        // Zero means the built-in budget, so omit it instead of storing a value.
+        timeoutMinutes: target.timeoutMinutes || undefined,
       })),
     });
   };
@@ -211,13 +224,14 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                   <TableHead>{t('intelligence.settings.keyColumn')}</TableHead>
                   <TableHead>{t('intelligence.settings.modelColumn')}</TableHead>
                   <TableHead>{t('intelligence.settings.effortColumn')}</TableHead>
+                  <TableHead>{t('intelligence.settings.timeoutColumn')}</TableHead>
                   <TableHead className='w-16'></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {targets.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className='text-muted-foreground text-center text-xs'>
+                    <TableCell colSpan={6} className='text-muted-foreground text-center text-xs'>
                       {t('intelligence.settings.noTargets')}
                     </TableCell>
                   </TableRow>
@@ -309,6 +323,28 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                             ))}
                           </SelectContent>
                         </Select>
+                      </TableCell>
+                      <TableCell>
+                        {/* Zero keeps the built-in budget. A slow upstream can ask
+                            for more time without changing anything else. */}
+                        <Input
+                          type='number'
+                          min={0}
+                          max={MAX_TIMEOUT_MINUTES}
+                          value={target.timeoutMinutes || ''}
+                          placeholder={String(DEFAULT_TIMEOUT_MINUTES)}
+                          onChange={(event) => {
+                            const parsed = Number(event.target.value);
+                            updateTarget(index, {
+                              timeoutMinutes:
+                                Number.isFinite(parsed) && parsed > 0
+                                  ? Math.min(parsed, MAX_TIMEOUT_MINUTES)
+                                  : 0,
+                            });
+                          }}
+                          disabled={readOnly}
+                          className='w-24'
+                        />
                       </TableCell>
                       <TableCell>
                         <Button variant='ghost' size='icon' onClick={() => removeTarget(index)} disabled={readOnly}>

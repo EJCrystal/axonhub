@@ -378,7 +378,7 @@ func (r *mutationResolver) EvaluateChannelIntelligence(ctx context.Context, inpu
 	// Set test source context so the generation requests are recorded as tests.
 	ctx = contexts.WithSource(ctx, request.SourceTest)
 
-	result, err := r.TestChannelOrchestrator.EvaluateChannelIntelligence(ctx, input.ChannelID, input.ModelID, input.Keys, input.Prompt, input.BaseURL, input.ReasoningEffort)
+	result, err := r.TestChannelOrchestrator.EvaluateChannelIntelligence(ctx, input.ChannelID, input.ModelID, input.Keys, input.Prompt, input.BaseURL, input.ReasoningEffort, nil)
 	if err != nil {
 		if httpclient.IsNotFoundErr(err) {
 			return nil, fmt.Errorf("URL not found, please check if the URL is correct and try again")
@@ -430,6 +430,9 @@ func (r *mutationResolver) SetIntelligenceConfig(ctx context.Context, input Inte
 		}
 		if target.ReasoningEffort != nil {
 			entry.ReasoningEffort = *target.ReasoningEffort
+		}
+		if target.TimeoutMinutes != nil {
+			entry.TimeoutMinutes = *target.TimeoutMinutes
 		}
 		config.Targets = append(config.Targets, entry)
 	}
