@@ -50,7 +50,7 @@
   "intelligence.settings.save": "保存配置",
   "intelligence.settings.saving": "保存中...",
   "intelligence.messages.saved": "配置已保存",
-  "intelligence.messages.started": "已开始测试 {{count}} 个渠道，结果会在几分钟后出现",
+  "intelligence.messages.started": "已开始测试 {{count}} 个测试项，结果会在几分钟后出现",
   "intelligence.messages.verdictSaved": "已保存人工判定",
   "intelligence.history.manual.markDegraded": "人工判定降智",
   "intelligence.history.manual.markNormal": "人工判定正常",

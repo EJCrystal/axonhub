@@ -11,6 +11,7 @@ import (
 	"entgo.io/contrib/entgql"
 	"github.com/samber/lo"
 	"go.uber.org/fx"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
@@ -36,6 +37,11 @@ const (
 	// intelligenceMaxRunsPerKey bounds the history kept for one API key of one
 	// channel, so a busy key cannot crowd out the others.
 	intelligenceMaxRunsPerKey = 10
+
+	// intelligenceMaxTargetConcurrency caps how many configured targets run at
+	// the same time. Every target is a multi-minute generation, so running them
+	// in sequence made a large configuration take the sum of all of them.
+	intelligenceMaxTargetConcurrency = 3
 
 	// intelligenceSchedulerTask is the name of the scheduled task.
 	intelligenceSchedulerTask = "intelligence-check"
@@ -399,12 +405,48 @@ func narrowIntelligenceConfig(config *objects.IntelligenceConfig, channelID int,
 func (s *IntelligenceService) runConfiguredTargets(ctx context.Context, config *objects.IntelligenceConfig, trigger string) {
 	ctx = s.attachEntClient(ctx)
 
-	for _, target := range config.Targets {
-		if err := s.runOneChannel(ctx, target, trigger); err != nil {
-			log.Error(ctx, "intelligence check: channel run failed",
-				log.Int("channel_id", target.ChannelID), log.Cause(err))
-		}
+	runTargetsConcurrently(
+		ctx,
+		config.Targets,
+		intelligenceMaxTargetConcurrency,
+		func(ctx context.Context, target objects.IntelligenceTarget) {
+			if err := s.runOneChannel(ctx, target, trigger); err != nil {
+				log.Error(ctx, "intelligence check: channel run failed",
+					log.Int("channel_id", target.ChannelID), log.Cause(err))
+			}
+		},
+	)
+}
+
+// runTargetsConcurrently runs one function per target, at most limit at a time.
+//
+// Targets are independent: each is a multi-minute generation against its own
+// channel, so running them in sequence made a large configuration take the sum
+// of all of them. A target that fails must not cancel the others either — its
+// outcome is recorded on its own row.
+func runTargetsConcurrently(
+	ctx context.Context,
+	targets []objects.IntelligenceTarget,
+	limit int,
+	run func(ctx context.Context, target objects.IntelligenceTarget),
+) {
+	if limit < 1 {
+		limit = 1
 	}
+
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(limit)
+
+	for _, target := range targets {
+		target := target
+		group.Go(func() error {
+			run(groupCtx, target)
+
+			return nil
+		})
+	}
+
+	_ = group.Wait()
 }
 
 // attachEntClient makes sure the context carries the service's ent client.
