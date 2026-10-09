@@ -217,6 +217,29 @@ func TestNarrowIntelligenceConfigByKey(t *testing.T) {
 	require.NotContains(t, err.Error(), "sk-missing-1234567890")
 }
 
+// TestFailedRunResults covers the failure row: a run seeded with the key it was
+// testing must keep that key when it fails, otherwise the history shows an
+// unnamed failure and the operator cannot tell which credential broke.
+func TestFailedRunResults(t *testing.T) {
+	err := errors.New("context deadline exceeded")
+
+	seeded := []objects.IntelligenceKeyResult{{KeyPrefix: "sk-9****9c31"}}
+	results := failedRunResults(7, seeded, 1234, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "sk-9****9c31", results[0].KeyPrefix, "the key under test survives the failure")
+	require.False(t, results[0].Success)
+	require.Equal(t, 1234, results[0].DurationMs)
+	require.NotNil(t, results[0].Error)
+	require.Contains(t, *results[0].Error, "context deadline exceeded")
+
+	// A run that named no key keeps the single anonymous entry, so the failure is
+	// still recorded rather than dropped.
+	anonymous := failedRunResults(8, nil, 10, err)
+	require.Len(t, anonymous, 1)
+	require.Empty(t, anonymous[0].KeyPrefix)
+	require.NotNil(t, anonymous[0].Error)
+}
+
 // TestIntelligencePendingResults covers the seeded running row: a target that
 // names a key records its masked prefix immediately, so the history can show
 // which key is under test instead of an empty cell. A target covering every key

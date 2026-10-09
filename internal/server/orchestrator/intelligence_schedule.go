@@ -487,6 +487,7 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 	// as if the click did nothing. The key is already known here, so its masked
 	// prefix is recorded up front: the history can then name the key under test
 	// instead of showing an empty cell while the run is in flight.
+	seeded := intelligencePendingResults(target.APIKey)
 	run, err := s.ent.IntelligenceRun.Create().
 		SetChannelID(channel.ID).
 		SetChannelName(channel.Name).
@@ -494,7 +495,7 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		SetReasoningEffort(strings.TrimSpace(target.ReasoningEffort)).
 		SetTrigger(trigger).
 		SetStatus(intelligencerun.StatusRunning).
-		SetResults(intelligencePendingResults(target.APIKey)).
+		SetResults(seeded).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to record run: %w", err)
@@ -505,8 +506,9 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		runCtx, objects.GUID{Type: "channel", ID: channel.ID}, lo.ToPtr(target.ModelID), keys, nil, nil,
 		lo.ToPtr(target.ReasoningEffort), lo.ToPtr(target.TimeoutMinutes))
 	if err != nil {
-		// Leave a finished row behind rather than a run that never ends.
-		if finalizeErr := s.finalizeRun(ctx, run.ID, nil, int(time.Since(startedAt).Milliseconds()), err); finalizeErr != nil {
+		// Leave a finished row behind rather than a run that never ends. The
+		// seeded keys are carried over so the failure names the key it belongs to.
+		if finalizeErr := s.finalizeRun(ctx, run.ID, seeded, int(time.Since(startedAt).Milliseconds()), err); finalizeErr != nil {
 			log.Warn(ctx, "intelligence check: failed to finalize run", log.Cause(finalizeErr))
 		}
 
@@ -561,11 +563,7 @@ func (s *IntelligenceService) finalizeRun(
 	runErr error,
 ) error {
 	if runErr != nil {
-		results = []objects.IntelligenceKeyResult{{
-			Success:    false,
-			DurationMs: durationMs,
-			Error:      lo.ToPtr(runErr.Error()),
-		}}
+		results = failedRunResults(runID, results, durationMs, runErr)
 	}
 
 	status := runStatus(results)
@@ -584,6 +582,41 @@ func (s *IntelligenceService) finalizeRun(
 	}
 
 	return nil
+}
+
+// failedRunResults builds the row for a run that failed before it produced a
+// verdict. Whichever keys the row already names are kept, so a run seeded with
+// its target key still shows which key failed instead of an unnamed row; a run
+// covering every enabled key has nothing single to name and keeps the one
+// anonymous entry.
+func failedRunResults(
+	runID int,
+	known []objects.IntelligenceKeyResult,
+	durationMs int,
+	runErr error,
+) []objects.IntelligenceKeyResult {
+	failure := func(keyPrefix string) objects.IntelligenceKeyResult {
+		return objects.IntelligenceKeyResult{
+			KeyPrefix:  keyPrefix,
+			Success:    false,
+			DurationMs: durationMs,
+			Error:      lo.ToPtr(runErr.Error()),
+		}
+	}
+
+	if len(known) == 0 {
+		log.Warn(context.Background(), "intelligence check: run failed without a key to name",
+			log.Int("run_id", runID))
+
+		return []objects.IntelligenceKeyResult{failure("")}
+	}
+
+	results := make([]objects.IntelligenceKeyResult, 0, len(known))
+	for _, result := range known {
+		results = append(results, failure(result.KeyPrefix))
+	}
+
+	return results
 }
 
 // countKeyOutcomes splits results into the keys that passed and those that did
