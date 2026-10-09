@@ -22,6 +22,7 @@
   "intelligence.history.columns.model": "模型",
   "intelligence.history.columns.trigger": "触发方式",
   "intelligence.history.columns.result": "结果",
+  "intelligence.history.columns.apiKey": "API Key",
   "intelligence.history.columns.duration": "总耗时",
   "intelligence.history.keysSummary": "{{success}}/{{total}} 个 Key 完成检测",
   "intelligence.trigger.manual": "手动",

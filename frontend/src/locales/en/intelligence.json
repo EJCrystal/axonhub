@@ -22,6 +22,7 @@
   "intelligence.history.columns.model": "Model",
   "intelligence.history.columns.trigger": "Trigger",
   "intelligence.history.columns.result": "Result",
+  "intelligence.history.columns.apiKey": "API Key",
   "intelligence.history.columns.duration": "Duration",
   "intelligence.history.keysSummary": "{{success}}/{{total}} keys completed",
   "intelligence.trigger.manual": "Manual",
