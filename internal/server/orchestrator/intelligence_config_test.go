@@ -87,6 +87,8 @@ func TestRetriableGenerationErrors(t *testing.T) {
 	retriable := []string{
 		"No content in stream response",
 		"stream error: stream ID 1; INTERNAL_ERROR; received from peer",
+		// The signature the relays actually return when they cut the stream short.
+		"error: stream_timeout, code: stream_timeout, type: upstream_error",
 		"error: The service is temporarily unavailable. Please retry later.",
 		"The service is busy. Please retry later.",
 		"Upstream request failed",

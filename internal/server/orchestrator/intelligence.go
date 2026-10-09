@@ -623,6 +623,11 @@ var intelligenceRetriableGenerationErrors = []string{
 	"no content in stream response",
 	"stream error:",
 	"internal_error",
+	// The signature the tested relays actually return when they give up mid-stream
+	// ("error: stream_timeout, code: stream_timeout, type: upstream_error"). It is
+	// the connection dying, not a verdict on the request, so it gets another try.
+	"stream_timeout",
+	"stream timeout",
 	"unexpected eof",
 	"connection reset",
 	"broken pipe",
