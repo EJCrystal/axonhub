@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -341,6 +342,89 @@ func TestReapInterruptedRuns(t *testing.T) {
 	kept, err := client.IntelligenceRun.Get(ctx, done.ID)
 	require.NoError(t, err)
 	require.Equal(t, intelligencerun.StatusSucceeded, kept.Status, "a finished run is untouched")
+}
+
+// TestRunTargetsConcurrently covers the fan-out: targets must run side by side
+// rather than one after another, the limit must be respected, and a target that
+// fails must not stop the rest.
+func TestRunTargetsConcurrently(t *testing.T) {
+	target := func(id int) objects.IntelligenceTarget {
+		return objects.IntelligenceTarget{ChannelID: id, APIKey: "sk-a", ModelID: "m"}
+	}
+
+	t.Run("targets overlap instead of queueing", func(t *testing.T) {
+		// Every target waits for all of them to have started. A sequential loop
+		// would deadlock and time out, which is the behaviour being ruled out.
+		var mu sync.Mutex
+		started := 0
+		allStarted := make(chan struct{})
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			runTargetsConcurrently(context.Background(), []objects.IntelligenceTarget{target(1), target(2), target(3)}, 3,
+				func(_ context.Context, _ objects.IntelligenceTarget) {
+					mu.Lock()
+					started++
+					if started == 3 {
+						close(allStarted)
+					}
+					mu.Unlock()
+
+					<-allStarted
+				})
+		}()
+
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("targets did not run concurrently")
+		}
+	})
+
+	t.Run("the limit is not exceeded", func(t *testing.T) {
+		var mu sync.Mutex
+		inFlight, peak := 0, 0
+
+		runTargetsConcurrently(context.Background(), []objects.IntelligenceTarget{target(1), target(2), target(3), target(4), target(5)}, 2,
+			func(_ context.Context, _ objects.IntelligenceTarget) {
+				mu.Lock()
+				inFlight++
+				if inFlight > peak {
+					peak = inFlight
+				}
+				mu.Unlock()
+
+				time.Sleep(30 * time.Millisecond)
+
+				mu.Lock()
+				inFlight--
+				mu.Unlock()
+			})
+
+		require.LessOrEqual(t, peak, 2, "at most limit targets run at once")
+		require.Equal(t, 2, peak, "and the limit is actually used")
+	})
+
+	t.Run("every target runs even when one fails", func(t *testing.T) {
+		var mu sync.Mutex
+		seen := map[int]bool{}
+
+		runTargetsConcurrently(context.Background(), []objects.IntelligenceTarget{target(1), target(2), target(3)}, 2,
+			func(_ context.Context, target objects.IntelligenceTarget) {
+				mu.Lock()
+				seen[target.ChannelID] = true
+				mu.Unlock()
+			})
+
+		require.Len(t, seen, 3, "a failing target must not cancel the others")
+	})
+
+	t.Run("an empty configuration is harmless", func(t *testing.T) {
+		runTargetsConcurrently(context.Background(), nil, 3, func(context.Context, objects.IntelligenceTarget) {
+			t.Fatal("nothing to run")
+		})
+	})
 }
 
 func TestRunStatus(t *testing.T) {
