@@ -60,8 +60,11 @@ const (
 	// route grants this operation the server's LLM request timeout
 	// (adminGraphQLTimeout in the server package), so the run gives up before
 	// that budget expires and reports a readable error instead of letting the
-	// connection drop.
-	intelligenceTotalTimeout = 9 * time.Minute
+	// connection drop. It is deliberately shorter than the LLM request timeout
+	// deployments configure, because a slow channel can spend over eight minutes
+	// generating the HTML and the run still needs room to submit and poll after
+	// that.
+	intelligenceTotalTimeout = 12 * time.Minute
 
 	// intelligenceHTMLMaxBytes caps the generated source returned to the UI. The
 	// detection service accepts up to 2 MiB, but the dialog only renders the
