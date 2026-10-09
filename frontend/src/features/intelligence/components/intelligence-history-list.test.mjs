@@ -63,3 +63,25 @@ test('a run covering several keys lists every prefix', () => {
   assert.match(fn, /join\(', '\)/, 'several keys are all shown');
   assert.match(fn, /'—'/, 'a run with no key still renders a placeholder');
 });
+
+// The history view follows the test configuration: a channel removed there must
+// stop appearing in the filter and in the merged channel tabs, otherwise the
+// page keeps offering a channel the operator already deleted.
+const page = readFileSync(join(import.meta.dirname, '..', 'index.tsx'), 'utf8');
+
+test('the channel filter is built from the configured targets', () => {
+  const opts = page.slice(page.indexOf('const configuredChannelIDs'), page.indexOf('const allRuns'));
+  assert.match(opts, /config\?\.targets/, 'the ids come from the configuration');
+  assert.match(opts, /channelIdKey\(target\.channelID\)/, 'a target id is normalised for comparison');
+
+  assert.doesNotMatch(
+    page,
+    /channelOptions = useMemo\(\(\) => \(channels\?\.edges/,
+    'the filter must not list every channel in the system'
+  );
+});
+
+test('a removed channel is dropped from the merged groups', () => {
+  const groups = page.slice(page.indexOf('const groups = useMemo'), page.indexOf('const selectedGroup'));
+  assert.match(groups, /configuredChannelIDs\.includes\(String\(group\.channelID\)\)/, 'groups are filtered by the config');
+});
