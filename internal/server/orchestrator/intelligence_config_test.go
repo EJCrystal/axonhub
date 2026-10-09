@@ -3,6 +3,8 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -76,6 +78,43 @@ func TestAllowedReasoningEfforts(t *testing.T) {
 	for _, effort := range []string{"ultra", "HIGH", "0", "x-high", "Max"} {
 		require.False(t, isAllowedReasoningEffort(effort), effort)
 	}
+}
+
+// TestRetriableGenerationErrors pins which upstream failures get a second
+// attempt. A dropped stream leaves nothing to submit, so it is worth another
+// try; a rejected request or a spent deadline is not, because it repeats.
+func TestRetriableGenerationErrors(t *testing.T) {
+	retriable := []string{
+		"No content in stream response",
+		"stream error: stream ID 1; INTERNAL_ERROR; received from peer",
+		"error: The service is temporarily unavailable. Please retry later.",
+		"The service is busy. Please retry later.",
+		"Upstream request failed",
+		"failed to do request: HTTP request failed: connection reset by peer",
+		io.ErrUnexpectedEOF.Error(),
+	}
+	for _, message := range retriable {
+		require.True(t, isRetriableGenerationError(errors.New(message)), message)
+	}
+
+	notRetriable := []string{
+		"",
+		"HTTP error 401: invalid api key",
+		`{"code":"ACCESS_DENIED","message":"Access denied. Your IP is 204.1.108.244"}`,
+		"您的 IP 不在令牌允许访问的列表中",
+		"model returned empty HTML",
+	}
+	for _, message := range notRetriable {
+		require.False(t, isRetriableGenerationError(errors.New(message)), message)
+	}
+
+	require.False(t, isRetriableGenerationError(nil), "no error is not retried")
+
+	// The run's own deadline is not an upstream problem: the budget is spent, so
+	// a retry would be cancelled the same way.
+	require.False(t, isRetriableGenerationError(context.DeadlineExceeded))
+	require.False(t, isRetriableGenerationError(fmt.Errorf("context deadline exceeded")))
+	require.False(t, isRetriableGenerationError(context.Canceled))
 }
 
 // TestIntelligenceTargetTimeout covers the per-target budget: a target that

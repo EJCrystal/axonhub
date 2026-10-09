@@ -21,6 +21,7 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/pipeline/stream"
+	"github.com/looplj/axonhub/llm/transformer"
 )
 
 const (
@@ -69,6 +70,17 @@ const (
 	// would outlast the server's request budget and be cut off mid-flight, so the
 	// save rejects them instead of storing a value that cannot work.
 	intelligenceMaxTimeoutMinutes = 20
+
+	// intelligenceGenerateAttempts bounds the retries when the upstream cuts a
+	// generation short. A dropped stream leaves nothing to submit, so one more try
+	// is what turns an intermittent reset into a recorded verdict. A run that spent
+	// its own deadline is not retried: the budget is gone, and a second attempt
+	// would only be cancelled the same way.
+	intelligenceGenerateAttempts = 2
+
+	// intelligenceGenerateRetryDelay is how long to wait before the retry, so an
+	// upstream that is still shedding load is not hit immediately.
+	intelligenceGenerateRetryDelay = 5 * time.Second
 
 	// intelligenceHTMLMaxBytes caps the generated source returned to the UI. The
 	// detection service accepts up to 2 MiB, but the dialog only renders the
@@ -506,22 +518,63 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 	useStream := true
 	responsesWebSocket := usesResponsesWebSocket(channel)
 
-	llmRequest := buildChannelTestRequest(model, useStream, "", prompt, responsesWebSocket, apiFormat)
-	if !responsesWebSocket {
-		llmRequest.MaxCompletionTokens = lo.ToPtr(int64(intelligenceGenerateMaxTokens))
+	var lastErr error
+	for attempt := 1; attempt <= intelligenceGenerateAttempts; attempt++ {
+		llmRequest := buildChannelTestRequest(model, useStream, "", prompt, responsesWebSocket, apiFormat)
+		if !responsesWebSocket {
+			llmRequest.MaxCompletionTokens = lo.ToPtr(int64(intelligenceGenerateMaxTokens))
+		}
+
+		// The configured thinking level wins over whatever the model name or the
+		// auto-reasoning middleware would otherwise decide for this run.
+		if strings.TrimSpace(reasoningEffort) != "" {
+			llmRequest.ReasoningEffort = strings.TrimSpace(reasoningEffort)
+		}
+
+		body, err := json.Marshal(llmRequest)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal generation request: %w", err)
+		}
+
+		html, err := processor.runIntelligenceGeneration(ctx, chatProcessor, inbound, body)
+		if err == nil {
+			return html, nil
+		}
+		lastErr = err
+
+		// Only a transient cut is worth another try. A deadline the run spent on
+		// its own is not, and neither is a rejected request, which would fail the
+		// same way every time.
+		if attempt >= intelligenceGenerateAttempts || !isRetriableGenerationError(err) || ctx.Err() != nil {
+			return "", err
+		}
+
+		log.Warn(ctx, "intelligence check: generation failed, retrying",
+			log.Int("channel_id", channel.ID),
+			log.String("model", model),
+			log.Int("attempt", attempt),
+			log.Cause(err),
+		)
+
+		select {
+		case <-ctx.Done():
+			return "", lastErr
+		case <-time.After(intelligenceGenerateRetryDelay):
+		}
 	}
 
-	// The configured thinking level wins over whatever the model name or the
-	// auto-reasoning middleware would otherwise decide for this run.
-	if strings.TrimSpace(reasoningEffort) != "" {
-		llmRequest.ReasoningEffort = strings.TrimSpace(reasoningEffort)
-	}
+	return "", lastErr
+}
 
-	body, err := json.Marshal(llmRequest)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal generation request: %w", err)
-	}
-
+// runIntelligenceGeneration issues one generation request and returns the source
+// the model produced. Errors carry the upstream message so the recorded failure
+// explains itself.
+func (processor *TestChannelOrchestrator) runIntelligenceGeneration(
+	ctx context.Context,
+	chatProcessor *ChatCompletionOrchestrator,
+	inbound transformer.Inbound,
+	body []byte,
+) (string, error) {
 	rawResponse, err := chatProcessor.Process(ctx, &httpclient.Request{
 		Headers: http.Header{
 			"Content-Type": []string{"application/json"},
@@ -559,6 +612,50 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 	}
 
 	return lo.FromPtr(response.Choices[0].Message.Content.Content), nil
+}
+
+// intelligenceRetriableGenerationErrors are the upstream failures that a second
+// attempt can plausibly clear. They are all transport-level interruptions: the
+// connection dropped, an empty stream came back, or an edge proxy gave up. A
+// rejected request or an error the model itself reported is deliberately absent,
+// because those repeat exactly.
+var intelligenceRetriableGenerationErrors = []string{
+	"no content in stream response",
+	"stream error:",
+	"internal_error",
+	"unexpected eof",
+	"connection reset",
+	"broken pipe",
+	"temporarily unavailable",
+	"service is busy",
+	"upstream request failed",
+	"error code: 524",
+	"error code: 502",
+	"error code: 503",
+	"error code: 504",
+}
+
+// isRetriableGenerationError reports whether a generation failure is a transient
+// interruption rather than a verdict on the request itself.
+func isRetriableGenerationError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// The run's own deadline is not an upstream problem; retrying would spend a
+	// budget that is already gone.
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return false
+	}
+
+	message := strings.ToLower(err.Error())
+	for _, signature := range intelligenceRetriableGenerationErrors {
+		if strings.Contains(message, signature) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // intelligenceTargetTimeout resolves the budget for one run. A target that
