@@ -50,7 +50,7 @@
   "intelligence.settings.save": "Save",
   "intelligence.settings.saving": "Saving...",
   "intelligence.messages.saved": "Settings saved",
-  "intelligence.messages.started": "Started {{count}} test(s); results appear in a few minutes",
+  "intelligence.messages.started": "Started {{count}} test(s); they run in batches and appear as they finish",
   "intelligence.messages.verdictSaved": "Manual verdict saved",
   "intelligence.history.manual.markDegraded": "Mark as degraded",
   "intelligence.history.manual.markNormal": "Mark as normal",
