@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { Response } from '@/components/ai-elements/response';
+import { normalizeCandyAnswerMarkdown } from './intelligence-candy-markdown';
 
 interface Props {
   // answer is the text the model produced for the candy question. Empty when the
@@ -12,17 +14,17 @@ interface Props {
 
 // CandyAnswer renders the candy question's answer as prose.
 //
-// The answer is plain text, not a page: the model writes markdown with formulas
-// and tables. Loading it into the HTML preview would show raw markup in a
-// viewport-sized frame, which is what made the result hard to read. Here the
-// text is shown in a scrollable block that keeps its own line breaks, and the
-// long reasoning stays collapsed until the reader asks for it.
+// The answer is markdown the model wrote, with LaTeX for its arithmetic, so it
+// goes through the app's markdown renderer rather than a plain paragraph. That
+// is what turns \(6+4=10\) into a formula instead of showing the backslashes,
+// and what lays out the tables some answers end with. The long reasoning stays
+// collapsed until the reader asks for it.
 const COLLAPSED_HEIGHT = 120;
 
 export function CandyAnswer({ answer }: Props) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
-  const text = (answer ?? '').trim();
+  const text = normalizeCandyAnswerMarkdown((answer ?? '').trim());
 
   if (text === '') {
     return (
@@ -52,7 +54,7 @@ export function CandyAnswer({ answer }: Props) {
         // reflowing it into a fixed frame is what made it unreadable before.
         style={{ maxHeight: expanded ? 480 : COLLAPSED_HEIGHT }}
       >
-        <p className='whitespace-pre-wrap break-words text-xs leading-relaxed'>{text}</p>
+        <Response className='text-xs leading-relaxed'>{text}</Response>
       </div>
     </div>
   );
