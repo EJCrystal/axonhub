@@ -421,6 +421,9 @@ func (r *mutationResolver) SetIntelligenceConfig(ctx context.Context, input Inte
 		IntervalMinutes: input.IntervalMinutes,
 		Targets:         make([]objects.IntelligenceTarget, 0, len(input.Targets)),
 	}
+	if input.DisableDegradedKeys != nil {
+		config.DisableDegradedKeys = *input.DisableDegradedKeys
+	}
 	for _, target := range input.Targets {
 		entry := objects.IntelligenceTarget{
 			ChannelID: target.ChannelID.ID,

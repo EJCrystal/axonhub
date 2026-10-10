@@ -484,12 +484,17 @@ input IntelligenceConfigInput {
   enabled: Boolean!
   # Scheduling interval in minutes. One of 10, 30 or 60.
   intervalMinutes: Int!
+  # Disable a channel key when a scheduled run finds it degraded. Omit or false
+  # to only record the verdict.
+  disableDegradedKeys: Boolean
   targets: [IntelligenceTargetInput!]!
 }
 
 type IntelligenceConfig {
   enabled: Boolean!
   intervalMinutes: Int!
+  # Whether a degraded key is disabled automatically on a scheduled run.
+  disableDegradedKeys: Boolean!
   targets: [IntelligenceTarget!]!
 }
 

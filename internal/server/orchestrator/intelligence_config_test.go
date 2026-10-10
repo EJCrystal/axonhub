@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -240,6 +241,27 @@ func TestFailedRunResults(t *testing.T) {
 	require.Len(t, anonymous, 1)
 	require.Empty(t, anonymous[0].KeyPrefix)
 	require.NotNil(t, anonymous[0].Error)
+}
+
+// TestDegradedKeyPolicyDefaultsOff pins the safe default: the automatic disable
+// takes a credential out of the channel's live rotation, so it only happens when
+// the operator turns it on.
+func TestDegradedKeyPolicyDefaultsOff(t *testing.T) {
+	config := defaultIntelligenceConfig()
+	require.False(t, config.DisableDegradedKeys, "the automatic disable is opt-in")
+
+	// A config stored before the field existed must not enable it either.
+	decoded := defaultIntelligenceConfig()
+	require.NoError(t, json.Unmarshal([]byte(`{"enabled":true,"intervalMinutes":30}`), decoded))
+	require.False(t, decoded.DisableDegradedKeys)
+}
+
+// TestDegradedDisableReasonIsItsOwnMarker pins the recovery contract: only keys
+// carrying this exact reason are re-enabled, so a key an operator disabled by
+// hand is never silently restored.
+func TestDegradedDisableReasonIsItsOwnMarker(t *testing.T) {
+	require.Equal(t, "intelligence check: degraded", intelligenceDegradedDisableReason)
+	require.NotEqual(t, "Manually disabled by user", intelligenceDegradedDisableReason)
 }
 
 // TestResolveIntelligenceBenchmark pins what a run records: the resolved name,

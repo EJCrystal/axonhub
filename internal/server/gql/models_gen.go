@@ -351,15 +351,17 @@ type InitializeSystemPayload struct {
 }
 
 type IntelligenceConfig struct {
-	Enabled         bool                  `json:"enabled"`
-	IntervalMinutes int                   `json:"intervalMinutes"`
-	Targets         []*IntelligenceTarget `json:"targets"`
+	Enabled             bool                  `json:"enabled"`
+	IntervalMinutes     int                   `json:"intervalMinutes"`
+	DisableDegradedKeys bool                  `json:"disableDegradedKeys"`
+	Targets             []*IntelligenceTarget `json:"targets"`
 }
 
 type IntelligenceConfigInput struct {
-	Enabled         bool                       `json:"enabled"`
-	IntervalMinutes int                        `json:"intervalMinutes"`
-	Targets         []*IntelligenceTargetInput `json:"targets"`
+	Enabled             bool                       `json:"enabled"`
+	IntervalMinutes     int                        `json:"intervalMinutes"`
+	DisableDegradedKeys *bool                      `json:"disableDegradedKeys,omitempty"`
+	Targets             []*IntelligenceTargetInput `json:"targets"`
 }
 
 type IntelligenceEvaluateInput struct {

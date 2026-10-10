@@ -837,9 +837,10 @@ type ComplexityRoot struct {
 	}
 
 	IntelligenceConfig struct {
-		Enabled         func(childComplexity int) int
-		IntervalMinutes func(childComplexity int) int
-		Targets         func(childComplexity int) int
+		DisableDegradedKeys func(childComplexity int) int
+		Enabled             func(childComplexity int) int
+		IntervalMinutes     func(childComplexity int) int
+		Targets             func(childComplexity int) int
 	}
 
 	IntelligenceEvaluatePayload struct {
@@ -5438,6 +5439,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.InitializeSystemPayload.User(childComplexity), true
 
+	case "IntelligenceConfig.disableDegradedKeys":
+		if e.complexity.IntelligenceConfig.DisableDegradedKeys == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceConfig.DisableDegradedKeys(childComplexity), true
 	case "IntelligenceConfig.enabled":
 		if e.complexity.IntelligenceConfig.Enabled == nil {
 			break
@@ -30750,6 +30757,35 @@ func (ec *executionContext) fieldContext_IntelligenceConfig_intervalMinutes(_ co
 	return fc, nil
 }
 
+func (ec *executionContext) _IntelligenceConfig_disableDegradedKeys(ctx context.Context, field graphql.CollectedField, obj *IntelligenceConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceConfig_disableDegradedKeys,
+		func(ctx context.Context) (any, error) {
+			return obj.DisableDegradedKeys, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceConfig_disableDegradedKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _IntelligenceConfig_targets(ctx context.Context, field graphql.CollectedField, obj *IntelligenceConfig) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -36231,6 +36267,8 @@ func (ec *executionContext) fieldContext_Mutation_setIntelligenceConfig(ctx cont
 				return ec.fieldContext_IntelligenceConfig_enabled(ctx, field)
 			case "intervalMinutes":
 				return ec.fieldContext_IntelligenceConfig_intervalMinutes(ctx, field)
+			case "disableDegradedKeys":
+				return ec.fieldContext_IntelligenceConfig_disableDegradedKeys(ctx, field)
 			case "targets":
 				return ec.fieldContext_IntelligenceConfig_targets(ctx, field)
 			}
@@ -48249,6 +48287,8 @@ func (ec *executionContext) fieldContext_Query_intelligenceConfig(_ context.Cont
 				return ec.fieldContext_IntelligenceConfig_enabled(ctx, field)
 			case "intervalMinutes":
 				return ec.fieldContext_IntelligenceConfig_intervalMinutes(ctx, field)
+			case "disableDegradedKeys":
+				return ec.fieldContext_IntelligenceConfig_disableDegradedKeys(ctx, field)
 			case "targets":
 				return ec.fieldContext_IntelligenceConfig_targets(ctx, field)
 			}
@@ -76706,7 +76746,7 @@ func (ec *executionContext) unmarshalInputIntelligenceConfigInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"enabled", "intervalMinutes", "targets"}
+	fieldsInOrder := [...]string{"enabled", "intervalMinutes", "disableDegradedKeys", "targets"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -76727,6 +76767,13 @@ func (ec *executionContext) unmarshalInputIntelligenceConfigInput(ctx context.Co
 				return it, err
 			}
 			it.IntervalMinutes = data
+		case "disableDegradedKeys":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("disableDegradedKeys"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DisableDegradedKeys = data
 		case "targets":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targets"))
 			data, err := ec.unmarshalNIntelligenceTargetInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceTargetInputᚄ(ctx, v)
@@ -102621,6 +102668,11 @@ func (ec *executionContext) _IntelligenceConfig(ctx context.Context, sel ast.Sel
 			}
 		case "intervalMinutes":
 			out.Values[i] = ec._IntelligenceConfig_intervalMinutes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "disableDegradedKeys":
+			out.Values[i] = ec._IntelligenceConfig_disableDegradedKeys(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

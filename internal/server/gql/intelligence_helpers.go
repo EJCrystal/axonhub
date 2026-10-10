@@ -40,9 +40,10 @@ func (r *mutationResolver) intelligenceConfigPayload(ctx context.Context) (*Inte
 	}
 
 	return &IntelligenceConfig{
-		Enabled:         config.Enabled,
-		IntervalMinutes: config.IntervalMinutes,
-		Targets:         targets,
+		Enabled:             config.Enabled,
+		IntervalMinutes:     config.IntervalMinutes,
+		DisableDegradedKeys: config.DisableDegradedKeys,
+		Targets:             targets,
 	}, nil
 }
 

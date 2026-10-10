@@ -99,5 +99,7 @@
   "intelligence.settings.scheduleTitle": "定时设置",
   "intelligence.settings.scheduleDescription": "决定智商测试何时自动运行。",
   "intelligence.settings.targetsTitle": "测试渠道",
-  "intelligence.history.filters": "筛选"
+  "intelligence.history.filters": "筛选",
+  "intelligence.settings.disableDegradedKeys": "降智时自动禁用该 Key",
+  "intelligence.settings.disableDegradedKeysHint": "仅定时测试生效：某轮判定某 Key 降智就禁用它，后续轮次判定正常后自动恢复。禁用会影响该 Key 的真实流量，请谨慎开启。手动禁用的 Key 不会被自动恢复。"
 }
