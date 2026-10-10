@@ -34,18 +34,32 @@ test('an assessment nobody could settle, with a page, is inconclusive', () => {
   assert.equal(intelligenceVerdict({ success: true, quality: 'unknown', html }), 'inconclusive');
   assert.equal(intelligenceVerdict({ success: true, quality: '', html }), 'inconclusive');
   assert.equal(intelligenceVerdict({ success: false, quality: '', html }), 'inconclusive');
-  assert.equal(intelligenceVerdict({ success: false, quality: 'normal', html }), 'inconclusive');
 });
 
 // The same outcomes without a page are plain failures, because there is nothing
 // for a human to look at.
 test('a key that never produced an answer is failed', () => {
   assert.equal(intelligenceVerdict({ success: false, quality: '' }), 'failed');
-  assert.equal(intelligenceVerdict({ success: false, quality: 'normal' }), 'failed');
   assert.equal(intelligenceVerdict({ success: true, quality: 'unknown' }), 'failed');
   assert.equal(intelligenceVerdict({ success: true, quality: '', html: '' }), 'failed');
   assert.equal(intelligenceVerdict({ success: false, quality: '', html: '   ' }), 'failed');
   assert.equal(intelligenceVerdict({ success: false, quality: '', html: null }), 'failed');
+});
+
+// The candy question reports a wrong answer as success=false with quality
+// degraded, because success there means "answered correctly". Reading quality
+// first keeps that a degraded verdict rather than a broken check — the bug that
+// made every wrong candy answer show up as a failure.
+test('a wrong candy answer is degraded, not failed', () => {
+  const answer = '最少要取 29 个';
+  assert.equal(intelligenceVerdict({ success: false, quality: 'degraded', answer }), 'degraded');
+  assert.equal(intelligenceVerdict({ success: false, quality: 'degraded', html: answer }), 'degraded');
+});
+
+// A candy answer with no verdict waits for a person, exactly as a page does.
+test('an unscored candy answer is inconclusive', () => {
+  const answer = '最少要取 21 个';
+  assert.equal(intelligenceVerdict({ success: false, quality: '', answer }), 'inconclusive');
 });
 
 // An oversized document has its html dropped by the backend, so a decisive
