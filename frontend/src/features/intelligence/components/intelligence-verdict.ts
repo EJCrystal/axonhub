@@ -21,6 +21,9 @@ export interface VerdictInput {
   // when the document was too large to ship), which is what tells a failure
   // apart from a scoring result nobody could settle.
   html?: string | null;
+  // The candy question's answer. It is the text the model produced for that
+  // benchmark, and it plays the same role html plays for pelican.
+  answer?: string | null;
   // Operator's decision, which wins over whatever scoring reported.
   manualVerdict?: string | null;
 }
@@ -40,22 +43,29 @@ export function intelligenceVerdict(result: VerdictInput): IntelligenceVerdict {
       return 'degraded';
   }
 
-  // A decisive automatic verdict stands on its own. It is checked before the
-  // source so an oversized document — whose html the backend drops — still
-  // reports what the scoring actually said.
-  if (result.success) {
-    switch (result.quality) {
-      case 'normal':
-        return 'normal';
-      case 'degraded':
-      case 'suspicious':
-        return 'degraded';
-    }
+  // A decisive automatic verdict stands on its own, and quality decides it — not
+  // success. The two benchmarks mean different things by success: for pelican it
+  // says the page scored clean, while for candy it says the answer was right, so
+  // a wrong candy answer arrives with success=false and quality=degraded. Reading
+  // quality first is what keeps that a degraded verdict instead of a failure.
+  switch (result.quality) {
+    case 'normal':
+      return 'normal';
+    case 'degraded':
+    case 'suspicious':
+      return 'degraded';
   }
 
-  // No automatic verdict. With a source in hand a human can still decide; with
-  // nothing generated the check simply failed.
-  return hasGeneratedHTML(result.html) ? 'inconclusive' : 'failed';
+  // No automatic verdict. Something was produced but nobody scored it, so a
+  // human decides; with nothing produced the check simply failed.
+  return hasProducedOutput(result) ? 'inconclusive' : 'failed';
+}
+
+// hasProducedOutput reports whether the model produced anything reviewable: a
+// page for pelican, an answer for candy. The backend omits html when generation
+// never happened, and a candy answer is kept in its own field.
+function hasProducedOutput(result: VerdictInput): boolean {
+  return hasGeneratedHTML(result.html) || hasGeneratedHTML(result.answer);
 }
 
 // runIntelligenceVerdict collapses one run's per-key outcomes into the headline
