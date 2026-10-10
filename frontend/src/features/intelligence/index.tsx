@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { IconBrain, IconRefresh } from '@tabler/icons-react';
+import { IconBrain, IconChevronDown, IconChevronUp, IconFilter, IconRefresh } from '@tabler/icons-react';
 import { Main } from '@/components/layout/main';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -187,6 +187,8 @@ export default function IntelligenceManagement() {
   const fetching = showingAll ? allRuns.isFetching : historyQuery.isFetching;
   const configured = (config?.targets.length ?? 0) > 0;
   const filterActive = isHistoryFilterActive(filter);
+  // The count shown on the disclosure: how many axes are narrowing the list.
+  const filterCount = [benchmark !== undefined, apiKey !== undefined, verdict !== 'all'].filter(Boolean).length;
 
   const refresh = () => {
     if (showingAll) {
@@ -196,101 +198,130 @@ export default function IntelligenceManagement() {
     }
   };
 
+  // The three filters are one job, so they fold into a disclosure. It starts
+  // open when something already narrows the list, and closed otherwise, so the
+  // header stays a single line of controls.
+  const [filtersOpen, setFiltersOpen] = useState(filterActive);
+
   const filters = (
-    <div className='flex flex-wrap items-center gap-2'>
-      {channelOptions.length > 0 && (
-        <Select
-          value={channelID ?? ALL_CHANNELS}
-          onValueChange={(value) => setChannelID(value === ALL_CHANNELS ? undefined : value)}
-        >
-          <SelectTrigger className='w-44' aria-label={t('intelligence.history.channelPlaceholder')}>
-            <SelectValue placeholder={t('intelligence.history.channelPlaceholder')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_CHANNELS}>{t('intelligence.history.allChannels')}</SelectItem>
-            {channelOptions.map((channel) => (
-              <SelectItem key={channel.id} value={channel.id}>
-                {channel.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-
-      {/* A key belongs to exactly one channel, so this picker is only offered
-          once the list is narrowed to a single channel. */}
-      {!showingAll && keySelectOptions.length > 0 && (
-        <Select
-          value={apiKey ? maskAPIKey(apiKey) : ALL_KEYS}
-          onValueChange={(value) => {
-            if (value === ALL_KEYS) {
-              setApiKey(undefined);
-              return;
-            }
-            setApiKey(keyOptions.find((key) => maskAPIKey(key) === value));
-          }}
-        >
-          <SelectTrigger className='w-44' aria-label={t('intelligence.history.keyPlaceholder')}>
-            <SelectValue placeholder={t('intelligence.history.keyPlaceholder')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_KEYS}>{t('intelligence.history.allKeys')}</SelectItem>
-            {keySelectOptions.map((masked) => (
-              <SelectItem key={masked} value={masked}>
-                {masked}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-
-        {/* Both benchmarks are always offered: a reader may want to ask for one
-          the current history has no rows for yet. */}
-        <Select
-          value={benchmark === undefined ? ALL_BENCHMARKS : benchmark || PELICAN_OPTION}
-          onValueChange={(value) => {
-            if (value === ALL_BENCHMARKS) return setBenchmark(undefined);
-            return setBenchmark(value === PELICAN_OPTION ? '' : value);
-          }}
-        >
-          <SelectTrigger className='w-36' aria-label={t('intelligence.history.benchmarkFilter')}>
-            <SelectValue placeholder={t('intelligence.history.benchmarkFilter')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_BENCHMARKS}>{t('intelligence.history.allBenchmarks')}</SelectItem>
-            <SelectItem value={PELICAN_OPTION}>{t('intelligence.settings.benchmarkPelican')}</SelectItem>
-            <SelectItem value='candy'>{t('intelligence.settings.benchmarkCandy')}</SelectItem>
-          </SelectContent>
-        </Select>
-
-      <Select value={verdict} onValueChange={(value) => setVerdict(value as VerdictFilter)}>
-        <SelectTrigger className='w-44' aria-label={t('intelligence.history.verdictFilter.label')}>
-          <SelectValue placeholder={t('intelligence.history.verdictFilter.label')} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value='all'>{t('intelligence.history.verdictFilter.all')}</SelectItem>
-          <SelectItem value='degraded'>{t('intelligence.history.verdictFilter.degraded')}</SelectItem>
-          <SelectItem value='inconclusive'>{t('intelligence.history.verdictFilter.inconclusive')}</SelectItem>
-          <SelectItem value='failed'>{t('intelligence.history.verdictFilter.failed')}</SelectItem>
-          <SelectItem value='normal'>{t('intelligence.history.verdictFilter.normal')}</SelectItem>
-        </SelectContent>
-      </Select>
-
-      {filterActive && (
+    <div className='flex flex-col gap-2'>
+      <div className='flex flex-wrap items-center gap-2'>
         <Button
-          variant='ghost'
+          variant={filterActive ? 'secondary' : 'outline'}
           size='sm'
-          onClick={() => {
-            setVerdict(DEFAULT_HISTORY_FILTER.verdict);
-            setApiKey(undefined);
-            setBenchmark(undefined);
-          }}
+          onClick={() => setFiltersOpen((open) => !open)}
+          aria-expanded={filtersOpen}
+          data-testid='toggle-history-filters'
         >
-          {t('intelligence.history.clearFilters')}
+          <IconFilter className='mr-1 h-4 w-4' />
+          {t('intelligence.history.filters')}
+          {filterCount > 0 && (
+            <span className='bg-primary text-primary-foreground ml-1 rounded-full px-1.5 text-[10px] tabular-nums'>
+              {filterCount}
+            </span>
+          )}
+          {filtersOpen ? <IconChevronUp size={14} className='ml-1' /> : <IconChevronDown size={14} className='ml-1' />}
         </Button>
+      </div>
+
+      {filtersOpen && (
+        <div className='flex flex-wrap items-center gap-2 rounded-lg border p-2'>
+        {channelOptions.length > 0 && (
+          <Select
+            value={channelID ?? ALL_CHANNELS}
+            onValueChange={(value) => setChannelID(value === ALL_CHANNELS ? undefined : value)}
+          >
+            <SelectTrigger className='w-44' aria-label={t('intelligence.history.channelPlaceholder')}>
+              <SelectValue placeholder={t('intelligence.history.channelPlaceholder')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_CHANNELS}>{t('intelligence.history.allChannels')}</SelectItem>
+              {channelOptions.map((channel) => (
+                <SelectItem key={channel.id} value={channel.id}>
+                  {channel.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {/* A key belongs to exactly one channel, so this picker is only offered
+            once the list is narrowed to a single channel. */}
+        {!showingAll && keySelectOptions.length > 0 && (
+          <Select
+            value={apiKey ? maskAPIKey(apiKey) : ALL_KEYS}
+            onValueChange={(value) => {
+              if (value === ALL_KEYS) {
+                setApiKey(undefined);
+                return;
+              }
+              setApiKey(keyOptions.find((key) => maskAPIKey(key) === value));
+            }}
+          >
+            <SelectTrigger className='w-44' aria-label={t('intelligence.history.keyPlaceholder')}>
+              <SelectValue placeholder={t('intelligence.history.keyPlaceholder')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_KEYS}>{t('intelligence.history.allKeys')}</SelectItem>
+              {keySelectOptions.map((masked) => (
+                <SelectItem key={masked} value={masked}>
+                  {masked}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+          {/* Both benchmarks are always offered: a reader may want to ask for one
+            the current history has no rows for yet. */}
+          <Select
+            value={benchmark === undefined ? ALL_BENCHMARKS : benchmark || PELICAN_OPTION}
+            onValueChange={(value) => {
+              if (value === ALL_BENCHMARKS) return setBenchmark(undefined);
+              return setBenchmark(value === PELICAN_OPTION ? '' : value);
+            }}
+          >
+            <SelectTrigger className='w-36' aria-label={t('intelligence.history.benchmarkFilter')}>
+              <SelectValue placeholder={t('intelligence.history.benchmarkFilter')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_BENCHMARKS}>{t('intelligence.history.allBenchmarks')}</SelectItem>
+              <SelectItem value={PELICAN_OPTION}>{t('intelligence.settings.benchmarkPelican')}</SelectItem>
+              <SelectItem value='candy'>{t('intelligence.settings.benchmarkCandy')}</SelectItem>
+            </SelectContent>
+          </Select>
+
+        <Select value={verdict} onValueChange={(value) => setVerdict(value as VerdictFilter)}>
+          <SelectTrigger className='w-44' aria-label={t('intelligence.history.verdictFilter.label')}>
+            <SelectValue placeholder={t('intelligence.history.verdictFilter.label')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='all'>{t('intelligence.history.verdictFilter.all')}</SelectItem>
+            <SelectItem value='degraded'>{t('intelligence.history.verdictFilter.degraded')}</SelectItem>
+            <SelectItem value='inconclusive'>{t('intelligence.history.verdictFilter.inconclusive')}</SelectItem>
+            <SelectItem value='failed'>{t('intelligence.history.verdictFilter.failed')}</SelectItem>
+            <SelectItem value='normal'>{t('intelligence.history.verdictFilter.normal')}</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {filterActive && (
+          <Button
+            variant='ghost'
+            size='sm'
+            onClick={() => {
+              setVerdict(DEFAULT_HISTORY_FILTER.verdict);
+              setApiKey(undefined);
+              setBenchmark(undefined);
+            }}
+          >
+            {t('intelligence.history.clearFilters')}
+          </Button>
+        )}
+        </div>
       )}
     </div>
   );
+
 
   // One menu entry per configured target. A channel can appear several times, so
   // the entry has to say which key it will exercise and with what — a bare

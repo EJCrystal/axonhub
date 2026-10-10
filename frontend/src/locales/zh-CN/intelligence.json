@@ -95,5 +95,9 @@
   "intelligence.settings.addDialog.cancel": "取消",
   "intelligence.settings.addDialog.confirm": "添加",
   "intelligence.settings.addDialog.channelSearch": "搜索渠道…",
-  "intelligence.settings.addDialog.channelEmpty": "没有匹配的渠道。"
+  "intelligence.settings.addDialog.channelEmpty": "没有匹配的渠道。",
+  "intelligence.settings.scheduleTitle": "定时设置",
+  "intelligence.settings.scheduleDescription": "决定智商测试何时自动运行。",
+  "intelligence.settings.targetsTitle": "测试渠道",
+  "intelligence.history.filters": "筛选"
 }

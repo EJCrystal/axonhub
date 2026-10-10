@@ -95,5 +95,9 @@
   "intelligence.settings.addDialog.cancel": "Cancel",
   "intelligence.settings.addDialog.confirm": "Add",
   "intelligence.settings.addDialog.channelSearch": "Search channels…",
-  "intelligence.settings.addDialog.channelEmpty": "No channel matches."
+  "intelligence.settings.addDialog.channelEmpty": "No channel matches.",
+  "intelligence.settings.scheduleTitle": "Schedule",
+  "intelligence.settings.scheduleDescription": "Decides when the intelligence check runs on its own.",
+  "intelligence.settings.targetsTitle": "Test channels",
+  "intelligence.history.filters": "Filters"
 }
