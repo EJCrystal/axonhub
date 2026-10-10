@@ -35,6 +35,30 @@ test('the header no longer offers a per-channel menu', () => {
   assert.match(page, /onClick=\{\(\) => runNow\.mutate\(undefined\)\}/, 'the primary button still runs everything');
 });
 
+// The header actions follow the visible tab. The run button starts every
+// configured target, so it must not sit next to the channel filters (which
+// describe the history) nor on the settings screen (where it would read as
+// another editing step next to "add channel").
+test('the history header carries the filters and the run button', () => {
+  const block = page.slice(page.indexOf('const historyActions ='), page.indexOf('const settingsActions ='));
+  assert.match(block, /\{filters\}/, 'the filters belong to the history view');
+  assert.match(block, /\{runButton\}/, 'and so does the run control');
+});
+
+test('the settings header does not offer the run button', () => {
+  const block = page.slice(page.indexOf('const settingsActions ='), page.indexOf('return ('));
+  assert.doesNotMatch(block, /runButton/, 'the settings screen runs targets row by row');
+  assert.match(page, /actions=\{activeTab === 'settings' \? settingsActions : historyActions\}/, 'the header follows the tab');
+});
+
+// A bare "run now" reads as if it covered whatever is in view, so the label
+// names the scope and the count.
+test('the run button names its scope and count', () => {
+  assert.match(page, /intelligence\.runAllTargets/, 'the label states it covers every configured target');
+  assert.match(page, /intelligence\.runAllTargetsHint/, 'and explains what that does');
+  assert.match(page, /count: configuredTargets\.length/, 'the count comes from the configuration');
+});
+
 test('the mutation forwards the key to the backend', () => {
   assert.match(data, /\$apiKey: String/, 'the mutation declares the variable');
   assert.match(data, /runIntelligenceCheckNow\(channelID: \$channelID, apiKey: \$apiKey\)/, 'and passes it');

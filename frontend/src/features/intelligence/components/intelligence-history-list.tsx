@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ErrorDisplay } from '@/features/channels/utils/error-formatter';
 import { IntelligenceHTMLPreview } from './intelligence-html-preview';
 import { CandyAnswer } from './intelligence-candy-answer';
+import { formatDuration } from '../data/format-duration';
 import {
   canRecordManualVerdict,
   intelligenceVerdict,
@@ -160,7 +161,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className='text-xs'>{inFlight ? '—' : (run.durationMs / 1000).toFixed(1) + 's'}</TableCell>
+                  <TableCell className='text-xs'>{inFlight ? '—' : formatDuration(run.durationMs)}</TableCell>
                 </TableRow>
 
                 {isOpen && (
@@ -204,9 +205,8 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                             {key.reason && <p className='mt-2'>{key.reason}</p>}
                             {key.durationMs > 0 && (
                               <p className='text-muted-foreground mt-2'>
-                                {t('channels.dialogs.intelligence.duration', { seconds: (key.durationMs / 1000).toFixed(1) })}
-                                {key.generationMs > 0 &&
-                                  ` · ${t('channels.dialogs.intelligence.generation', { seconds: (key.generationMs / 1000).toFixed(1) })}`}
+                                {t('intelligence.history.durationLabel')} {formatDuration(key.durationMs)}
+                                {key.generationMs > 0 && ` · ${t('intelligence.history.generationLabel')} ${formatDuration(key.generationMs)}`}
                               </p>
                             )}
                             {key.error && <ErrorDisplay error={key.error} messageClassName='mt-2 text-xs text-red-600' />}
