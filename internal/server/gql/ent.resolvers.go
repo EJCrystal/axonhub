@@ -267,6 +267,7 @@ func (r *intelligenceRunResolver) Results(ctx context.Context, obj *ent.Intellig
 			GenerationMs:  item.GenerationMs,
 			DurationMs:    item.DurationMs,
 			HTML:          intelHTMLOrNil(item.HTML),
+			Answer:        intelStringOrNil(item.Answer),
 			Error:         item.Error,
 			ManualVerdict: intelStringOrNil(item.ManualVerdict),
 		})
