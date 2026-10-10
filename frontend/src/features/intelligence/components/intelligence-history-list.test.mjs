@@ -32,13 +32,21 @@ test('every outcome badge uses the colour helper', () => {
   const badges = source.match(/<Badge[^>]*>/g) ?? [];
   assert.ok(badges.length >= 3, 'the running, run and key badges all render');
 
-  const outcome = badges.filter((badge) => !badge.includes('sky'));
+  // The benchmark badge is not an outcome: it names which question ran, so it
+  // paints from its own helper.
+  const outcome = badges.filter((badge) => !badge.includes('sky') && !badge.includes('benchmarkBadgeClass'));
   assert.ok(outcome.length >= 2, 'the run and key outcome badges are present');
   for (const badge of outcome) {
     assert.match(badge, /verdictBadgeClass\(/, `badge must paint by verdict: ${badge}`);
   }
 
   assert.doesNotMatch(source, /verdictBadgeVariant/, 'the colourless variant must be gone');
+});
+
+// The check a run used is a badge of its own colour, so the column can be
+// scanned for pelican or candy without reading the words.
+test('the benchmark column renders a coloured badge', () => {
+  assert.match(source, /benchmarkBadgeClass\(runBenchmark\(run\)\)/, 'the badge paints by benchmark');
 });
 
 // A run in flight has no outcome yet, so it gets its own badge and the duration

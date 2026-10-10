@@ -128,3 +128,13 @@ export function canRecordManualVerdict(result: VerdictInput): boolean {
 export function isRunInFlight(run: { status?: string }): boolean {
   return run.status === 'running';
 }
+
+// benchmarkBadgeClass paints the check a run used. The two benchmarks are
+// different questions, not outcomes, so they get distinct hues of their own
+// rather than borrowing the verdict colours: a reader scanning the column can
+// tell pelican from candy before reading either word.
+export function benchmarkBadgeClass(benchmark: string): string {
+  return benchmark === 'candy'
+    ? 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300'
+    : 'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950 dark:text-cyan-300';
+}
