@@ -11,6 +11,11 @@ type IntelligenceConfig struct {
 	// IntervalMinutes is the fixed-rate interval between runs.
 	IntervalMinutes int `json:"intervalMinutes"`
 
+	// DisableDegradedKeys turns an automatic key disable on when a scheduled run
+	// finds a key degraded. It is off by default: disabling a credential also
+	// takes it out of the channel's live rotation, so it is opted into.
+	DisableDegradedKeys bool `json:"disableDegradedKeys,omitempty"`
+
 	// Targets lists the channel/model pairs to evaluate.
 	Targets []IntelligenceTarget `json:"targets"`
 }

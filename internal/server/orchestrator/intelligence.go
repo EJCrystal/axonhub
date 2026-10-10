@@ -171,6 +171,11 @@ type IntelligenceKeyResult struct {
 	// so the history can render each benchmark the way it reads: a page for
 	// pelican, plain text for candy.
 	Answer string
+	// APIKey is the credential this result belongs to. KeyPrefix is masked for
+	// display and cannot be matched back to a stored key reliably, so the caller
+	// that has to act on a credential carries the real value here. It is not
+	// persisted: the recorded result keeps the prefix only.
+	APIKey string
 	Error  *string
 }
 
@@ -478,7 +483,7 @@ func (processor *TestChannelOrchestrator) evaluateIntelligenceKey(
 	evaluator *intelligenceEvaluator,
 	reasoningEffort string,
 ) *IntelligenceKeyResult {
-	result := &IntelligenceKeyResult{KeyPrefix: maskAPIKey(key)}
+	result := &IntelligenceKeyResult{KeyPrefix: maskAPIKey(key), APIKey: key}
 	startedAt := time.Now()
 
 	html, err := processor.generateIntelligenceHTML(ctx, channel, key, model, prompt, reasoningEffort)
@@ -537,7 +542,7 @@ func (processor *TestChannelOrchestrator) evaluateCandyKey(
 	prompt string,
 	reasoningEffort string,
 ) *IntelligenceKeyResult {
-	result := &IntelligenceKeyResult{KeyPrefix: maskAPIKey(key)}
+	result := &IntelligenceKeyResult{KeyPrefix: maskAPIKey(key), APIKey: key}
 	startedAt := time.Now()
 
 	answer, err := processor.generateIntelligenceHTML(ctx, channel, key, model, prompt, reasoningEffort)

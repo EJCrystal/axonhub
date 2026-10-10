@@ -66,12 +66,14 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
   const { data: channels } = useQueryChannels({ first: 200, full: true });
 
   const [enabled, setEnabled] = useState(false);
+  const [disableDegradedKeys, setDisableDegradedKeys] = useState(false);
   const [intervalMinutes, setIntervalMinutes] = useState<IntelligenceInterval>(60);
   const [targets, setTargets] = useState<DraftTarget[]>([]);
 
   useEffect(() => {
     if (!config) return;
     setEnabled(config.enabled);
+    setDisableDegradedKeys(config.disableDegradedKeys ?? false);
     setIntervalMinutes((config.intervalMinutes as IntelligenceInterval) ?? 60);
     setTargets(
       config.targets.map((target) => ({
@@ -194,6 +196,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
     save.mutate({
       enabled,
       intervalMinutes,
+      disableDegradedKeys,
       targets: targets.map((target) => ({
         channelID: target.channelID,
         modelID: target.modelID,
@@ -248,6 +251,22 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className='flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4'>
+            <div className='space-y-1'>
+              <Label htmlFor='intelligence-disable-degraded'>{t('intelligence.settings.disableDegradedKeys')}</Label>
+              <p className='text-muted-foreground text-xs max-w-prose'>
+                {t('intelligence.settings.disableDegradedKeysHint')}
+              </p>
+            </div>
+            <Switch
+              id='intelligence-disable-degraded'
+              checked={disableDegradedKeys}
+              onCheckedChange={setDisableDegradedKeys}
+              disabled={readOnly}
+              data-testid='intelligence-disable-degraded'
+            />
           </div>
         </CardContent>
       </Card>

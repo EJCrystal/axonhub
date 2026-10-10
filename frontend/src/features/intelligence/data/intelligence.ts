@@ -17,6 +17,7 @@ const INTELLIGENCE_CONFIG_QUERY = `
     intelligenceConfig {
       enabled
       intervalMinutes
+      disableDegradedKeys
       targets {
         channelID
         channelName
@@ -35,6 +36,7 @@ const SET_INTELLIGENCE_CONFIG_MUTATION = `
     setIntelligenceConfig(input: $input) {
       enabled
       intervalMinutes
+      disableDegradedKeys
       targets {
         channelID
         channelName
@@ -159,6 +161,7 @@ export function useSetIntelligenceConfig() {
     mutationFn: async (input: {
       enabled: boolean;
       intervalMinutes: IntelligenceInterval;
+      disableDegradedKeys?: boolean;
       targets: {
         channelID: string;
         modelID: string;

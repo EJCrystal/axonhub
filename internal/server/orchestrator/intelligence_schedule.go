@@ -58,6 +58,11 @@ const (
 	// intelligenceSchedulerTask is the name of the scheduled task.
 	intelligenceSchedulerTask = "intelligence-check"
 
+	// intelligenceDegradedDisableReason marks a key disabled by this check. The
+	// recovery path only re-enables keys carrying it, so a credential an operator
+	// disabled by hand is never silently restored.
+	intelligenceDegradedDisableReason = "intelligence check: degraded"
+
 	// The trigger recorded on a run: who asked for it. A manual run may start
 	// every configured target at once; a scheduled one stays behind the default
 	// cap.
@@ -615,12 +620,90 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		log.Warn(ctx, "intelligence check: failed to trim history", log.Cause(err))
 	}
 
+	// A scheduled run may act on what it found. A manual run is an operator
+	// looking at the results, so it must not quietly rewrite the configuration
+	// they are inspecting.
+	if trigger == intelligenceScheduledTrigger {
+		if err := s.applyDegradedKeyPolicy(ctx, channel.ID, result.Results); err != nil {
+			log.Warn(ctx, "intelligence check: failed to apply the degraded key policy",
+				log.Int("channel_id", channel.ID), log.Cause(err))
+		}
+	}
+
 	log.Info(ctx, "intelligence check: run recorded",
 		log.Int("channel_id", channel.ID),
 		log.Int("run_id", run.ID),
 		log.String("trigger", trigger),
 		log.Int("total", result.Total),
 		log.Int("success", result.SuccessCount))
+
+	return nil
+}
+
+// applyDegradedKeyPolicy disables a key a scheduled run found degraded, and
+// re-enables one that recovered.
+//
+// A degraded verdict is the detection service's classifier, not a hard fact, so
+// the switch that turns this on ships off by default: disabling a credential
+// also removes it from the channel's live rotation. Recovery only touches keys
+// carrying this check's own marker, so a key disabled by hand stays disabled.
+func (s *IntelligenceService) applyDegradedKeyPolicy(
+	ctx context.Context,
+	channelID int,
+	results []*IntelligenceKeyResult,
+) error {
+	config, err := s.IntelligenceConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read configuration: %w", err)
+	}
+
+	// Recovery runs even when the switch is off: a key disabled while it was on
+	// must not stay disabled forever once the operator turns it off.
+	channel, err := s.channelSvc.GetChannel(ctx, channelID)
+	if err != nil {
+		return fmt.Errorf("failed to load channel %d: %w", channelID, err)
+	}
+
+	for _, result := range results {
+		key := result.APIKey
+		if key == "" {
+			continue
+		}
+
+		switch {
+		case result.Success && result.Quality == objects.IntelligenceManualVerdictNormal:
+			if err := s.restoreRecoveredKey(ctx, channel, key); err != nil {
+				return err
+			}
+		case config.DisableDegradedKeys && result.Quality == objects.IntelligenceManualVerdictDegraded:
+			if err := s.channelSvc.DisableAPIKey(ctx, channelID, key, 0, intelligenceDegradedDisableReason); err != nil {
+				return fmt.Errorf("failed to disable degraded key of channel %d: %w", channelID, err)
+			}
+
+			log.Warn(ctx, "intelligence check: disabled a degraded key",
+				log.Int("channel_id", channelID), log.String("key", maskIntelligenceTargetKey(key)))
+		}
+	}
+
+	return nil
+}
+
+// restoreRecoveredKey re-enables a key that a previous run disabled, and only
+// that: a hand-disabled credential carries a different reason and is left alone.
+func (s *IntelligenceService) restoreRecoveredKey(ctx context.Context, channel *biz.Channel, key string) error {
+	marked := lo.ContainsBy(channel.DisabledAPIKeys, func(disabled objects.DisabledAPIKey) bool {
+		return disabled.Key == key && disabled.Reason == intelligenceDegradedDisableReason && !disabled.IsExpired()
+	})
+	if !marked {
+		return nil
+	}
+
+	if err := s.channelSvc.EnableAPIKey(ctx, channel.ID, key); err != nil {
+		return fmt.Errorf("failed to re-enable recovered key of channel %d: %w", channel.ID, err)
+	}
+
+	log.Info(ctx, "intelligence check: re-enabled a recovered key",
+		log.Int("channel_id", channel.ID), log.String("key", maskIntelligenceTargetKey(key)))
 
 	return nil
 }

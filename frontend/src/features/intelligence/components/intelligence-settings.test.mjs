@@ -107,3 +107,17 @@ test('the settings screen splits the schedule from the targets', () => {
   assert.match(firstCard, /intelligence-interval/, 'and the interval');
   assert.doesNotMatch(firstCard, /<Table>/, 'the table is not in the schedule card');
 });
+
+// The automatic disable takes a credential out of the channel's live rotation,
+// so it ships off and only a scheduled run may act on it. The hint has to say
+// both, or the switch reads as harmless.
+test('the degraded-key switch is opt-in and says what it does', () => {
+  assert.match(settingsSource, /intelligence-disable-degraded/, 'the switch exists');
+  assert.match(settingsSource, /disableDegradedKeys,/, 'and is saved with the configuration');
+  assert.match(settingsSource, /intelligence\.settings\.disableDegradedKeysHint/, 'with an explanation');
+
+  // It belongs to the schedule card: acting on a verdict is a scheduling
+  // decision, not part of choosing what to test.
+  const scheduleCard = settingsSource.slice(0, settingsSource.indexOf('intelligence.settings.targetsTitle'));
+  assert.match(scheduleCard, /intelligence-disable-degraded/, 'it sits in the schedule card');
+});
