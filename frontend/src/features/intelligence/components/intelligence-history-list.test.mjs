@@ -102,3 +102,23 @@ test('a running run does not show a verdict for its seeded key', () => {
   assert.match(source, /!inFlight && \([\s\S]{0,40}?<IntelligenceHTMLPreview/, 'no preview until a result exists');
   assert.match(source, /!inFlight && canRecordManualVerdict\(key\)/, 'no manual verdict while in flight');
 });
+
+// Radix Select reserves the empty string for "nothing selected" and throws when a
+// SelectItem carries it. The stored benchmark is empty for the pelican default,
+// so the picker has to translate it through a sentinel. Getting this wrong took
+// the whole page down with a 500 render crash.
+test('the benchmark picker never feeds SelectItem an empty value', () => {
+  const picker = page.slice(
+    page.indexOf('Both benchmarks are always offered'),
+    page.indexOf("value={verdict}")
+  );
+  assert.ok(picker, 'the benchmark picker must be present');
+
+  for (const match of picker.matchAll(/<SelectItem value=([^>]*)>/g)) {
+    assert.doesNotMatch(match[1], /^''$|^""$/, 'no SelectItem may use the empty string');
+  }
+
+  // The stored empty value is mapped to its own option, and back again.
+  assert.match(picker, /PELICAN_OPTION/, 'the pelican default has a sentinel option');
+  assert.match(picker, /setBenchmark\(value === PELICAN_OPTION \? '' : value\)/, 'and maps back to the stored shape');
+});

@@ -48,6 +48,9 @@ const ALL_KEYS = '__all_keys__';
 const ALL_MODELS = '__all_models__';
 const ALL_EFFORTS = '__all_efforts__';
 const ALL_BENCHMARKS = '__all_benchmarks__';
+// The stored benchmark is empty for the pelican default, but Radix Select
+// reserves the empty string, so the option needs a value of its own.
+const PELICAN_OPTION = '__pelican__';
 // The effort picker needs a value for the provider default, which is the empty string.
 const NO_EFFORT = '__no_effort__';
 
@@ -169,7 +172,6 @@ export default function IntelligenceManagement() {
   }, [selectedChannel, keyOptions, sourceRuns]);
 
   const effortOptions = useMemo(() => historyFilterOptions(sourceRuns).efforts, [sourceRuns]);
-  const benchmarkOptions = useMemo(() => historyFilterOptions(sourceRuns).benchmarks, [sourceRuns]);
 
   const filter: HistoryFilter = useMemo(
     () => ({
@@ -308,26 +310,24 @@ export default function IntelligenceManagement() {
         </Select>
       )}
 
-      {benchmarkOptions.length > 0 && (
+        {/* Both benchmarks are always offered: a reader may want to ask for one
+          the current history has no rows for yet. */}
         <Select
-          value={benchmark ?? ALL_BENCHMARKS}
-          onValueChange={(value) => setBenchmark(value === ALL_BENCHMARKS ? undefined : value)}
+          value={benchmark === undefined ? ALL_BENCHMARKS : benchmark || PELICAN_OPTION}
+          onValueChange={(value) => {
+            if (value === ALL_BENCHMARKS) return setBenchmark(undefined);
+            return setBenchmark(value === PELICAN_OPTION ? '' : value);
+          }}
         >
           <SelectTrigger className='w-36' aria-label={t('intelligence.history.benchmarkFilter')}>
             <SelectValue placeholder={t('intelligence.history.benchmarkFilter')} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_BENCHMARKS}>{t('intelligence.history.allBenchmarks')}</SelectItem>
-            {benchmarkOptions.map((value) => (
-              <SelectItem key={value || 'pelican'} value={value}>
-                {value === 'candy'
-                  ? t('intelligence.settings.benchmarkCandy')
-                  : t('intelligence.settings.benchmarkPelican')}
-              </SelectItem>
-            ))}
+            <SelectItem value={PELICAN_OPTION}>{t('intelligence.settings.benchmarkPelican')}</SelectItem>
+            <SelectItem value='candy'>{t('intelligence.settings.benchmarkCandy')}</SelectItem>
           </SelectContent>
         </Select>
-      )}
 
       <Select value={verdict} onValueChange={(value) => setVerdict(value as VerdictFilter)}>
         <SelectTrigger className='w-44' aria-label={t('intelligence.history.verdictFilter.label')}>
