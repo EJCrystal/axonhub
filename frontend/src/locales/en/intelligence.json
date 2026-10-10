@@ -93,5 +93,7 @@
   "intelligence.settings.addDialog.channelPlaceholder": "Pick a channel",
   "intelligence.settings.addDialog.noFreeKey": "Every key of this channel is already configured.",
   "intelligence.settings.addDialog.cancel": "Cancel",
-  "intelligence.settings.addDialog.confirm": "Add"
+  "intelligence.settings.addDialog.confirm": "Add",
+  "intelligence.settings.addDialog.channelSearch": "Search channels…",
+  "intelligence.settings.addDialog.channelEmpty": "No channel matches."
 }

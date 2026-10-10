@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { IconChevronDown, IconChevronRight, IconLoader2 } from '@tabler/icons-react';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ErrorDisplay } from '@/features/channels/utils/error-formatter';
@@ -37,6 +38,20 @@ function runBenchmark(run: IntelligenceRun): string {
   if (run.benchmark) return run.benchmark;
 
   return run.results.some((result) => result.answer.trim() !== '') ? 'candy' : 'pelican';
+}
+
+// formatRunTime renders a run's start time compactly.
+//
+// toLocaleString spends a lot of width on seconds and a locale-specific date,
+// which the time column does not need: the list is always newest first and about
+// the same few hours, so the date is kept short and the time to the minute.
+function formatRunTime(createdAt: string): string {
+  const at = new Date(createdAt);
+  if (Number.isNaN(at.getTime())) return createdAt;
+
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  return `${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}`;
 }
 
 // benchmarkLabel names the check a run used, for the history column.
@@ -81,7 +96,9 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
   }
 
   return (
-    <div className='rounded-lg border'>
+    // Tighter cells and a compact header: the table is mostly short values, and the
+    // default row height pushed the records off screen.
+    <div className='rounded-lg border [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2'>
       <Table>
         <TableHeader>
           <TableRow>
@@ -123,8 +140,8 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                       {isOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
                     </Button>
                   </TableCell>
-                  <TableCell className='text-xs'>{new Date(run.createdAt).toLocaleString()}</TableCell>
-                  <TableCell className='font-mono text-xs'>
+                  <TableCell className='text-xs tabular-nums'>{formatRunTime(run.createdAt)}</TableCell>
+                  <TableCell className='font-mono text-xs leading-tight'>
                     {run.modelID}
                     {/* The level belongs next to the model: the same model at a
                         different level is a different check. */}
@@ -142,16 +159,16 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                   <TableCell>
                     <div className='flex items-center gap-2'>
                       {inFlight ? (
-                        <Badge variant='outline' className='border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300'>
+                        <Badge variant='outline' className='h-5 border-sky-200 bg-sky-50 px-1.5 text-[11px] text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300'>
                           <IconLoader2 className='mr-1 h-3 w-3 animate-spin' />
                           {t('intelligence.history.running')}
                         </Badge>
                       ) : (
                         <>
-                          <Badge variant='outline' className={verdictBadgeClass(verdict)}>
+                          <Badge variant='outline' className={cn('h-5 px-1.5 text-[11px]', verdictBadgeClass(verdict))}>
                             {t(`channels.dialogs.intelligence.verdict.${verdict}`)}
                           </Badge>
-                          <span className='text-muted-foreground text-xs'>
+                          <span className='text-muted-foreground text-[11px] tabular-nums'>
                             {t('intelligence.history.keysSummary', {
                               success: run.successKeys,
                               total: run.totalKeys,

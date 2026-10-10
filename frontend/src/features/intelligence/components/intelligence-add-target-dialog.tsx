@@ -12,7 +12,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { IconChevronDown } from '@tabler/icons-react';
 import { sameChannelId } from '../data/channel-id';
 import { maskAPIKey } from '../data/mask-key';
 import { INTELLIGENCE_BENCHMARKS, REASONING_EFFORT_OPTIONS } from '../data/benchmarks';
@@ -58,6 +61,7 @@ export function IntelligenceAddTargetDialog({ open, onOpenChange, channels, isPa
   const [modelID, setModelID] = useState('');
   const [reasoningEffort, setReasoningEffort] = useState('');
   const [benchmark, setBenchmark] = useState('');
+  const [channelPickerOpen, setChannelPickerOpen] = useState(false);
 
   const channel = useMemo(
     () => channels.find((option) => sameChannelId(option.id, channelID)),
@@ -116,27 +120,49 @@ export function IntelligenceAddTargetDialog({ open, onOpenChange, channels, isPa
         <div className='space-y-4 py-2'>
           <div className='space-y-2'>
             <Label>{t('intelligence.settings.channelColumn')}</Label>
-            <Select
-              value={channelID}
-              onValueChange={(value) => {
-                const next = channels.find((option) => sameChannelId(option.id, value));
-                const nextKey = next?.keys.find((key) => !isPairConfigured(next.id, key)) ?? '';
-                setChannelID(value);
-                setApiKey(nextKey);
-                setModelID(next?.modelsFor(nextKey)[0] ?? '');
-              }}
-            >
-              <SelectTrigger data-testid='add-target-channel'>
-                <SelectValue placeholder={t('intelligence.settings.addDialog.channelPlaceholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                {channels.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* The channel list is longer than a dropdown can usefully show, so
+                it is searchable: type part of a name to narrow it down. */}
+            <Popover open={channelPickerOpen} onOpenChange={setChannelPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant='outline'
+                  role='combobox'
+                  aria-expanded={channelPickerOpen}
+                  data-testid='add-target-channel'
+                  className='w-full justify-between font-normal'
+                >
+                  <span className={channel ? '' : 'text-muted-foreground'}>
+                    {channel?.name ?? t('intelligence.settings.addDialog.channelPlaceholder')}
+                  </span>
+                  <IconChevronDown size={16} className='opacity-50' />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className='w-[--radix-popover-trigger-width] p-0' align='start'>
+                <Command>
+                  <CommandInput placeholder={t('intelligence.settings.addDialog.channelSearch')} />
+                  <CommandList>
+                    <CommandEmpty>{t('intelligence.settings.addDialog.channelEmpty')}</CommandEmpty>
+                    <CommandGroup>
+                      {channels.map((option) => (
+                        <CommandItem
+                          key={option.id}
+                          value={option.name}
+                          onSelect={() => {
+                            const nextKey = option.keys.find((key) => !isPairConfigured(option.id, key)) ?? '';
+                            setChannelID(option.id);
+                            setApiKey(nextKey);
+                            setModelID(option.modelsFor(nextKey)[0] ?? '');
+                            setChannelPickerOpen(false);
+                          }}
+                        >
+                          {option.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className='space-y-2'>

@@ -73,3 +73,20 @@ test('the dialog only offers keys that are still free', () => {
   assert.match(dialogSource, /!isPairConfigured\(channel\.id, key\)/, 'taken pairs are filtered out');
   assert.match(dialogSource, /disabled=\{!canAdd\}/, 'and a taken pair cannot be confirmed');
 });
+
+// The channel list is longer than a dropdown can usefully show, so the picker is
+// searchable: typing part of a name narrows it. Radix Select could not do this.
+test('the channel picker is searchable', () => {
+  assert.match(dialogSource, /CommandInput/, 'the picker has a search box');
+  assert.match(dialogSource, /addDialog\.channelSearch/, 'with a placeholder');
+  assert.match(dialogSource, /CommandEmpty/, 'and an empty state for no match');
+  assert.match(dialogSource, /add-target-channel/, 'wired to the channel control');
+});
+
+test('the searchable picker keeps the key and model in step', () => {
+  // Choosing a channel must reselect its first free key and that key's model,
+  // otherwise the row would submit a key that belongs to another channel.
+  const onSelect = dialogSource.slice(dialogSource.indexOf('onSelect={() => {'), dialogSource.indexOf('setChannelPickerOpen(false)'));
+  assert.match(onSelect, /setApiKey/, 'the key follows the channel');
+  assert.match(onSelect, /setModelID/, 'and so does the model');
+});
