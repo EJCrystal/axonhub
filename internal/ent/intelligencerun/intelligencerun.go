@@ -31,6 +31,8 @@ const (
 	FieldModelID = "model_id"
 	// FieldReasoningEffort holds the string denoting the reasoning_effort field in the database.
 	FieldReasoningEffort = "reasoning_effort"
+	// FieldBenchmark holds the string denoting the benchmark field in the database.
+	FieldBenchmark = "benchmark"
 	// FieldTrigger holds the string denoting the trigger field in the database.
 	FieldTrigger = "trigger"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -59,6 +61,7 @@ var Columns = []string{
 	FieldChannelName,
 	FieldModelID,
 	FieldReasoningEffort,
+	FieldBenchmark,
 	FieldTrigger,
 	FieldStatus,
 	FieldTotalKeys,
@@ -99,6 +102,8 @@ var (
 	DefaultChannelName string
 	// DefaultReasoningEffort holds the default value on creation for the "reasoning_effort" field.
 	DefaultReasoningEffort string
+	// DefaultBenchmark holds the default value on creation for the "benchmark" field.
+	DefaultBenchmark string
 	// DefaultTrigger holds the default value on creation for the "trigger" field.
 	DefaultTrigger string
 	// DefaultTotalKeys holds the default value on creation for the "total_keys" field.
@@ -180,6 +185,11 @@ func ByModelID(opts ...sql.OrderTermOption) OrderOption {
 // ByReasoningEffort orders the results by the reasoning_effort field.
 func ByReasoningEffort(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldReasoningEffort, opts...).ToFunc()
+}
+
+// ByBenchmark orders the results by the benchmark field.
+func ByBenchmark(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBenchmark, opts...).ToFunc()
 }
 
 // ByTrigger orders the results by the trigger field.

@@ -403,24 +403,28 @@ func init() {
 	intelligencerunDescReasoningEffort := intelligencerunFields[3].Descriptor()
 	// intelligencerun.DefaultReasoningEffort holds the default value on creation for the reasoning_effort field.
 	intelligencerun.DefaultReasoningEffort = intelligencerunDescReasoningEffort.Default.(string)
+	// intelligencerunDescBenchmark is the schema descriptor for benchmark field.
+	intelligencerunDescBenchmark := intelligencerunFields[4].Descriptor()
+	// intelligencerun.DefaultBenchmark holds the default value on creation for the benchmark field.
+	intelligencerun.DefaultBenchmark = intelligencerunDescBenchmark.Default.(string)
 	// intelligencerunDescTrigger is the schema descriptor for trigger field.
-	intelligencerunDescTrigger := intelligencerunFields[4].Descriptor()
+	intelligencerunDescTrigger := intelligencerunFields[5].Descriptor()
 	// intelligencerun.DefaultTrigger holds the default value on creation for the trigger field.
 	intelligencerun.DefaultTrigger = intelligencerunDescTrigger.Default.(string)
 	// intelligencerunDescTotalKeys is the schema descriptor for total_keys field.
-	intelligencerunDescTotalKeys := intelligencerunFields[6].Descriptor()
+	intelligencerunDescTotalKeys := intelligencerunFields[7].Descriptor()
 	// intelligencerun.DefaultTotalKeys holds the default value on creation for the total_keys field.
 	intelligencerun.DefaultTotalKeys = intelligencerunDescTotalKeys.Default.(int)
 	// intelligencerunDescSuccessKeys is the schema descriptor for success_keys field.
-	intelligencerunDescSuccessKeys := intelligencerunFields[7].Descriptor()
+	intelligencerunDescSuccessKeys := intelligencerunFields[8].Descriptor()
 	// intelligencerun.DefaultSuccessKeys holds the default value on creation for the success_keys field.
 	intelligencerun.DefaultSuccessKeys = intelligencerunDescSuccessKeys.Default.(int)
 	// intelligencerunDescFailedKeys is the schema descriptor for failed_keys field.
-	intelligencerunDescFailedKeys := intelligencerunFields[8].Descriptor()
+	intelligencerunDescFailedKeys := intelligencerunFields[9].Descriptor()
 	// intelligencerun.DefaultFailedKeys holds the default value on creation for the failed_keys field.
 	intelligencerun.DefaultFailedKeys = intelligencerunDescFailedKeys.Default.(int)
 	// intelligencerunDescDurationMs is the schema descriptor for duration_ms field.
-	intelligencerunDescDurationMs := intelligencerunFields[9].Descriptor()
+	intelligencerunDescDurationMs := intelligencerunFields[10].Descriptor()
 	// intelligencerun.DefaultDurationMs holds the default value on creation for the duration_ms field.
 	intelligencerun.DefaultDurationMs = intelligencerunDescDurationMs.Default.(int)
 	invitationMixin := schema.Invitation{}.Mixin()

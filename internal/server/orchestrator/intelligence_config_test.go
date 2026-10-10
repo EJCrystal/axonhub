@@ -242,6 +242,16 @@ func TestFailedRunResults(t *testing.T) {
 	require.NotNil(t, anonymous[0].Error)
 }
 
+// TestResolveIntelligenceBenchmark pins what a run records: the resolved name,
+// so the history never has to know that an empty value meant pelican.
+func TestResolveIntelligenceBenchmark(t *testing.T) {
+	require.Equal(t, IntelligenceBenchmarkPelican, resolveIntelligenceBenchmark(""))
+	require.Equal(t, IntelligenceBenchmarkPelican, resolveIntelligenceBenchmark("   "))
+	require.Equal(t, IntelligenceBenchmarkPelican, resolveIntelligenceBenchmark(IntelligenceBenchmarkPelican))
+	require.Equal(t, IntelligenceBenchmarkCandy, resolveIntelligenceBenchmark(IntelligenceBenchmarkCandy))
+	require.Equal(t, IntelligenceBenchmarkCandy, resolveIntelligenceBenchmark(" candy "))
+}
+
 // TestJudgeCandyAnswer pins the published rule: the answer passes when 21 appears
 // as an independent number, and nothing else counts.
 func TestJudgeCandyAnswer(t *testing.T) {

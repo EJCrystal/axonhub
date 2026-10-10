@@ -1807,6 +1807,11 @@ func (_q *IntelligenceRunQuery) collectField(ctx context.Context, oneNode bool, 
 				selectedFields = append(selectedFields, intelligencerun.FieldReasoningEffort)
 				fieldSeen[intelligencerun.FieldReasoningEffort] = struct{}{}
 			}
+		case "benchmark":
+			if _, ok := fieldSeen[intelligencerun.FieldBenchmark]; !ok {
+				selectedFields = append(selectedFields, intelligencerun.FieldBenchmark)
+				fieldSeen[intelligencerun.FieldBenchmark] = struct{}{}
+			}
 		case "trigger":
 			if _, ok := fieldSeen[intelligencerun.FieldTrigger]; !ok {
 				selectedFields = append(selectedFields, intelligencerun.FieldTrigger)

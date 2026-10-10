@@ -246,6 +246,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			intelligencerun.FieldChannelName:     {Type: field.TypeString, Column: intelligencerun.FieldChannelName},
 			intelligencerun.FieldModelID:         {Type: field.TypeString, Column: intelligencerun.FieldModelID},
 			intelligencerun.FieldReasoningEffort: {Type: field.TypeString, Column: intelligencerun.FieldReasoningEffort},
+			intelligencerun.FieldBenchmark:       {Type: field.TypeString, Column: intelligencerun.FieldBenchmark},
 			intelligencerun.FieldTrigger:         {Type: field.TypeString, Column: intelligencerun.FieldTrigger},
 			intelligencerun.FieldStatus:          {Type: field.TypeEnum, Column: intelligencerun.FieldStatus},
 			intelligencerun.FieldTotalKeys:       {Type: field.TypeInt, Column: intelligencerun.FieldTotalKeys},
@@ -2497,6 +2498,11 @@ func (f *IntelligenceRunFilter) WhereModelID(p entql.StringP) {
 // WhereReasoningEffort applies the entql string predicate on the reasoning_effort field.
 func (f *IntelligenceRunFilter) WhereReasoningEffort(p entql.StringP) {
 	f.Where(p.Field(intelligencerun.FieldReasoningEffort))
+}
+
+// WhereBenchmark applies the entql string predicate on the benchmark field.
+func (f *IntelligenceRunFilter) WhereBenchmark(p entql.StringP) {
+	f.Where(p.Field(intelligencerun.FieldBenchmark))
 }
 
 // WhereTrigger applies the entql string predicate on the trigger field.

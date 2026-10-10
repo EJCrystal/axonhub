@@ -3737,6 +3737,21 @@ type IntelligenceRunWhereInput struct {
 	ReasoningEffortEqualFold    *string  `json:"reasoningEffortEqualFold,omitempty"`
 	ReasoningEffortContainsFold *string  `json:"reasoningEffortContainsFold,omitempty"`
 
+	// "benchmark" field predicates.
+	Benchmark             *string  `json:"benchmark,omitempty"`
+	BenchmarkNEQ          *string  `json:"benchmarkNEQ,omitempty"`
+	BenchmarkIn           []string `json:"benchmarkIn,omitempty"`
+	BenchmarkNotIn        []string `json:"benchmarkNotIn,omitempty"`
+	BenchmarkGT           *string  `json:"benchmarkGT,omitempty"`
+	BenchmarkGTE          *string  `json:"benchmarkGTE,omitempty"`
+	BenchmarkLT           *string  `json:"benchmarkLT,omitempty"`
+	BenchmarkLTE          *string  `json:"benchmarkLTE,omitempty"`
+	BenchmarkContains     *string  `json:"benchmarkContains,omitempty"`
+	BenchmarkHasPrefix    *string  `json:"benchmarkHasPrefix,omitempty"`
+	BenchmarkHasSuffix    *string  `json:"benchmarkHasSuffix,omitempty"`
+	BenchmarkEqualFold    *string  `json:"benchmarkEqualFold,omitempty"`
+	BenchmarkContainsFold *string  `json:"benchmarkContainsFold,omitempty"`
+
 	// "trigger" field predicates.
 	Trigger             *string  `json:"trigger,omitempty"`
 	TriggerNEQ          *string  `json:"triggerNEQ,omitempty"`
@@ -4082,6 +4097,45 @@ func (i *IntelligenceRunWhereInput) P() (predicate.IntelligenceRun, error) {
 	}
 	if i.ReasoningEffortContainsFold != nil {
 		predicates = append(predicates, intelligencerun.ReasoningEffortContainsFold(*i.ReasoningEffortContainsFold))
+	}
+	if i.Benchmark != nil {
+		predicates = append(predicates, intelligencerun.BenchmarkEQ(*i.Benchmark))
+	}
+	if i.BenchmarkNEQ != nil {
+		predicates = append(predicates, intelligencerun.BenchmarkNEQ(*i.BenchmarkNEQ))
+	}
+	if len(i.BenchmarkIn) > 0 {
+		predicates = append(predicates, intelligencerun.BenchmarkIn(i.BenchmarkIn...))
+	}
+	if len(i.BenchmarkNotIn) > 0 {
+		predicates = append(predicates, intelligencerun.BenchmarkNotIn(i.BenchmarkNotIn...))
+	}
+	if i.BenchmarkGT != nil {
+		predicates = append(predicates, intelligencerun.BenchmarkGT(*i.BenchmarkGT))
+	}
+	if i.BenchmarkGTE != nil {
+		predicates = append(predicates, intelligencerun.BenchmarkGTE(*i.BenchmarkGTE))
+	}
+	if i.BenchmarkLT != nil {
+		predicates = append(predicates, intelligencerun.BenchmarkLT(*i.BenchmarkLT))
+	}
+	if i.BenchmarkLTE != nil {
+		predicates = append(predicates, intelligencerun.BenchmarkLTE(*i.BenchmarkLTE))
+	}
+	if i.BenchmarkContains != nil {
+		predicates = append(predicates, intelligencerun.BenchmarkContains(*i.BenchmarkContains))
+	}
+	if i.BenchmarkHasPrefix != nil {
+		predicates = append(predicates, intelligencerun.BenchmarkHasPrefix(*i.BenchmarkHasPrefix))
+	}
+	if i.BenchmarkHasSuffix != nil {
+		predicates = append(predicates, intelligencerun.BenchmarkHasSuffix(*i.BenchmarkHasSuffix))
+	}
+	if i.BenchmarkEqualFold != nil {
+		predicates = append(predicates, intelligencerun.BenchmarkEqualFold(*i.BenchmarkEqualFold))
+	}
+	if i.BenchmarkContainsFold != nil {
+		predicates = append(predicates, intelligencerun.BenchmarkContainsFold(*i.BenchmarkContainsFold))
 	}
 	if i.Trigger != nil {
 		predicates = append(predicates, intelligencerun.TriggerEQ(*i.Trigger))

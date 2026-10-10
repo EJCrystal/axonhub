@@ -100,6 +100,20 @@ func (_u *IntelligenceRunUpdate) SetNillableReasoningEffort(v *string) *Intellig
 	return _u
 }
 
+// SetBenchmark sets the "benchmark" field.
+func (_u *IntelligenceRunUpdate) SetBenchmark(v string) *IntelligenceRunUpdate {
+	_u.mutation.SetBenchmark(v)
+	return _u
+}
+
+// SetNillableBenchmark sets the "benchmark" field if the given value is not nil.
+func (_u *IntelligenceRunUpdate) SetNillableBenchmark(v *string) *IntelligenceRunUpdate {
+	if v != nil {
+		_u.SetBenchmark(*v)
+	}
+	return _u
+}
+
 // SetTrigger sets the "trigger" field.
 func (_u *IntelligenceRunUpdate) SetTrigger(v string) *IntelligenceRunUpdate {
 	_u.mutation.SetTrigger(v)
@@ -323,6 +337,9 @@ func (_u *IntelligenceRunUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.ReasoningEffort(); ok {
 		_spec.SetField(intelligencerun.FieldReasoningEffort, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Benchmark(); ok {
+		_spec.SetField(intelligencerun.FieldBenchmark, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Trigger(); ok {
 		_spec.SetField(intelligencerun.FieldTrigger, field.TypeString, value)
 	}
@@ -451,6 +468,20 @@ func (_u *IntelligenceRunUpdateOne) SetReasoningEffort(v string) *IntelligenceRu
 func (_u *IntelligenceRunUpdateOne) SetNillableReasoningEffort(v *string) *IntelligenceRunUpdateOne {
 	if v != nil {
 		_u.SetReasoningEffort(*v)
+	}
+	return _u
+}
+
+// SetBenchmark sets the "benchmark" field.
+func (_u *IntelligenceRunUpdateOne) SetBenchmark(v string) *IntelligenceRunUpdateOne {
+	_u.mutation.SetBenchmark(v)
+	return _u
+}
+
+// SetNillableBenchmark sets the "benchmark" field if the given value is not nil.
+func (_u *IntelligenceRunUpdateOne) SetNillableBenchmark(v *string) *IntelligenceRunUpdateOne {
+	if v != nil {
+		_u.SetBenchmark(*v)
 	}
 	return _u
 }
@@ -707,6 +738,9 @@ func (_u *IntelligenceRunUpdateOne) sqlSave(ctx context.Context) (_node *Intelli
 	}
 	if value, ok := _u.mutation.ReasoningEffort(); ok {
 		_spec.SetField(intelligencerun.FieldReasoningEffort, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Benchmark(); ok {
+		_spec.SetField(intelligencerun.FieldBenchmark, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Trigger(); ok {
 		_spec.SetField(intelligencerun.FieldTrigger, field.TypeString, value)

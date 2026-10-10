@@ -116,6 +116,18 @@ func isAllowedIntelligenceBenchmark(benchmark string) bool {
 	return slices.Contains(allowedIntelligenceBenchmarks, trimmed)
 }
 
+// resolveIntelligenceBenchmark names the check a target runs, turning the empty
+// value into the pelican default. The stored run records the resolved name so a
+// reader never has to know that empty meant pelican.
+func resolveIntelligenceBenchmark(benchmark string) string {
+	trimmed := strings.TrimSpace(benchmark)
+	if trimmed == "" {
+		return IntelligenceBenchmarkPelican
+	}
+
+	return trimmed
+}
+
 // isAllowedReasoningEffort reports whether the target may request this level.
 // The empty value is allowed and means the request is left alone.
 func isAllowedReasoningEffort(effort string) bool {
@@ -551,6 +563,7 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		SetChannelName(channel.Name).
 		SetModelID(target.ModelID).
 		SetReasoningEffort(strings.TrimSpace(target.ReasoningEffort)).
+		SetBenchmark(resolveIntelligenceBenchmark(target.Benchmark)).
 		SetTrigger(trigger).
 		SetStatus(intelligencerun.StatusRunning).
 		SetResults(seeded).
