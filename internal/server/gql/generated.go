@@ -852,6 +852,7 @@ type ComplexityRoot struct {
 	}
 
 	IntelligenceKeyResult struct {
+		Answer        func(childComplexity int) int
 		DurationMs    func(childComplexity int) int
 		Error         func(childComplexity int) int
 		GenerationMs  func(childComplexity int) int
@@ -5493,6 +5494,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.IntelligenceEvaluatePayload.Total(childComplexity), true
 
+	case "IntelligenceKeyResult.answer":
+		if e.complexity.IntelligenceKeyResult.Answer == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceKeyResult.Answer(childComplexity), true
 	case "IntelligenceKeyResult.durationMs":
 		if e.complexity.IntelligenceKeyResult.DurationMs == nil {
 			break
@@ -30975,6 +30982,8 @@ func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_results(_ c
 				return ec.fieldContext_IntelligenceKeyResult_durationMs(ctx, field)
 			case "html":
 				return ec.fieldContext_IntelligenceKeyResult_html(ctx, field)
+			case "answer":
+				return ec.fieldContext_IntelligenceKeyResult_answer(ctx, field)
 			case "error":
 				return ec.fieldContext_IntelligenceKeyResult_error(ctx, field)
 			case "manualVerdict":
@@ -31235,6 +31244,35 @@ func (ec *executionContext) _IntelligenceKeyResult_html(ctx context.Context, fie
 }
 
 func (ec *executionContext) fieldContext_IntelligenceKeyResult_html(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceKeyResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IntelligenceKeyResult_answer(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceKeyResult_answer,
+		func(ctx context.Context) (any, error) {
+			return obj.Answer, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceKeyResult_answer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "IntelligenceKeyResult",
 		Field:      field,
@@ -31753,6 +31791,8 @@ func (ec *executionContext) fieldContext_IntelligenceRun_results(_ context.Conte
 				return ec.fieldContext_IntelligenceKeyResult_durationMs(ctx, field)
 			case "html":
 				return ec.fieldContext_IntelligenceKeyResult_html(ctx, field)
+			case "answer":
+				return ec.fieldContext_IntelligenceKeyResult_answer(ctx, field)
 			case "error":
 				return ec.fieldContext_IntelligenceKeyResult_error(ctx, field)
 			case "manualVerdict":
@@ -102729,6 +102769,8 @@ func (ec *executionContext) _IntelligenceKeyResult(ctx context.Context, sel ast.
 			}
 		case "html":
 			out.Values[i] = ec._IntelligenceKeyResult_html(ctx, field, obj)
+		case "answer":
+			out.Values[i] = ec._IntelligenceKeyResult_answer(ctx, field, obj)
 		case "error":
 			out.Values[i] = ec._IntelligenceKeyResult_error(ctx, field, obj)
 		case "manualVerdict":

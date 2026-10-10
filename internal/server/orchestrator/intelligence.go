@@ -166,8 +166,12 @@ type IntelligenceKeyResult struct {
 	// HTML is the source the tested model produced, so the UI can render the
 	// exact artifact the detection service scored. It is dropped once it grows
 	// past intelligenceHTMLMaxBytes to keep the GraphQL payload bounded.
-	HTML  *string
-	Error *string
+	HTML *string
+	// Answer is the text the candy question produced. It is kept apart from HTML
+	// so the history can render each benchmark the way it reads: a page for
+	// pelican, plain text for candy.
+	Answer string
+	Error  *string
 }
 
 // IntelligenceEvaluateResult aggregates the per-key evaluation outcomes.
@@ -552,9 +556,9 @@ func (processor *TestChannelOrchestrator) evaluateCandyKey(
 		return result
 	}
 
-	// Keep the answer on the result so the history shows what the model said,
-	// exactly as a pelican run keeps the page it produced.
-	result.HTML = htmlForResult(trimmed)
+	// The answer is text, not a page, so it goes in its own field and the history
+	// renders it as prose rather than trying to load it as HTML.
+	result.Answer = trimmed
 
 	passed, reason := judgeCandyAnswer(trimmed)
 	result.Success = passed

@@ -2,25 +2,16 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { IconBrain, IconChevronDown, IconRefresh } from '@tabler/icons-react';
+import { IconBrain, IconRefresh } from '@tabler/icons-react';
 import { Main } from '@/components/layout/main';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useQueryChannels } from '@/features/channels/data/channels';
 import { IntelligenceSettings } from './components/intelligence-settings';
 import { IntelligenceHistoryList } from './components/intelligence-history-list';
-import { modelsForAPIKey } from './data/api-key-models';
 import { channelIdKey } from './data/channel-id';
 import { maskAPIKey } from './data/mask-key';
 import {
@@ -45,14 +36,10 @@ import { IntelligenceRun, IntelligenceRunConnection } from './data/schema';
 // so the unfiltered option needs a non-empty value.
 const ALL_CHANNELS = '__all__';
 const ALL_KEYS = '__all_keys__';
-const ALL_MODELS = '__all_models__';
-const ALL_EFFORTS = '__all_efforts__';
 const ALL_BENCHMARKS = '__all_benchmarks__';
 // The stored benchmark is empty for the pelican default, but Radix Select
 // reserves the empty string, so the option needs a value of its own.
 const PELICAN_OPTION = '__pelican__';
-// The effort picker needs a value for the provider default, which is the empty string.
-const NO_EFFORT = '__no_effort__';
 
 interface ChannelRunGroup {
   channelID: number;
@@ -80,8 +67,6 @@ export default function IntelligenceManagement() {
   const [channelID, setChannelID] = useState<string>();
   const [verdict, setVerdict] = useState<VerdictFilter>('all');
   const [apiKey, setApiKey] = useState<string>();
-  const [modelID, setModelID] = useState<string>();
-  const [effort, setEffort] = useState<string>();
   const [benchmark, setBenchmark] = useState<string>();
   // Which channel's records the merged view shows. Empty means "not chosen yet",
   // so the first channel with records can claim the tab on its own.
@@ -129,8 +114,6 @@ export default function IntelligenceManagement() {
   // chosen against the previous channel's credentials.
   useEffect(() => {
     setApiKey(undefined);
-    setModelID(undefined);
-    setEffort(undefined);
     setBenchmark(undefined);
   }, [channelID]);
 
@@ -160,31 +143,19 @@ export default function IntelligenceManagement() {
 
   const sourceRuns = showingAll ? rawRuns : singleChannelRuns;
 
-  const modelSelectOptions = useMemo(() => {
-    if (!selectedChannel) return historyFilterOptions(sourceRuns).models;
-    if (!apiKey) return selectedChannel.supportedModels ?? [];
-    return modelsForAPIKey(selectedChannel.credentials, selectedChannel.supportedModels ?? [], apiKey);
-  }, [selectedChannel, apiKey, sourceRuns]);
-
   const keySelectOptions = useMemo(() => {
     if (!selectedChannel) return historyFilterOptions(sourceRuns).keys;
     return keyOptions.map(maskAPIKey);
   }, [selectedChannel, keyOptions, sourceRuns]);
 
-  const effortOptions = useMemo(() => historyFilterOptions(sourceRuns).efforts, [sourceRuns]);
-
   const filter: HistoryFilter = useMemo(
     () => ({
       verdict,
-      modelID,
       keyPrefix: apiKey ? maskAPIKey(apiKey) : undefined,
-      // undefined means any level; the empty string is a real choice, so it has
-      // to stay distinguishable from no filter.
-      reasoningEffort: effort === undefined ? undefined : effort === NO_EFFORT ? '' : effort,
       // The empty value is the pelican default, so it is a choice of its own.
       benchmark: benchmark === undefined ? undefined : benchmark,
     }),
-    [verdict, modelID, apiKey, effort]
+    [verdict, apiKey, benchmark]
   );
 
   const filteredRuns = useMemo(() => filterRuns(sourceRuns, filter), [sourceRuns, filter]);
@@ -271,45 +242,6 @@ export default function IntelligenceManagement() {
         </Select>
       )}
 
-      {modelSelectOptions.length > 0 && (
-        <Select
-          value={modelID ?? ALL_MODELS}
-          onValueChange={(value) => setModelID(value === ALL_MODELS ? undefined : value)}
-        >
-          <SelectTrigger className='w-44' aria-label={t('intelligence.history.modelPlaceholder')}>
-            <SelectValue placeholder={t('intelligence.history.modelPlaceholder')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_MODELS}>{t('intelligence.history.allModels')}</SelectItem>
-            {modelSelectOptions.map((model) => (
-              <SelectItem key={model} value={model}>
-                {model}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-
-      {effortOptions.length > 0 && (
-        <Select
-          value={effort ?? ALL_EFFORTS}
-          onValueChange={(value) => setEffort(value === ALL_EFFORTS ? undefined : value)}
-        >
-          <SelectTrigger className='w-40' aria-label={t('intelligence.history.effortPlaceholder')}>
-            <SelectValue placeholder={t('intelligence.history.effortPlaceholder')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_EFFORTS}>{t('intelligence.history.allEfforts')}</SelectItem>
-            <SelectItem value={NO_EFFORT}>{t('intelligence.history.effortDefault')}</SelectItem>
-            {effortOptions.map((value) => (
-              <SelectItem key={value} value={value}>
-                {value}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-
         {/* Both benchmarks are always offered: a reader may want to ask for one
           the current history has no rows for yet. */}
         <Select
@@ -348,9 +280,8 @@ export default function IntelligenceManagement() {
           size='sm'
           onClick={() => {
             setVerdict(DEFAULT_HISTORY_FILTER.verdict);
-            setModelID(undefined);
             setApiKey(undefined);
-            setEffort(undefined);
+            setBenchmark(undefined);
           }}
         >
           {t('intelligence.history.clearFilters')}
@@ -392,8 +323,8 @@ export default function IntelligenceManagement() {
         {t('intelligence.history.refresh')}
       </Button>
       {/* The primary action runs every configured channel, which is minutes of
-          upstream time; the menu narrows it to one channel so a single
-          suspicious result can be re-checked without re-billing the rest. */}
+          upstream time. A single channel is re-checked from the settings tab,
+          next to the row that configures it. */}
       <Button
         size='sm'
         onClick={() => runNow.mutate(undefined)}
@@ -403,53 +334,6 @@ export default function IntelligenceManagement() {
         <IconBrain className='mr-1 h-4 w-4' />
         {runNow.isPending ? t('intelligence.running') : t('intelligence.runNow')}
       </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size='icon'
-            className='h-8 w-7'
-            disabled={runDisabled || runNow.isPending}
-            aria-label={t('intelligence.runNowOptions')}
-            data-testid='run-intelligence-now-menu'
-          >
-            <IconChevronDown className='h-4 w-4' />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align='end'>
-          <DropdownMenuLabel>{t('intelligence.runNowSingle')}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {configuredTargets.map((target, index) => (
-            <DropdownMenuItem
-              // A channel can be configured more than once, so the pair is what
-              // identifies the entry.
-              key={target.channelID + '::' + target.keyLabel + '::' + index}
-              onSelect={() =>
-                // Pass the key too: without it a channel with several keys would
-                // run all of them.
-                runNow.mutate({ channelID: target.channelID, apiKey: target.apiKey })
-              }
-              disabled={runNow.isPending}
-              className='flex flex-col items-start gap-0.5 py-2'
-            >
-              <span className='flex items-center gap-2 font-medium'>
-                {target.channelName || t('intelligence.history.channelFallback', { id: target.channelID })}
-                {target.keyLabel && (
-                  <span className='text-muted-foreground font-mono text-[11px]'>{target.keyLabel}</span>
-                )}
-              </span>
-              <span className='text-muted-foreground flex items-center gap-1.5 text-[11px]'>
-                <span className='font-mono'>{target.modelID}</span>
-                {target.reasoningEffort && (
-                  <>
-                    <span aria-hidden>·</span>
-                    <span>{target.reasoningEffort}</span>
-                  </>
-                )}
-              </span>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 
@@ -499,7 +383,7 @@ export default function IntelligenceManagement() {
         </TabsContent>
 
         <TabsContent value='settings'>
-          <IntelligenceSettings config={config} loading={configLoading} readOnly={!canRun} />
+          <IntelligenceSettings config={config} loading={configLoading} readOnly={!canRun} canRun={canRun} />
         </TabsContent>
       </Tabs>
     </Main>

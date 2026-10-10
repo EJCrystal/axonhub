@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconPlayerPlay, IconPlus, IconTrash } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,7 @@ import { maskAPIKey } from '../data/mask-key';
 import { sameChannelId } from '../data/channel-id';
 import { INTELLIGENCE_INTERVALS, IntelligenceConfig, IntelligenceInterval } from '../data/schema';
 import { REASONING_EFFORTS } from '@/features/models/data/reasoning-efforts';
-import { useSetIntelligenceConfig } from '../data/intelligence';
+import { useRunIntelligenceCheckNow, useSetIntelligenceConfig } from '../data/intelligence';
 
 // Radix Select reserves the empty string, so "provider default" needs its own value.
 const NO_EFFORT = '__default__';
@@ -37,6 +37,9 @@ interface Props {
   config?: IntelligenceConfig;
   loading: boolean;
   readOnly: boolean;
+  // canRun gates the per-row run button, which needs the same write scope as
+  // saving the configuration.
+  canRun: boolean;
 }
 
 interface DraftTarget {
@@ -52,9 +55,10 @@ interface DraftTarget {
 }
 
 
-export function IntelligenceSettings({ config, loading, readOnly }: Props) {
+export function IntelligenceSettings({ config, loading, readOnly, canRun }: Props) {
   const { t } = useTranslation();
   const save = useSetIntelligenceConfig();
+  const runNow = useRunIntelligenceCheckNow();
 
   // The picker needs each channel's model list AND its credential set, and the
   // list query omits both unless the matching columns are visible. Ask for the
@@ -163,6 +167,21 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
 
   const removeTarget = (index: number) => {
     setTargets((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // isSavedTarget reports whether this row still matches something the backend
+  // has stored. A newly added or edited row cannot be run yet, because the run
+  // reads the saved configuration.
+  const isSavedTarget = (index: number) => {
+    const draft = targets[index];
+    if (!draft) return false;
+
+    return (config?.targets ?? []).some(
+      (saved) =>
+        sameChannelId(saved.channelID, draft.channelID) &&
+        (saved.apiKey ?? '') === draft.apiKey &&
+        saved.modelID === draft.modelID
+    );
   };
 
   const handleSave = () => {
@@ -385,9 +404,33 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Button variant='ghost' size='icon' onClick={() => removeTarget(index)} disabled={readOnly}>
-                          <IconTrash size={16} />
-                        </Button>
+                        <div className='flex items-center gap-1'>
+                          {/* Runs the saved target, not the row as edited: the
+                              backend works from the stored configuration, so an
+                              unsaved change would silently be ignored. */}
+                          <Button
+                            variant='outline'
+                            size='sm'
+                            className='h-7'
+                            disabled={!canRun || readOnly || runNow.isPending || !isSavedTarget(index)}
+                            onClick={() =>
+                              runNow.mutate({ channelID: target.channelID, apiKey: target.apiKey })
+                            }
+                            aria-label={t('intelligence.settings.runThisTarget')}
+                            data-testid='run-intelligence-target'
+                          >
+                            <IconPlayerPlay size={14} className='mr-1' />
+                            {t('intelligence.settings.runThisTarget')}
+                          </Button>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            onClick={() => removeTarget(index)}
+                            disabled={readOnly}
+                          >
+                            <IconTrash size={16} />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

@@ -391,6 +391,7 @@ type IntelligenceKeyResult struct {
 	GenerationMs  int     `json:"generationMs"`
 	DurationMs    int     `json:"durationMs"`
 	HTML          *string `json:"html,omitempty"`
+	Answer        *string `json:"answer,omitempty"`
 	Error         *string `json:"error,omitempty"`
 	ManualVerdict *string `json:"manualVerdict,omitempty"`
 }

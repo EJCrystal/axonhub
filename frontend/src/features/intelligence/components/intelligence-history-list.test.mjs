@@ -99,7 +99,11 @@ test('a running run does not show a verdict for its seeded key', () => {
   const branchAt = detail.indexOf('{inFlight ? (');
   assert.ok(branchAt !== -1 && badgeAt > branchAt, 'the verdict badge must be in the not-in-flight branch');
 
-  assert.match(source, /!inFlight && \([\s\S]{0,40}?<IntelligenceHTMLPreview/, 'no preview until a result exists');
+  // A candy run shows its answer text, a pelican run its page; neither renders
+  // while the run is still in flight.
+  assert.match(source, /!inFlight &&[\s\S]{0,80}?runBenchmark\(run\) === 'candy'/, 'each benchmark renders its own result');
+  assert.match(source, /<IntelligenceHTMLPreview html=\{key\.html\}/, 'the pelican page is still previewed');
+  assert.match(source, /<CandyAnswer answer=\{key\.answer \|\| key\.html\}/, 'the candy answer renders as prose');
   assert.match(source, /!inFlight && canRecordManualVerdict\(key\)/, 'no manual verdict while in flight');
 });
 
