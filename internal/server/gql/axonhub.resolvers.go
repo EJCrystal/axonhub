@@ -399,6 +399,7 @@ func (r *mutationResolver) EvaluateChannelIntelligence(ctx context.Context, inpu
 			GenerationMs: item.GenerationMs,
 			DurationMs:   item.DurationMs,
 			HTML:         item.HTML,
+			Answer:       intelStringOrNil(item.Answer),
 			Error:        item.Error,
 		}
 	}

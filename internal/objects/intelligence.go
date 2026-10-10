@@ -73,9 +73,13 @@ type IntelligenceKeyResult struct {
 	GenerationMs int `json:"generationMs"`
 	// DurationMs is the whole run for this key: generation plus submission and
 	// polling.
-	DurationMs int     `json:"durationMs"`
-	HTML       string  `json:"html"`
-	Error      *string `json:"error,omitempty"`
+	DurationMs int    `json:"durationMs"`
+	HTML       string `json:"html"`
+	// Answer is the text the candy question produced. It is kept apart from HTML
+	// so the history can render each benchmark the way it reads: a page for
+	// pelican, plain text for candy.
+	Answer string  `json:"answer,omitempty"`
+	Error  *string `json:"error,omitempty"`
 	// ManualVerdict is an operator's decision when automatic scoring produced no
 	// usable answer, e.g. because the detection service could not be reached. It
 	// takes precedence over Quality so the recorded outcome matches what a human

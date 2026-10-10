@@ -15,6 +15,12 @@ export const intelligenceKeyResultSchema = z.object({
   // absent strings. A bare default('') only covers undefined, and a null
   // from GraphQL would make the whole history parse fail.
   html: z.string().nullish().transform((value) => value ?? ''),
+  // The candy question's answer, kept apart from html so the history renders
+  // prose as prose instead of trying to load it as a page.
+  answer: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? ''),
   error: z.string().optional().nullable(),
   // An operator's verdict, set when automatic scoring could not decide. The
   // backend sends null when there is none, and default() only covers

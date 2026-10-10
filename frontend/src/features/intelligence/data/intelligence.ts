@@ -90,6 +90,7 @@ const INTELLIGENCE_HISTORY_QUERY = `
             generationMs
             durationMs
             html
+            answer
             error
             manualVerdict
           }
@@ -129,6 +130,7 @@ const ALL_INTELLIGENCE_RUNS_QUERY = `
             generationMs
             durationMs
             html
+            answer
             error
             manualVerdict
           }
@@ -260,6 +262,7 @@ const SET_INTELLIGENCE_RUN_VERDICT_MUTATION = `
         generationMs
         durationMs
         html
+        answer
         error
         manualVerdict
       }

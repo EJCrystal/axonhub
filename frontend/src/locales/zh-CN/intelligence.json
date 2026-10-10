@@ -78,5 +78,10 @@
   "intelligence.settings.benchmarkCandy": "糖果",
   "intelligence.history.columns.benchmark": "测试类型",
   "intelligence.history.benchmarkFilter": "测试类型",
-  "intelligence.history.allBenchmarks": "全部类型"
+  "intelligence.history.allBenchmarks": "全部类型",
+  "intelligence.candy.answer": "糖果题作答",
+  "intelligence.candy.expand": "展开全文",
+  "intelligence.candy.collapse": "收起",
+  "intelligence.candy.empty": "本次没有产生答案。",
+  "intelligence.settings.runThisTarget": "立即测试"
 }

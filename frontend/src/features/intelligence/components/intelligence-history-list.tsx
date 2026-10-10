@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ErrorDisplay } from '@/features/channels/utils/error-formatter';
 import { IntelligenceHTMLPreview } from './intelligence-html-preview';
+import { CandyAnswer } from './intelligence-candy-answer';
 import {
   canRecordManualVerdict,
   intelligenceVerdict,
@@ -27,10 +28,18 @@ function runKeyLabel(run: IntelligenceRun): string {
   return prefixes.length > 0 ? prefixes.join(', ') : '—';
 }
 
-// benchmarkLabel names the check a run used. Runs recorded before the choice
-// existed carry no value and ran the pelican task, so they read as pelican
-// rather than as an unknown.
-function benchmarkLabel(t: (key: string) => string, benchmark?: string | null): string {
+// runBenchmark names the check a run used. Runs recorded before the field
+// existed carry no value; a candy answer is still recognisable from its result,
+// so those rows are not mislabelled as pelican.
+function runBenchmark(run: IntelligenceRun): string {
+  if (run.benchmark === 'candy') return 'candy';
+  if (run.benchmark) return run.benchmark;
+
+  return run.results.some((result) => result.answer.trim() !== '') ? 'candy' : 'pelican';
+}
+
+// benchmarkLabel names the check a run used, for the history column.
+function benchmarkLabel(t: (key: string) => string, benchmark: string): string {
   return benchmark === 'candy'
     ? t('intelligence.settings.benchmarkCandy')
     : t('intelligence.settings.benchmarkPelican');
@@ -122,7 +131,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                       <span className='text-muted-foreground ml-1'>({run.reasoningEffort})</span>
                     )}
                   </TableCell>
-                  <TableCell className='text-xs'>{benchmarkLabel(t, run.benchmark)}</TableCell>
+                  <TableCell className='text-xs'>{benchmarkLabel(t, runBenchmark(run))}</TableCell>
                   <TableCell className='font-mono text-xs'>
                     {/* A run targets one key, so the row shows it directly; a run
                         covering several keys lists them instead of guessing. */}
@@ -258,12 +267,14 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                                 </Button>
                               </div>
                             )}
-                            {/* Nothing has been generated yet while the run is in
-                                flight, so the preview would claim a failure it cannot
-                                know about. It appears once there is a result to show. */}
-                            {!inFlight && (
-                              <IntelligenceHTMLPreview html={key.html} verdict={intelligenceVerdict(key)} compact />
-                            )}
+                            {/* Nothing has been produced yet while the run is in
+                                flight, so neither rendering would say anything true. */}
+                            {!inFlight &&
+                              (runBenchmark(run) === 'candy' ? (
+                                <CandyAnswer answer={key.answer || key.html} />
+                              ) : (
+                                <IntelligenceHTMLPreview html={key.html} verdict={intelligenceVerdict(key)} compact />
+                              ))}
                           </div>
                         ))}
                       </div>

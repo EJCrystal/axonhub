@@ -440,6 +440,9 @@ type IntelligenceKeyResult {
   # detection service scored. Empty when the run failed or the source exceeded
   # the size cap.
   html: String
+  # Answer the candy question produced. Empty for a pelican run, which keeps its
+  # page in html instead.
+  answer: String
   error: String
   # Operator's decision when automatic scoring produced no usable answer.
   # normal or degraded; empty until someone records one.

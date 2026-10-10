@@ -602,6 +602,8 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 		if item.HTML != nil {
 			entry.HTML = *item.HTML
 		}
+
+		entry.Answer = item.Answer
 		results = append(results, entry)
 	}
 
