@@ -47,6 +47,7 @@ const ALL_CHANNELS = '__all__';
 const ALL_KEYS = '__all_keys__';
 const ALL_MODELS = '__all_models__';
 const ALL_EFFORTS = '__all_efforts__';
+const ALL_BENCHMARKS = '__all_benchmarks__';
 // The effort picker needs a value for the provider default, which is the empty string.
 const NO_EFFORT = '__no_effort__';
 
@@ -78,6 +79,7 @@ export default function IntelligenceManagement() {
   const [apiKey, setApiKey] = useState<string>();
   const [modelID, setModelID] = useState<string>();
   const [effort, setEffort] = useState<string>();
+  const [benchmark, setBenchmark] = useState<string>();
   // Which channel's records the merged view shows. Empty means "not chosen yet",
   // so the first channel with records can claim the tab on its own.
   const [activeChannelTab, setActiveChannelTab] = useState<string>('');
@@ -126,6 +128,7 @@ export default function IntelligenceManagement() {
     setApiKey(undefined);
     setModelID(undefined);
     setEffort(undefined);
+    setBenchmark(undefined);
   }, [channelID]);
 
   const selectedChannel = useMemo(
@@ -166,6 +169,7 @@ export default function IntelligenceManagement() {
   }, [selectedChannel, keyOptions, sourceRuns]);
 
   const effortOptions = useMemo(() => historyFilterOptions(sourceRuns).efforts, [sourceRuns]);
+  const benchmarkOptions = useMemo(() => historyFilterOptions(sourceRuns).benchmarks, [sourceRuns]);
 
   const filter: HistoryFilter = useMemo(
     () => ({
@@ -175,6 +179,8 @@ export default function IntelligenceManagement() {
       // undefined means any level; the empty string is a real choice, so it has
       // to stay distinguishable from no filter.
       reasoningEffort: effort === undefined ? undefined : effort === NO_EFFORT ? '' : effort,
+      // The empty value is the pelican default, so it is a choice of its own.
+      benchmark: benchmark === undefined ? undefined : benchmark,
     }),
     [verdict, modelID, apiKey, effort]
   );
@@ -296,6 +302,27 @@ export default function IntelligenceManagement() {
             {effortOptions.map((value) => (
               <SelectItem key={value} value={value}>
                 {value}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {benchmarkOptions.length > 0 && (
+        <Select
+          value={benchmark ?? ALL_BENCHMARKS}
+          onValueChange={(value) => setBenchmark(value === ALL_BENCHMARKS ? undefined : value)}
+        >
+          <SelectTrigger className='w-36' aria-label={t('intelligence.history.benchmarkFilter')}>
+            <SelectValue placeholder={t('intelligence.history.benchmarkFilter')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_BENCHMARKS}>{t('intelligence.history.allBenchmarks')}</SelectItem>
+            {benchmarkOptions.map((value) => (
+              <SelectItem key={value || 'pelican'} value={value}>
+                {value === 'candy'
+                  ? t('intelligence.settings.benchmarkCandy')
+                  : t('intelligence.settings.benchmarkPelican')}
               </SelectItem>
             ))}
           </SelectContent>

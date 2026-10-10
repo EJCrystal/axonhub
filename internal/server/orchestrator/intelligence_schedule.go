@@ -97,6 +97,25 @@ var allowedReasoningEfforts = []string{
 	llm.ReasoningEffortMax,
 }
 
+// allowedIntelligenceBenchmarks are the checks a target may run. The empty
+// value means pelican, which is what every target stored before the field
+// existed ran.
+var allowedIntelligenceBenchmarks = []string{
+	IntelligenceBenchmarkPelican,
+	IntelligenceBenchmarkCandy,
+}
+
+// isAllowedIntelligenceBenchmark reports whether the target may request this
+// check. An empty value is allowed and means the pelican default.
+func isAllowedIntelligenceBenchmark(benchmark string) bool {
+	trimmed := strings.TrimSpace(benchmark)
+	if trimmed == "" {
+		return true
+	}
+
+	return slices.Contains(allowedIntelligenceBenchmarks, trimmed)
+}
+
 // isAllowedReasoningEffort reports whether the target may request this level.
 // The empty value is allowed and means the request is left alone.
 func isAllowedReasoningEffort(effort string) bool {
@@ -244,6 +263,11 @@ func validateIntelligenceTargets(targets []objects.IntelligenceTarget) error {
 		// setting that cannot work.
 		if target.TimeoutMinutes < 0 || target.TimeoutMinutes > intelligenceMaxTimeoutMinutes {
 			return fmt.Errorf("timeout must be between 0 and %d minutes", intelligenceMaxTimeoutMinutes)
+		}
+		// An unknown benchmark would silently run the default and look like a
+		// passing check, so reject it while the operator is still looking.
+		if !isAllowedIntelligenceBenchmark(target.Benchmark) {
+			return fmt.Errorf("benchmark must be one of %v", allowedIntelligenceBenchmarks)
 		}
 
 		identity := intelligenceTargetKey{ChannelID: target.ChannelID, APIKey: strings.TrimSpace(target.APIKey)}
@@ -538,7 +562,7 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 	runCtx := contexts.WithSource(ctx, request.SourceTest)
 	result, err := s.testSvc.EvaluateChannelIntelligence(
 		runCtx, objects.GUID{Type: "channel", ID: channel.ID}, lo.ToPtr(target.ModelID), keys, nil, nil,
-		lo.ToPtr(target.ReasoningEffort), lo.ToPtr(target.TimeoutMinutes))
+		lo.ToPtr(target.ReasoningEffort), lo.ToPtr(target.TimeoutMinutes), target.Benchmark)
 	if err != nil {
 		// Leave a finished row behind rather than a run that never ends. The
 		// seeded keys are carried over so the failure names the key it belongs to.

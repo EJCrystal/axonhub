@@ -14,6 +14,9 @@ export interface HistoryFilter {
   // Thinking level the run requested. The empty string is its own choice: runs
   // recorded before the field existed, and those that used the provider default.
   reasoningEffort?: string;
+  // Which check the run used. The empty string means pelican, which is what runs
+  // recorded before the field existed used.
+  benchmark?: string;
 }
 
 export const DEFAULT_HISTORY_FILTER: HistoryFilter = { verdict: 'all' };
@@ -23,7 +26,8 @@ export function isHistoryFilterActive(filter: HistoryFilter): boolean {
     filter.verdict !== 'all' ||
     Boolean(filter.modelID) ||
     Boolean(filter.keyPrefix) ||
-    filter.reasoningEffort !== undefined
+    filter.reasoningEffort !== undefined ||
+    filter.benchmark !== undefined
   );
 }
 
@@ -33,20 +37,28 @@ export function historyFilterOptions(runs: IntelligenceRun[]): {
   models: string[];
   keys: string[];
   efforts: string[];
+  benchmarks: string[];
 } {
   const models = new Set<string>();
   const keys = new Set<string>();
   const efforts = new Set<string>();
+  const benchmarks = new Set<string>();
 
   for (const run of runs) {
     if (run.modelID) models.add(run.modelID);
     if (run.reasoningEffort) efforts.add(run.reasoningEffort);
+    benchmarks.add(run.benchmark ?? '');
     for (const result of run.results) {
       if (result.keyPrefix) keys.add(result.keyPrefix);
     }
   }
 
-  return { models: [...models].sort(), keys: [...keys].sort(), efforts: [...efforts].sort() };
+  return {
+    models: [...models].sort(),
+    keys: [...keys].sort(),
+    efforts: [...efforts].sort(),
+    benchmarks: [...benchmarks].sort(),
+  };
 }
 
 // narrowToKey answers "what did this one key do" by dropping the run's other
@@ -85,6 +97,7 @@ export function filterRuns(runs: IntelligenceRun[], filter: HistoryFilter): Inte
 
     if (filter.modelID && candidate.modelID !== filter.modelID) continue;
     if (filter.reasoningEffort !== undefined && candidate.reasoningEffort !== filter.reasoningEffort) continue;
+    if (filter.benchmark !== undefined && (candidate.benchmark ?? '') !== filter.benchmark) continue;
     if (filter.verdict !== 'all' && runIntelligenceVerdict(candidate) !== filter.verdict) continue;
 
     filtered.push(candidate);

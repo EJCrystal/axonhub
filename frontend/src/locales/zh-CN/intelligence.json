@@ -72,5 +72,11 @@
   "intelligence.history.verdictFilter.degraded": "只看降智",
   "intelligence.history.verdictFilter.failed": "只看失败",
   "intelligence.history.verdictFilter.inconclusive": "只看自动判定失败",
-  "intelligence.history.verdictFilter.normal": "只看正常"
+  "intelligence.history.verdictFilter.normal": "只看正常",
+  "intelligence.settings.benchmarkColumn": "测试类型",
+  "intelligence.settings.benchmarkPelican": "鹈鹕",
+  "intelligence.settings.benchmarkCandy": "糖果",
+  "intelligence.history.columns.benchmark": "测试类型",
+  "intelligence.history.benchmarkFilter": "测试类型",
+  "intelligence.history.allBenchmarks": "全部类型"
 }

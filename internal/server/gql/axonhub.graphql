@@ -419,6 +419,9 @@ input IntelligenceEvaluateInput {
   # Thinking level to request, one of llm/reasoning.go. Omit for the provider
   # default.
   reasoningEffort: String
+  # Which check to run: pelican (鹈鹕骑行 HTML) or candy (糖果 question). Omit
+  # for pelican.
+  benchmark: String
 }
 
 type IntelligenceKeyResult {
@@ -454,6 +457,9 @@ input IntelligenceTargetInput {
   # Per-run budget in minutes for this target. Omit (or 0) to keep the built-in
   # default; a slow upstream that needs over ten minutes needs a larger value.
   timeoutMinutes: Int
+  # Which check to run: pelican (鹈鹕骑行 HTML) or candy (糖果 question). Omit
+  # for pelican, which is what every target used before the field existed.
+  benchmark: String
 }
 
 type IntelligenceTarget {
@@ -467,6 +473,8 @@ type IntelligenceTarget {
   reasoningEffort: String
   # Per-run budget in minutes. Null when the built-in default applies.
   timeoutMinutes: Int
+  # Which check this target runs. Null when the pelican default applies.
+  benchmark: String
 }
 
 input IntelligenceConfigInput {

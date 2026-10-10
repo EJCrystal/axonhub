@@ -27,6 +27,12 @@ const NO_EFFORT = '__default__';
 const DEFAULT_TIMEOUT_MINUTES = 12;
 const MAX_TIMEOUT_MINUTES = 20;
 
+// The published benchmarks. The empty string means pelican, which is what every
+// stored target used before the choice existed, so the picker shows the pelican
+// default as its own explicit value.
+const PELICAN_BENCHMARK = 'pelican';
+const CANDY_BENCHMARK = 'candy';
+
 interface Props {
   config?: IntelligenceConfig;
   loading: boolean;
@@ -41,6 +47,8 @@ interface DraftTarget {
   reasoningEffort: string;
   // Zero means "use the built-in per-run budget".
   timeoutMinutes: number;
+  // Which check this row runs. Empty means the pelican default.
+  benchmark: string;
 }
 
 
@@ -68,6 +76,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
         modelID: target.modelID,
         reasoningEffort: target.reasoningEffort ?? '',
         timeoutMinutes: target.timeoutMinutes ?? 0,
+        benchmark: target.benchmark ?? '',
       }))
     );
   }, [config]);
@@ -143,6 +152,7 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
         modelID: modelsFor(pair.channelID, pair.apiKey)[0] ?? '',
         reasoningEffort: '',
         timeoutMinutes: 0,
+        benchmark: '',
       },
     ]);
   };
@@ -167,6 +177,8 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
         reasoningEffort: target.reasoningEffort || undefined,
         // Zero means the built-in budget, so omit it instead of storing a value.
         timeoutMinutes: target.timeoutMinutes || undefined,
+        // Empty means the pelican default, so omit it rather than storing one.
+        benchmark: target.benchmark || undefined,
       })),
     });
   };
@@ -225,13 +237,14 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                   <TableHead>{t('intelligence.settings.modelColumn')}</TableHead>
                   <TableHead>{t('intelligence.settings.effortColumn')}</TableHead>
                   <TableHead>{t('intelligence.settings.timeoutColumn')}</TableHead>
+                  <TableHead>{t('intelligence.settings.benchmarkColumn')}</TableHead>
                   <TableHead className='w-16'></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {targets.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className='text-muted-foreground text-center text-xs'>
+                    <TableCell colSpan={7} className='text-muted-foreground text-center text-xs'>
                       {t('intelligence.settings.noTargets')}
                     </TableCell>
                   </TableRow>
@@ -345,6 +358,31 @@ export function IntelligenceSettings({ config, loading, readOnly }: Props) {
                           disabled={readOnly}
                           className='w-24'
                         />
+                      </TableCell>
+                      <TableCell>
+                        {/* Which check this row runs. Both benchmarks are asked of the
+                            same model, so the choice belongs next to the model. */}
+                        <Select
+                          value={target.benchmark || PELICAN_BENCHMARK}
+                          onValueChange={(value) =>
+                            updateTarget(index, {
+                              benchmark: value === PELICAN_BENCHMARK ? '' : value,
+                            })
+                          }
+                          disabled={readOnly}
+                        >
+                          <SelectTrigger className='w-32'>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={PELICAN_BENCHMARK}>
+                              {t('intelligence.settings.benchmarkPelican')}
+                            </SelectItem>
+                            <SelectItem value={CANDY_BENCHMARK}>
+                              {t('intelligence.settings.benchmarkCandy')}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <Button variant='ghost' size='icon' onClick={() => removeTarget(index)} disabled={readOnly}>

@@ -242,6 +242,66 @@ func TestFailedRunResults(t *testing.T) {
 	require.NotNil(t, anonymous[0].Error)
 }
 
+// TestJudgeCandyAnswer pins the published rule: the answer passes when 21 appears
+// as an independent number, and nothing else counts.
+func TestJudgeCandyAnswer(t *testing.T) {
+	passed := []string{
+		"21",
+		"答案是 21 个",
+		"最少需要取出 21 个糖果",
+		"答案是 **21** 个",
+		"（21）",
+		"需要 21。",
+		"9 + 12 = 21",
+		"如果取 21 个则必然满足",
+	}
+	for _, answer := range passed {
+		ok, _ := judgeCandyAnswer(answer)
+		require.True(t, ok, answer)
+	}
+
+	// A number that merely contains 21 is not the answer, and neither is a wrong
+	// number. This is what keeps a plausible-looking essay from passing.
+	failed := []string{
+		"",
+		"   ",
+		"20",
+		"22",
+		"210",
+		"121",
+		"取 20 个即可",
+		"答案是 211 个",
+		"一共 3210 个",
+		"没有确定的答案",
+	}
+	for _, answer := range failed {
+		ok, _ := judgeCandyAnswer(answer)
+		require.False(t, ok, answer)
+	}
+
+	// The reason explains a failure, so the history reads as a wrong answer.
+	_, reason := judgeCandyAnswer("20")
+	require.Contains(t, reason, "21")
+}
+
+// TestAllowedIntelligenceBenchmarks pins the checks a target may run: the two
+// published ones, plus the empty value that means the pelican default.
+func TestAllowedIntelligenceBenchmarks(t *testing.T) {
+	require.Equal(t, []string{"pelican", "candy"}, allowedIntelligenceBenchmarks)
+
+	require.True(t, isAllowedIntelligenceBenchmark(""), "unset means pelican")
+	require.True(t, isAllowedIntelligenceBenchmark("   "), "whitespace counts as unset")
+	require.True(t, isAllowedIntelligenceBenchmark(IntelligenceBenchmarkPelican))
+	require.True(t, isAllowedIntelligenceBenchmark(IntelligenceBenchmarkCandy))
+	require.True(t, isAllowedIntelligenceBenchmark(" candy "), "surrounding space is tolerated")
+
+	// An unknown value must be rejected: falling back to pelican would look like a
+	// passing check when the operator asked for the candy question.
+	for _, benchmark := range []string{"Candy", "candies", "sweeties", "0"} {
+		require.False(t, isAllowedIntelligenceBenchmark(benchmark), benchmark)
+	}
+}
+
 // TestTargetConcurrencyForRun covers how many targets a run starts at once. A
 // manual run has to start every configured target the operator selected, up to
 // the ceiling, while the scheduled run keeps the lower default so an unattended

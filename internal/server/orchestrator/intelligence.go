@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -32,6 +33,17 @@ const (
 	// intelligenceTestsPath creates an asynchronous detection task. Submitting a
 	// non-empty html body switches the task to HTML evaluation mode.
 	intelligenceTestsPath = "/api/v1/tests"
+
+	// IntelligenceBenchmarkPelican is the HTML benchmark: the model draws a pelican
+	// riding a bicycle as a single-file page, and the detection service scores the
+	// markup with its local classifier. It is the default, because every target
+	// stored before the benchmark field existed ran it.
+	IntelligenceBenchmarkPelican = "pelican"
+
+	// IntelligenceBenchmarkCandy is the question benchmark: the model answers the
+	// published candy-puzzle counting question, and the answer is judged here
+	// rather than by the detection service.
+	IntelligenceBenchmarkCandy = "candy"
 
 	// intelligenceBenchmark selects the pelican (鹈鹕骑行) benchmark. A non-empty
 	// html body makes the service evaluate that source with its local classifier
@@ -100,6 +112,40 @@ const (
 // defaultIntelligencePrompt is the published pelican task. The upstream service
 // scores the returned HTML with a local classifier trained against this exact
 // prompt, so it is kept verbatim to keep results comparable across runs.
+// defaultIntelligenceCandyPrompt is the published candy counting question. The
+// verdict is decided here from the answer text, so unlike the pelican prompt this
+// one is ours to keep readable.
+const defaultIntelligenceCandyPrompt = `黑色袋子中有苹果、桃子、西瓜三种口味的糖果，圆形与五角星形可以靠手感区分。活动前决定取出的总数，最少取多少个，才能保证同时拥有不同形状的苹果味和桃子味糖果？
+
+各口味与形状的糖果数量：
+
+形状 苹果味 桃子味 西瓜味
+圆形 7 9 8
+五角星形 7 6 4
+
+请给出最少需要取出的糖果总数，并说明理由。`
+
+// candyAnswerPattern matches the expected answer as a standalone number. The
+// boundary classes keep a number that merely contains 21, such as 210 or 121,
+// from counting, while any surrounding punctuation is irrelevant.
+var candyAnswerPattern = regexp.MustCompile(`(?:^|[^0-9])21(?:[^0-9]|$)`)
+
+// judgeCandyAnswer scores one answer against the published rule: the answer
+// passes when 21 appears as an independent number. The reason says what was
+// looked for, so a failure reads as a wrong answer rather than a broken check.
+func judgeCandyAnswer(answer string) (passed bool, reason string) {
+	trimmed := strings.TrimSpace(answer)
+	if trimmed == "" {
+		return false, "模型没有返回答案"
+	}
+
+	if candyAnswerPattern.MatchString(trimmed) {
+		return true, "答案中出现独立的 21"
+	}
+
+	return false, "答案中没有出现独立的 21"
+}
+
 const defaultIntelligencePrompt = "请生成可直接运行的单文件HTML，使用内联SVG绘制鹈鹕骑自行车的二维循环动画。画面以鹈鹕和自行车为主体，展示清晰的身体结构、踩踏动作和车轮转动，配合协调的背景、配色与层次。动画应流畅自然、衔接连续，并适配不同屏幕尺寸。禁止依赖外部资源，只输出完整HTML，不要代码围栏或解释文字。"
 
 // IntelligenceKeyResult is the evaluation outcome for a single API key.
@@ -302,6 +348,7 @@ func (processor *TestChannelOrchestrator) EvaluateChannelIntelligence(
 	baseURL *string,
 	reasoningEffort *string,
 	timeoutMinutes *int,
+	benchmark string,
 ) (*IntelligenceEvaluateResult, error) {
 	channel, err := processor.channelService.GetChannel(ctx, channelID.ID)
 	if err != nil {
@@ -332,6 +379,9 @@ func (processor *TestChannelOrchestrator) EvaluateChannelIntelligence(
 	}
 
 	generationPrompt := defaultIntelligencePrompt
+	if benchmark == IntelligenceBenchmarkCandy {
+		generationPrompt = defaultIntelligenceCandyPrompt
+	}
 	if prompt != nil && strings.TrimSpace(*prompt) != "" {
 		generationPrompt = *prompt
 	}
@@ -344,6 +394,14 @@ func (processor *TestChannelOrchestrator) EvaluateChannelIntelligence(
 
 	for index, key := range resolvedKeys {
 		group.Go(func() error {
+			// The candy question is judged here from the answer text, so it never
+			// reaches the detection service, which only scores pelican HTML.
+			if benchmark == IntelligenceBenchmarkCandy {
+				results[index] = processor.evaluateCandyKey(
+					groupCtx, channel, key, model, generationPrompt, lo.FromPtr(reasoningEffort))
+				return nil
+			}
+
 			results[index] = processor.evaluateIntelligenceKey(
 				groupCtx, channel, key, model, generationPrompt, evaluator, lo.FromPtr(reasoningEffort))
 			return nil
@@ -461,6 +519,55 @@ func (processor *TestChannelOrchestrator) evaluateIntelligenceKey(
 	evaluation.HTML = result.HTML
 
 	return evaluation
+}
+
+// evaluateCandyKey asks one API key the candy question and judges the answer
+// locally. Nothing is submitted to the detection service: that service only
+// scores pelican HTML, and the candy rule is the published one, so judging here
+// keeps the credential on this host.
+func (processor *TestChannelOrchestrator) evaluateCandyKey(
+	ctx context.Context,
+	channel *biz.Channel,
+	key string,
+	model string,
+	prompt string,
+	reasoningEffort string,
+) *IntelligenceKeyResult {
+	result := &IntelligenceKeyResult{KeyPrefix: maskAPIKey(key)}
+	startedAt := time.Now()
+
+	answer, err := processor.generateIntelligenceHTML(ctx, channel, key, model, prompt, reasoningEffort)
+	if err != nil {
+		result.DurationMs = int(time.Since(startedAt).Milliseconds())
+		result.Error = lo.ToPtr(err.Error())
+		return result
+	}
+
+	result.GenerationMs = int(time.Since(startedAt).Milliseconds())
+	result.DurationMs = result.GenerationMs
+
+	trimmed := stripMarkdownFence(answer)
+	if strings.TrimSpace(trimmed) == "" {
+		result.Error = lo.ToPtr("model returned an empty answer")
+		return result
+	}
+
+	// Keep the answer on the result so the history shows what the model said,
+	// exactly as a pelican run keeps the page it produced.
+	result.HTML = htmlForResult(trimmed)
+
+	passed, reason := judgeCandyAnswer(trimmed)
+	result.Success = passed
+	result.Reason = reason
+	if passed {
+		result.Quality = objects.IntelligenceManualVerdictNormal
+		result.Label = "正常"
+	} else {
+		result.Quality = objects.IntelligenceManualVerdictDegraded
+		result.Label = "疑似降智"
+	}
+
+	return result
 }
 
 // htmlForResult returns the generated source for the UI, or nil when it is too

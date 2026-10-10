@@ -33,6 +33,12 @@ type IntelligenceTarget struct {
 	// upstream that regularly needs over ten minutes to finish the HTML needs a
 	// longer budget than the rest of the configuration.
 	TimeoutMinutes int `json:"timeoutMinutes,omitempty"`
+	// Benchmark selects which check this target runs. Empty means the pelican
+	// (鹈鹕骑行) HTML benchmark, which is what every stored target used before the
+	// field existed; the candy (糖果) question is the alternative. An unknown value
+	// is rejected on save rather than silently falling back, so a typo cannot look
+	// like a check that passed.
+	Benchmark string `json:"benchmark,omitempty"`
 }
 
 // IntelligenceRunStatus is the terminal state of one scheduled or manual run.
