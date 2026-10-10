@@ -90,3 +90,20 @@ test('the searchable picker keeps the key and model in step', () => {
   assert.match(onSelect, /setApiKey/, 'the key follows the channel');
   assert.match(onSelect, /setModelID/, 'and so does the model');
 });
+
+// The settings screen holds two different jobs, so it is two cards: deciding
+// when the check runs, and deciding what it runs against. One card buried the
+// schedule under a table that can be long.
+test('the settings screen splits the schedule from the targets', () => {
+  assert.match(settingsSource, /intelligence\.settings\.scheduleTitle/, 'the schedule card is titled');
+  assert.match(settingsSource, /intelligence\.settings\.targetsTitle/, 'and so is the targets card');
+
+  const cards = settingsSource.match(/<Card>/g) ?? [];
+  assert.equal(cards.length, 2, 'exactly two cards');
+
+  // The switch and the interval belong to the first card; the table to the second.
+  const firstCard = settingsSource.slice(0, settingsSource.indexOf('intelligence.settings.targetsTitle'));
+  assert.match(firstCard, /intelligence-enabled/, 'the schedule card holds the switch');
+  assert.match(firstCard, /intelligence-interval/, 'and the interval');
+  assert.doesNotMatch(firstCard, /<Table>/, 'the table is not in the schedule card');
+});

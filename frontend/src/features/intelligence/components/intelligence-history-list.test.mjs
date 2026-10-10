@@ -150,3 +150,12 @@ test('the compact timestamp keeps the minute and drops the locale noise', () => 
   assert.doesNotMatch(fn, /getSeconds\(\)/, 'no seconds are rendered');
   assert.match(fn, /Number\.isNaN/, 'an unparsable value falls back to the raw string');
 });
+
+// The header keeps one line of controls: the filters fold into a disclosure that
+// opens by itself only when something is already narrowing the list.
+test('the history filters live behind a disclosure', () => {
+  assert.match(page, /toggle-history-filters/, 'there is a toggle');
+  assert.match(page, /const \[filtersOpen, setFiltersOpen\] = useState\(filterActive\)/, 'it starts open only when a filter is active');
+  assert.match(page, /\{filtersOpen && \(/, 'and the controls render only when open');
+  assert.match(page, /filterCount/, 'the toggle shows how many filters are on');
+});

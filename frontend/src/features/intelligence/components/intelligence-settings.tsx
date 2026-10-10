@@ -208,44 +208,56 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
     });
   };
 
+  // Two cards, because the screen holds two different jobs: deciding when the
+  // check runs, and deciding what it runs against. One card for both buried the
+  // schedule under a table that can be long.
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('intelligence.settings.title')}</CardTitle>
-        <CardDescription>{t('intelligence.settings.description')}</CardDescription>
-      </CardHeader>
-      <CardContent className='space-y-4'>
-        <div className='flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4'>
-          <div className='space-y-1'>
-            <Label htmlFor='intelligence-enabled'>{t('intelligence.settings.enabled')}</Label>
-            <p className='text-muted-foreground text-xs'>{t('intelligence.settings.enabledHint')}</p>
+    <div className='space-y-4'>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('intelligence.settings.scheduleTitle')}</CardTitle>
+          <CardDescription>{t('intelligence.settings.scheduleDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-4'>
+          <div className='flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4'>
+            <div className='space-y-1'>
+              <Label htmlFor='intelligence-enabled'>{t('intelligence.settings.enabled')}</Label>
+              <p className='text-muted-foreground text-xs'>{t('intelligence.settings.enabledHint')}</p>
+            </div>
+            <Switch id='intelligence-enabled' checked={enabled} onCheckedChange={setEnabled} disabled={readOnly} />
           </div>
-          <Switch id='intelligence-enabled' checked={enabled} onCheckedChange={setEnabled} disabled={readOnly} />
-        </div>
 
-        <div className='flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4'>
-          <div className='space-y-1'>
-            <Label>{t('intelligence.settings.interval')}</Label>
-            <p className='text-muted-foreground text-xs'>{t('intelligence.settings.intervalHint')}</p>
+          <div className='flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4'>
+            <div className='space-y-1'>
+              <Label>{t('intelligence.settings.interval')}</Label>
+              <p className='text-muted-foreground text-xs'>{t('intelligence.settings.intervalHint')}</p>
+            </div>
+            <Select
+              value={String(intervalMinutes)}
+              onValueChange={(value) => setIntervalMinutes(Number(value) as IntelligenceInterval)}
+              disabled={readOnly}
+            >
+              <SelectTrigger className='w-40' data-testid='intelligence-interval'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {INTELLIGENCE_INTERVALS.map((minutes) => (
+                  <SelectItem key={minutes} value={String(minutes)}>
+                    {t(`intelligence.interval.${minutes}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Select
-            value={String(intervalMinutes)}
-            onValueChange={(value) => setIntervalMinutes(Number(value) as IntelligenceInterval)}
-            disabled={readOnly}
-          >
-            <SelectTrigger className='w-40' data-testid='intelligence-interval'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {INTELLIGENCE_INTERVALS.map((minutes) => (
-                <SelectItem key={minutes} value={String(minutes)}>
-                  {t(`intelligence.interval.${minutes}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        </CardContent>
+      </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('intelligence.settings.targetsTitle')}</CardTitle>
+          <CardDescription>{t('intelligence.settings.description')}</CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-4'>
         <div className='space-y-2'>
           <div className='flex items-center justify-between'>
             <Label className='flex items-center gap-2'>
@@ -466,7 +478,8 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
           }
           onAdd={(target) => addTarget({ ...target, timeoutMinutes: 0 })}
         />
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
