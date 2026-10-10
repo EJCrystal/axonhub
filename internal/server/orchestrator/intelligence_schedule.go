@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -224,10 +225,14 @@ func (s *IntelligenceService) RegisterScheduledTasks(ctx context.Context, sched 
 // reapInterruptedRuns marks any leftover running rows as failed. Nothing else
 // can finish them, and a row stuck in "running" is worse than an honest failure
 // because the history would never settle.
+//
+// Each row keeps whichever key it already named. A run is seeded with its key
+// when it starts, so replacing the results wholesale would erase the one fact
+// the row still knows and leave an unnamed failure in the history.
 func (s *IntelligenceService) reapInterruptedRuns(ctx context.Context) error {
 	stale, err := s.ent.IntelligenceRun.Query().
 		Where(intelligencerun.StatusEQ(intelligencerun.StatusRunning)).
-		IDs(ctx)
+		All(ctx)
 	if err != nil {
 		return err
 	}
@@ -235,16 +240,11 @@ func (s *IntelligenceService) reapInterruptedRuns(ctx context.Context) error {
 		return nil
 	}
 
-	_, err = s.ent.IntelligenceRun.Update().
-		Where(intelligencerun.IDIn(stale...)).
-		SetStatus(intelligencerun.StatusFailed).
-		SetResults([]objects.IntelligenceKeyResult{{
-			Success: false,
-			Error:   lo.ToPtr("the run was interrupted before it finished"),
-		}}).
-		Save(ctx)
-	if err != nil {
-		return err
+	for _, run := range stale {
+		if err := s.finalizeRun(ctx, run.ID, run.Results, 0,
+			errors.New("the run was interrupted before it finished")); err != nil {
+			return err
+		}
 	}
 
 	log.Warn(ctx, "intelligence check: closed runs interrupted by a restart", log.Int("count", len(stale)))
