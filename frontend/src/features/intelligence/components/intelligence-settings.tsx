@@ -214,7 +214,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
         <CardTitle>{t('intelligence.settings.title')}</CardTitle>
         <CardDescription>{t('intelligence.settings.description')}</CardDescription>
       </CardHeader>
-      <CardContent className='space-y-6'>
+      <CardContent className='space-y-4'>
         <div className='flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4'>
           <div className='space-y-1'>
             <Label htmlFor='intelligence-enabled'>{t('intelligence.settings.enabled')}</Label>
@@ -223,14 +223,17 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
           <Switch id='intelligence-enabled' checked={enabled} onCheckedChange={setEnabled} disabled={readOnly} />
         </div>
 
-        <div className='space-y-2'>
-          <Label>{t('intelligence.settings.interval')}</Label>
+        <div className='flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4'>
+          <div className='space-y-1'>
+            <Label>{t('intelligence.settings.interval')}</Label>
+            <p className='text-muted-foreground text-xs'>{t('intelligence.settings.intervalHint')}</p>
+          </div>
           <Select
             value={String(intervalMinutes)}
             onValueChange={(value) => setIntervalMinutes(Number(value) as IntelligenceInterval)}
             disabled={readOnly}
           >
-            <SelectTrigger className='w-64'>
+            <SelectTrigger className='w-40' data-testid='intelligence-interval'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -241,12 +244,14 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
               ))}
             </SelectContent>
           </Select>
-          <p className='text-muted-foreground text-xs'>{t('intelligence.settings.intervalHint')}</p>
         </div>
 
         <div className='space-y-2'>
           <div className='flex items-center justify-between'>
-            <Label>{t('intelligence.settings.targets')}</Label>
+            <Label className='flex items-center gap-2'>
+              {t('intelligence.settings.targets')}
+              <span className='text-muted-foreground text-xs tabular-nums'>({targets.length})</span>
+            </Label>
             <Button variant='outline' size='sm' onClick={() => setAddOpen(true)} disabled={readOnly || loading || !firstFreePair()} data-testid='add-intelligence-target'>
               <IconPlus className='mr-1 h-4 w-4' />
               {t('intelligence.settings.addTarget')}

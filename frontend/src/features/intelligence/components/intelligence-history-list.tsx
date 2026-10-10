@@ -17,6 +17,7 @@ import {
   isRunInFlight,
   runIntelligenceVerdict,
   verdictBadgeClass,
+  benchmarkBadgeClass,
 } from './intelligence-verdict';
 import { IntelligenceRun, IntelligenceRunConnection } from '../data/schema';
 import { useSetIntelligenceRunVerdict } from '../data/intelligence';
@@ -98,8 +99,10 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
   return (
     // Tighter cells and a compact header: the table is mostly short values, and the
     // default row height pushed the records off screen.
-    <div className='rounded-lg border [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2'>
-      <Table>
+    // The table has eight columns of short values; on a narrow window it scrolls
+    // sideways rather than squeezing the text into unreadable columns.
+    <div className='overflow-x-auto rounded-lg border [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2'>
+      <Table className='min-w-[720px]'>
         <TableHeader>
           <TableRow>
             <TableHead className='w-10'></TableHead>
@@ -149,7 +152,17 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                       <span className='text-muted-foreground ml-1'>({run.reasoningEffort})</span>
                     )}
                   </TableCell>
-                  <TableCell className='text-xs'>{benchmarkLabel(t, runBenchmark(run))}</TableCell>
+                  <TableCell>
+                    {/* A badge rather than plain text: the column is scanned, not
+                        read, and the two checks deserve to be told apart at a
+                        glance. */}
+                    <Badge
+                      variant='outline'
+                      className={cn('h-5 px-1.5 text-[11px]', benchmarkBadgeClass(runBenchmark(run)))}
+                    >
+                      {benchmarkLabel(t, runBenchmark(run))}
+                    </Badge>
+                  </TableCell>
                   <TableCell className='font-mono text-xs'>
                     {/* A run targets one key, so the row shows it directly; a run
                         covering several keys lists them instead of guessing. */}

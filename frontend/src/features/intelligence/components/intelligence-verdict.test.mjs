@@ -216,3 +216,15 @@ test('a running run is in flight, a finished one is not', () => {
   }
   assert.equal(isRunInFlight({}), false, 'a missing status is not in flight');
 });
+
+// The two benchmarks are different questions, not outcomes, so they carry their
+// own hues rather than the verdict colours.
+test('the benchmark badge colours separate the two checks', () => {
+  const source = readFileSync(join(import.meta.dirname, 'intelligence-verdict.ts'), 'utf8');
+  const fn = source.slice(source.indexOf('export function benchmarkBadgeClass'));
+
+  assert.match(fn, /candy/, 'candy has its own colour');
+  assert.match(fn, /violet/, 'which differs from the pelican hue');
+  assert.match(fn, /cyan/, 'and pelican has one too');
+  assert.doesNotMatch(fn, /verdictBadgeClass/, 'it must not borrow the outcome colours');
+});
