@@ -354,7 +354,10 @@ export default function IntelligenceManagement() {
               // long history per channel, a vertical stack buries the one the
               // reader wants below several screens of records.
               <Tabs
-                value={String(selectedGroup.channelID)}
+                // Remount when the channel list changes, so the default value
+                // follows the group that is actually shown.
+                key={groups.map((group) => group.channelID).join(',')}
+                defaultValue={String(selectedGroup.channelID)}
                 onValueChange={setActiveChannelTab}
                 className='space-y-3'
               >
