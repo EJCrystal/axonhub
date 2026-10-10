@@ -1,6 +1,6 @@
 {
   "intelligence.title": "智商测试",
-  "intelligence.description": "按配置定时对指定渠道与模型执行智商测试，并保留每个渠道最近 100 次结果。",
+  "intelligence.description": "按配置定时对指定渠道与模型执行智商测试，并保留每个渠道最近 10 次结果。",
   "intelligence.runNow": "立即测试",
   "intelligence.runNowOptions": "选择要测试的渠道",
   "intelligence.runNowSingle": "只测试指定渠道",
@@ -31,7 +31,7 @@
   "intelligence.interval.30": "每 30 分钟",
   "intelligence.interval.60": "每 1 小时",
   "intelligence.settings.title": "测试配置",
-  "intelligence.settings.description": "选择参与智商测试的渠道与模型。每个渠道会测试它全部启用的 API Key。",
+  "intelligence.settings.description": "为每个渠道选择 API Key、模型与测试类型，可按 Key 分别配置。",
   "intelligence.settings.enabled": "启用定时测试",
   "intelligence.settings.enabledHint": "关闭后仅保留手动「立即测试」，不会自动运行。",
   "intelligence.settings.interval": "测试间隔",
@@ -47,7 +47,7 @@
   "intelligence.settings.effortPlaceholder": "思考等级",
   "intelligence.settings.effortDefault": "模型默认",
   "intelligence.settings.noTargets": "还没有配置渠道，点右上角「添加渠道」。",
-  "intelligence.settings.targetsHint": "一次测试会给每个启用 Key 生成一份网页源码，单次约 2-3 分钟。",
+  "intelligence.settings.targetsHint": "一次测试会为每个配置项生成结果；鹈鹕测试生成一份网页源码，糖果测试生成一段答案，单次通常 2-12 分钟。",
   "intelligence.settings.timeoutColumn": "超时(分钟)",
   "intelligence.settings.timeoutHint": "单次测试的超时时间（分钟）。留空使用默认 12 分钟；生成特别慢的渠道可调大，上限 20 分钟。",
   "intelligence.settings.save": "保存配置",
@@ -83,5 +83,9 @@
   "intelligence.candy.expand": "展开全文",
   "intelligence.candy.collapse": "收起",
   "intelligence.candy.empty": "本次没有产生答案。",
-  "intelligence.settings.runThisTarget": "立即测试"
+  "intelligence.settings.runThisTarget": "立即测试",
+  "intelligence.runAllTargets": "测试全部渠道",
+  "intelligence.runAllTargetsHint": "对上面配置的所有渠道各跑一次，耗时数分钟",
+  "intelligence.history.durationLabel": "总耗时",
+  "intelligence.history.generationLabel": "生成耗时"
 }

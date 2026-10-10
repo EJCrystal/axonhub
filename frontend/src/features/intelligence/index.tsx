@@ -71,6 +71,8 @@ export default function IntelligenceManagement() {
   // Which channel's records the merged view shows. Empty means "not chosen yet",
   // so the first channel with records can claim the tab on its own.
   const [activeChannelTab, setActiveChannelTab] = useState<string>('');
+  // Which top-level tab is showing, so the header actions can follow it.
+  const [activeTab, setActiveTab] = useState<string>('history');
 
   // The history view follows the test configuration: only the channels that are
   // currently configured get a filter entry or a channel tab, so removing a
@@ -315,33 +317,52 @@ export default function IntelligenceManagement() {
     (config?.targets.length ?? 0) === 0 ||
     configuredTargets.length === 0;
 
-  const actions = (
+  // The run button starts every configured target, so it is labelled with the
+  // count: "immediately test" alone reads as if it covered the row in view.
+  const runTargetLabel = t('intelligence.runAllTargets', { count: configuredTargets.length });
+
+  const runButton = (
+    <Button
+      size='sm'
+      onClick={() => runNow.mutate(undefined)}
+      disabled={runDisabled || runNow.isPending}
+      data-testid='run-intelligence-now'
+      title={t('intelligence.runAllTargetsHint')}
+    >
+      <IconBrain className='mr-1 h-4 w-4' />
+      {runNow.isPending ? t('intelligence.running') : runTargetLabel}
+    </Button>
+  );
+
+  // Each tab owns its own header actions: the history filters mean nothing on
+  // the settings screen, and the run button is not a configuration step.
+  const historyActions = (
     <div className='flex flex-wrap items-center gap-2'>
       {filters}
       <Button variant='outline' size='sm' onClick={refresh} disabled={fetching}>
         <IconRefresh className='mr-1 h-4 w-4' />
         {t('intelligence.history.refresh')}
       </Button>
-      {/* The primary action runs every configured channel, which is minutes of
-          upstream time. A single channel is re-checked from the settings tab,
-          next to the row that configures it. */}
-      <Button
-        size='sm'
-        onClick={() => runNow.mutate(undefined)}
-        disabled={runDisabled || runNow.isPending}
-        data-testid='run-intelligence-now'
-      >
-        <IconBrain className='mr-1 h-4 w-4' />
-        {runNow.isPending ? t('intelligence.running') : t('intelligence.runNow')}
-      </Button>
+      {runButton}
     </div>
   );
 
+  // The settings screen adds, edits and runs targets row by row, so it gets no
+  // header actions at all: a "test everything" button there would sit next to
+  // "add channel" and read as another editing step.
+  const settingsActions = undefined;
+
   return (
     <Main>
-      <PageHeader title={t('intelligence.title')} description={t('intelligence.description')} actions={actions} />
+      <PageHeader
+        title={t('intelligence.title')}
+        description={t('intelligence.description')}
+        // The actions describe the visible tab, and the run button says how many
+        // targets it will start.
+        actions={activeTab === 'settings' ? settingsActions : historyActions}
+      />
 
-      <Tabs defaultValue='history' className='space-y-4'>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className='space-y-4'>
         <TabsList>
           <TabsTrigger value='history'>{t('intelligence.tabs.history')}</TabsTrigger>
           <TabsTrigger value='settings'>{t('intelligence.tabs.settings')}</TabsTrigger>
@@ -354,9 +375,9 @@ export default function IntelligenceManagement() {
               // long history per channel, a vertical stack buries the one the
               // reader wants below several screens of records.
               <Tabs
-                // Remount when the channel list changes, so the default value
-                // follows the group that is actually shown.
-                key={groups.map((group) => group.channelID).join(',')}
+                // The inner tabs own their selection: a controlled value that
+                // falls back to the first group before the reader picks one
+                // leaves Radix with a value that names no rendered panel.
                 defaultValue={String(selectedGroup.channelID)}
                 onValueChange={setActiveChannelTab}
                 className='space-y-3'

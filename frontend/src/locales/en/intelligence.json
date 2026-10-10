@@ -1,6 +1,6 @@
 {
   "intelligence.title": "Intelligence Check",
-  "intelligence.description": "Runs the configured intelligence checks on a schedule and keeps the latest 100 runs per channel.",
+  "intelligence.description": "Runs the configured intelligence checks on a schedule and keeps the latest 10 runs per channel.",
   "intelligence.runNow": "Run now",
   "intelligence.runNowOptions": "Choose a channel to test",
   "intelligence.runNowSingle": "Test a single channel",
@@ -31,7 +31,7 @@
   "intelligence.interval.30": "Every 30 minutes",
   "intelligence.interval.60": "Every hour",
   "intelligence.settings.title": "Check settings",
-  "intelligence.settings.description": "Pick the channels and models to check. Every enabled API key of a channel is evaluated.",
+  "intelligence.settings.description": "Pick an API key, model and check per channel; each key is configured on its own row.",
   "intelligence.settings.enabled": "Enable scheduled checks",
   "intelligence.settings.enabledHint": "When off, only the manual run stays available.",
   "intelligence.settings.interval": "Interval",
@@ -47,7 +47,7 @@
   "intelligence.settings.effortPlaceholder": "Thinking level",
   "intelligence.settings.effortDefault": "Model default",
   "intelligence.settings.noTargets": "No channel configured yet. Use Add channel.",
-  "intelligence.settings.targetsHint": "A run asks every enabled key to generate a full web page, which takes about 2-3 minutes each.",
+  "intelligence.settings.targetsHint": "Each configured target produces one result: pelican draws a web page, candy answers a question, usually 2-12 minutes per run.",
   "intelligence.settings.timeoutColumn": "Timeout (min)",
   "intelligence.settings.timeoutHint": "Per-run timeout in minutes. Leave empty for the default 12 minutes; raise it for a very slow upstream, up to 20 minutes.",
   "intelligence.settings.save": "Save",
@@ -83,5 +83,9 @@
   "intelligence.candy.expand": "Show all",
   "intelligence.candy.collapse": "Collapse",
   "intelligence.candy.empty": "This run produced no answer.",
-  "intelligence.settings.runThisTarget": "Test now"
+  "intelligence.settings.runThisTarget": "Test now",
+  "intelligence.runAllTargets": "Test all channels",
+  "intelligence.runAllTargetsHint": "Runs every configured channel once; this takes several minutes",
+  "intelligence.history.durationLabel": "Total",
+  "intelligence.history.generationLabel": "Generation"
 }
