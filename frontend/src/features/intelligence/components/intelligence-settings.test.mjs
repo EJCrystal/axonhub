@@ -47,3 +47,29 @@ test('the channel picker no longer filters out used channels', () => {
 test('a row can still render its own already-chosen key', () => {
   assert.match(source, /if \(target\.apiKey && !keys\.includes\(target\.apiKey\)\) keys\.unshift\(target\.apiKey\)/);
 });
+
+// Adding a target collects its channel, key, model and check first. Inserting a
+// row straight into the table started every new target on the first free pair
+// and left the reader to correct each field by hand.
+const settingsSource = readFileSync(join(import.meta.dirname, 'intelligence-settings.tsx'), 'utf8');
+const dialogSource = readFileSync(join(import.meta.dirname, 'intelligence-add-target-dialog.tsx'), 'utf8');
+
+test('adding a target opens a dialog instead of writing a row', () => {
+  assert.match(settingsSource, /onClick=\{\(\) => setAddOpen\(true\)\}/, 'the button opens the dialog');
+  assert.match(settingsSource, /<IntelligenceAddTargetDialog/, 'the dialog is mounted');
+  assert.doesNotMatch(settingsSource, /const pair = firstFreePair\(\)/, 'no row is written without asking');
+});
+
+test('the dialog asks for every field the row needs', () => {
+  for (const field of ['add-target-channel', 'add-target-key', 'add-target-model', 'add-target-effort', 'add-target-benchmark']) {
+    assert.match(dialogSource, new RegExp(field), `the dialog asks for ${field}`);
+  }
+  assert.match(dialogSource, /add-target-confirm/, 'and confirms with one button');
+});
+
+// A channel is configured once per key, so the dialog must not offer a pair the
+// table already holds.
+test('the dialog only offers keys that are still free', () => {
+  assert.match(dialogSource, /!isPairConfigured\(channel\.id, key\)/, 'taken pairs are filtered out');
+  assert.match(dialogSource, /disabled=\{!canAdd\}/, 'and a taken pair cannot be confirmed');
+});

@@ -87,5 +87,11 @@
   "intelligence.runAllTargets": "Test all channels",
   "intelligence.runAllTargetsHint": "Runs every configured channel once; this takes several minutes",
   "intelligence.history.durationLabel": "Total",
-  "intelligence.history.generationLabel": "Generation"
+  "intelligence.history.generationLabel": "Generation",
+  "intelligence.settings.addDialog.title": "Add a test channel",
+  "intelligence.settings.addDialog.description": "Pick the channel, API key, model and check; the target joins the configuration on confirm.",
+  "intelligence.settings.addDialog.channelPlaceholder": "Pick a channel",
+  "intelligence.settings.addDialog.noFreeKey": "Every key of this channel is already configured.",
+  "intelligence.settings.addDialog.cancel": "Cancel",
+  "intelligence.settings.addDialog.confirm": "Add"
 }
