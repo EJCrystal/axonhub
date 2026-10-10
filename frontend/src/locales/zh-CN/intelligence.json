@@ -85,7 +85,13 @@
   "intelligence.candy.empty": "本次没有产生答案。",
   "intelligence.settings.runThisTarget": "立即测试",
   "intelligence.runAllTargets": "测试全部渠道",
-  "intelligence.runAllTargetsHint": "对上面配置的所有渠道各跑一次，耗时数分钟",
+  "intelligence.runAllTargetsHint": "对配置的所有渠道各跑一次，耗时数分钟",
   "intelligence.history.durationLabel": "总耗时",
-  "intelligence.history.generationLabel": "生成耗时"
+  "intelligence.history.generationLabel": "生成耗时",
+  "intelligence.settings.addDialog.title": "添加测试渠道",
+  "intelligence.settings.addDialog.description": "选择渠道、API Key、模型与测试类型，确认后加入测试配置。",
+  "intelligence.settings.addDialog.channelPlaceholder": "选择渠道",
+  "intelligence.settings.addDialog.noFreeKey": "该渠道已无可添加的 Key。",
+  "intelligence.settings.addDialog.cancel": "取消",
+  "intelligence.settings.addDialog.confirm": "添加"
 }

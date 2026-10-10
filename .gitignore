@@ -52,6 +52,8 @@
 # IntelliJ
 /out/
 *target*
+!frontend/src/**/*target*.ts
+!frontend/src/**/*target*.tsx
 
 # mpeltonen/sbt-idea plugin
 .idea_modules/

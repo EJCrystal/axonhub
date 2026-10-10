@@ -15,7 +15,8 @@ import { modelsForAPIKey } from '../data/api-key-models';
 import { maskAPIKey } from '../data/mask-key';
 import { sameChannelId } from '../data/channel-id';
 import { INTELLIGENCE_INTERVALS, IntelligenceConfig, IntelligenceInterval } from '../data/schema';
-import { REASONING_EFFORTS } from '@/features/models/data/reasoning-efforts';
+import { INTELLIGENCE_BENCHMARKS, REASONING_EFFORT_OPTIONS, benchmarkLabelKey } from '../data/benchmarks';
+import { IntelligenceAddTargetDialog } from './intelligence-add-target-dialog';
 import { useRunIntelligenceCheckNow, useSetIntelligenceConfig } from '../data/intelligence';
 
 // Radix Select reserves the empty string, so "provider default" needs its own value.
@@ -30,8 +31,7 @@ const MAX_TIMEOUT_MINUTES = 20;
 // The published benchmarks. The empty string means pelican, which is what every
 // stored target used before the choice existed, so the picker shows the pelican
 // default as its own explicit value.
-const PELICAN_BENCHMARK = 'pelican';
-const CANDY_BENCHMARK = 'candy';
+
 
 interface Props {
   config?: IntelligenceConfig;
@@ -145,20 +145,26 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
   const freeKeysFor = (channelID: string, skipIndex: number) =>
     keysFor(channelID).filter((key) => !isPairConfigured(channelID, key, skipIndex));
 
-  const addTarget = () => {
-    const pair = firstFreePair();
-    if (!pair) return;
-    setTargets((prev) => [
-      ...prev,
-      {
-        channelID: pair.channelID,
-        apiKey: pair.apiKey,
-        modelID: modelsFor(pair.channelID, pair.apiKey)[0] ?? '',
-        reasoningEffort: '',
-        timeoutMinutes: 0,
-        benchmark: '',
-      },
-    ]);
+  // Adding a target asks for its channel, key, model and check first: inserting
+  // a row on the first free pair left the reader to correct every field by hand.
+  const [addOpen, setAddOpen] = useState(false);
+
+  const dialogChannels = useMemo(
+    () =>
+      channelOptions.map((channel) => ({
+        id: channel.id,
+        name: channel.name,
+        keys: keysFor(channel.id),
+        modelsFor: (apiKey: string) => modelsFor(channel.id, apiKey),
+      })),
+    // keysFor and modelsFor read the same channel options, so the list is rebuilt
+    // whenever they change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [channelOptions]
+  );
+
+  const addTarget = (target: DraftTarget) => {
+    setTargets((prev) => [...prev, target]);
   };
 
   const updateTarget = (index: number, patch: Partial<DraftTarget>) => {
@@ -241,7 +247,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
         <div className='space-y-2'>
           <div className='flex items-center justify-between'>
             <Label>{t('intelligence.settings.targets')}</Label>
-            <Button variant='outline' size='sm' onClick={addTarget} disabled={readOnly || loading || !firstFreePair()}>
+            <Button variant='outline' size='sm' onClick={() => setAddOpen(true)} disabled={readOnly || loading || !firstFreePair()} data-testid='add-intelligence-target'>
               <IconPlus className='mr-1 h-4 w-4' />
               {t('intelligence.settings.addTarget')}
             </Button>
@@ -348,7 +354,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value={NO_EFFORT}>{t('intelligence.settings.effortDefault')}</SelectItem>
-                            {REASONING_EFFORTS.map((effort) => (
+                            {REASONING_EFFORT_OPTIONS.map((effort) => (
                               <SelectItem key={effort} value={effort}>
                                 {effort}
                               </SelectItem>
@@ -382,10 +388,10 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
                         {/* Which check this row runs. Both benchmarks are asked of the
                             same model, so the choice belongs next to the model. */}
                         <Select
-                          value={target.benchmark || PELICAN_BENCHMARK}
+                          value={target.benchmark || INTELLIGENCE_BENCHMARKS[0]}
                           onValueChange={(value) =>
                             updateTarget(index, {
-                              benchmark: value === PELICAN_BENCHMARK ? '' : value,
+                              benchmark: value === INTELLIGENCE_BENCHMARKS[0] ? '' : value,
                             })
                           }
                           disabled={readOnly}
@@ -394,12 +400,11 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={PELICAN_BENCHMARK}>
-                              {t('intelligence.settings.benchmarkPelican')}
-                            </SelectItem>
-                            <SelectItem value={CANDY_BENCHMARK}>
-                              {t('intelligence.settings.benchmarkCandy')}
-                            </SelectItem>
+                            {INTELLIGENCE_BENCHMARKS.map((value) => (
+                              <SelectItem key={value} value={value}>
+                                {t(benchmarkLabelKey(value))}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </TableCell>
@@ -446,6 +451,16 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
             {save.isPending ? t('intelligence.settings.saving') : t('intelligence.settings.save')}
           </Button>
         </div>
+
+        <IntelligenceAddTargetDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          channels={dialogChannels}
+          isPairConfigured={(channelID, apiKey) =>
+            targets.some((target) => sameChannelId(target.channelID, channelID) && target.apiKey === apiKey)
+          }
+          onAdd={(target) => addTarget({ ...target, timeoutMinutes: 0 })}
+        />
       </CardContent>
     </Card>
   );
