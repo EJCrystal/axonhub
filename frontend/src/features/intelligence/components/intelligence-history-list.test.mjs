@@ -126,3 +126,19 @@ test('the benchmark picker never feeds SelectItem an empty value', () => {
   assert.match(picker, /PELICAN_OPTION/, 'the pelican default has a sentinel option');
   assert.match(picker, /setBenchmark\(value === PELICAN_OPTION \? '' : value\)/, 'and maps back to the stored shape');
 });
+
+// The history table is mostly short values, so its rows are tightened and the
+// timestamp is compact: the default row height and a full locale string pushed
+// records off the screen and stretched the time column.
+test('the history table is compact', () => {
+  assert.match(source, /\[&_td\]:px-2 \[&_td\]:py-1/, 'cells are tightened');
+  assert.match(source, /\[&_th\]:h-8/, 'and so is the header');
+  assert.match(source, /formatRunTime\(run\.createdAt\)/, 'the time uses the compact formatter');
+});
+
+test('the compact timestamp keeps the minute and drops the locale noise', () => {
+  const fn = source.slice(source.indexOf('function formatRunTime'), source.indexOf('// benchmarkLabel'));
+  assert.match(fn, /getMinutes\(\)/, 'minutes are kept');
+  assert.doesNotMatch(fn, /getSeconds\(\)/, 'no seconds are rendered');
+  assert.match(fn, /Number\.isNaN/, 'an unparsable value falls back to the raw string');
+});

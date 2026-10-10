@@ -93,5 +93,7 @@
   "intelligence.settings.addDialog.channelPlaceholder": "选择渠道",
   "intelligence.settings.addDialog.noFreeKey": "该渠道已无可添加的 Key。",
   "intelligence.settings.addDialog.cancel": "取消",
-  "intelligence.settings.addDialog.confirm": "添加"
+  "intelligence.settings.addDialog.confirm": "添加",
+  "intelligence.settings.addDialog.channelSearch": "搜索渠道…",
+  "intelligence.settings.addDialog.channelEmpty": "没有匹配的渠道。"
 }
