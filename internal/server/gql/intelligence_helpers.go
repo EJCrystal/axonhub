@@ -31,6 +31,7 @@ func (r *mutationResolver) intelligenceConfigPayload(ctx context.Context) (*Inte
 			ModelID:         target.ModelID,
 			ReasoningEffort: intelStringOrNil(target.ReasoningEffort),
 			TimeoutMinutes:  intelIntOrNil(target.TimeoutMinutes),
+			Benchmark:       intelBenchmarkOrNil(target.Benchmark),
 		}
 		if target.APIKey != "" {
 			entry.APIKey = lo.ToPtr(target.APIKey)
@@ -53,6 +54,12 @@ func intelStringOrNil(value string) *string {
 	}
 
 	return lo.ToPtr(value)
+}
+
+// intelBenchmarkOrNil keeps an absent benchmark represented as null rather than
+// an empty string, so the UI can tell "pelican default" from a stored value.
+func intelBenchmarkOrNil(benchmark string) *string {
+	return intelStringOrNil(benchmark)
 }
 
 // intelIntOrNil keeps an absent number represented as null rather than zero, so

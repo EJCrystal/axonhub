@@ -24,6 +24,7 @@ const INTELLIGENCE_CONFIG_QUERY = `
         apiKey
         reasoningEffort
         timeoutMinutes
+        benchmark
       }
     }
   }
@@ -41,6 +42,7 @@ const SET_INTELLIGENCE_CONFIG_MUTATION = `
         apiKey
         reasoningEffort
         timeoutMinutes
+        benchmark
       }
     }
   }
@@ -71,6 +73,7 @@ const INTELLIGENCE_HISTORY_QUERY = `
           channelName
           modelID
           reasoningEffort
+          benchmark
           trigger
           status
           totalKeys
@@ -109,6 +112,7 @@ const ALL_INTELLIGENCE_RUNS_QUERY = `
           channelName
           modelID
           reasoningEffort
+          benchmark
           trigger
           status
           totalKeys
@@ -159,6 +163,7 @@ export function useSetIntelligenceConfig() {
         apiKey?: string;
         reasoningEffort?: string;
         timeoutMinutes?: number;
+        benchmark?: string;
       }[];
     }) => {
       const data = await graphqlRequest<{ setIntelligenceConfig: unknown }>(SET_INTELLIGENCE_CONFIG_MUTATION, { input });
@@ -238,6 +243,7 @@ const SET_INTELLIGENCE_RUN_VERDICT_MUTATION = `
       channelName
       modelID
       reasoningEffort
+      benchmark
       trigger
       status
       totalKeys

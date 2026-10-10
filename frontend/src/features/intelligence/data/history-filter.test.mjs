@@ -247,3 +247,34 @@ test('the active channel defaults to the first and falls back when it disappears
   assert.equal(pickActiveChannel(groups, '404')?.channelID, 6, 'a vanished choice falls back to the first');
   assert.equal(pickActiveChannel([], '6'), undefined, 'no groups -> nothing to show');
 });
+
+// The candy question joined the pelican task, so a reader has to be able to ask
+// for one check at a time. Runs recorded before the field existed carry no value
+// and ran pelican, so the empty value is a benchmark of its own.
+test('filtering by benchmark separates the two checks', () => {
+  const legacy = run('r-legacy', { results: [key('k1')] });
+  const candy = { ...run('r-candy', { results: [key('k1')] }), benchmark: 'candy' };
+  const explicit = { ...run('r-pelican', { results: [key('k1')] }), benchmark: 'pelican' };
+  const runs = [legacy, candy, explicit];
+
+  assert.deepEqual(
+    filterRuns(runs, { verdict: 'all', benchmark: '' }).map((item) => item.id),
+    ['r-legacy'],
+    'the empty value selects the runs recorded before the field existed'
+  );
+  assert.deepEqual(filterRuns(runs, { verdict: 'all', benchmark: 'candy' }).map((item) => item.id), ['r-candy']);
+  assert.deepEqual(filterRuns(runs, { verdict: 'all', benchmark: 'pelican' }).map((item) => item.id), ['r-pelican']);
+
+  // No filter keeps everything.
+  assert.equal(filterRuns(runs, { verdict: 'all' }).length, 3);
+});
+
+test('the benchmark filter counts as active and feeds the picker', () => {
+  const legacy = run('r-legacy', { results: [key('k1')] });
+  const candy = { ...run('r-candy', { results: [key('k1')] }), benchmark: 'candy' };
+
+  assert.equal(isHistoryFilterActive({ verdict: 'all', benchmark: 'candy' }), true);
+  assert.equal(isHistoryFilterActive({ verdict: 'all' }), false);
+
+  assert.deepEqual(historyFilterOptions([legacy, candy]).benchmarks, ['', 'candy']);
+});

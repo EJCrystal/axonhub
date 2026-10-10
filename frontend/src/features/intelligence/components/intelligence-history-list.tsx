@@ -27,6 +27,15 @@ function runKeyLabel(run: IntelligenceRun): string {
   return prefixes.length > 0 ? prefixes.join(', ') : '—';
 }
 
+// benchmarkLabel names the check a run used. Runs recorded before the choice
+// existed carry no value and ran the pelican task, so they read as pelican
+// rather than as an unknown.
+function benchmarkLabel(t: (key: string) => string, benchmark?: string | null): string {
+  return benchmark === 'candy'
+    ? t('intelligence.settings.benchmarkCandy')
+    : t('intelligence.settings.benchmarkPelican');
+}
+
 interface Props {
   history?: IntelligenceRunConnection;
   loading: boolean;
@@ -69,6 +78,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
             <TableHead className='w-10'></TableHead>
             <TableHead>{t('intelligence.history.columns.time')}</TableHead>
             <TableHead>{t('intelligence.history.columns.model')}</TableHead>
+            <TableHead>{t('intelligence.history.columns.benchmark')}</TableHead>
             <TableHead>{t('intelligence.history.columns.apiKey')}</TableHead>
             <TableHead>{t('intelligence.history.columns.trigger')}</TableHead>
             <TableHead>{t('intelligence.history.columns.result')}</TableHead>
@@ -112,6 +122,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                       <span className='text-muted-foreground ml-1'>({run.reasoningEffort})</span>
                     )}
                   </TableCell>
+                  <TableCell className='text-xs'>{benchmarkLabel(t, run.benchmark)}</TableCell>
                   <TableCell className='font-mono text-xs'>
                     {/* A run targets one key, so the row shows it directly; a run
                         covering several keys lists them instead of guessing. */}
@@ -145,7 +156,7 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
 
                 {isOpen && (
                   <TableRow key={`${run.id}-detail`}>
-                    <TableCell colSpan={7} className='bg-muted/30'>
+                    <TableCell colSpan={8} className='bg-muted/30'>
                       <div className='space-y-3 py-2'>
                         {run.results.map((key) => (
                           <div key={key.keyPrefix} className='rounded-md border p-3 text-xs'>

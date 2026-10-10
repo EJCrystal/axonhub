@@ -72,5 +72,11 @@
   "intelligence.history.verdictFilter.degraded": "Degraded only",
   "intelligence.history.verdictFilter.failed": "Failed only",
   "intelligence.history.verdictFilter.inconclusive": "Scoring failed only",
-  "intelligence.history.verdictFilter.normal": "Normal only"
+  "intelligence.history.verdictFilter.normal": "Normal only",
+  "intelligence.settings.benchmarkColumn": "Check",
+  "intelligence.settings.benchmarkPelican": "Pelican",
+  "intelligence.settings.benchmarkCandy": "Candy",
+  "intelligence.history.columns.benchmark": "Check",
+  "intelligence.history.benchmarkFilter": "Check",
+  "intelligence.history.allBenchmarks": "All checks"
 }

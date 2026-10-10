@@ -369,6 +369,7 @@ type IntelligenceEvaluateInput struct {
 	Prompt          *string      `json:"prompt,omitempty"`
 	BaseURL         *string      `json:"baseURL,omitempty"`
 	ReasoningEffort *string      `json:"reasoningEffort,omitempty"`
+	Benchmark       *string      `json:"benchmark,omitempty"`
 }
 
 type IntelligenceEvaluatePayload struct {
@@ -401,6 +402,7 @@ type IntelligenceTarget struct {
 	APIKey          *string      `json:"apiKey,omitempty"`
 	ReasoningEffort *string      `json:"reasoningEffort,omitempty"`
 	TimeoutMinutes  *int         `json:"timeoutMinutes,omitempty"`
+	Benchmark       *string      `json:"benchmark,omitempty"`
 }
 
 type IntelligenceTargetInput struct {
@@ -409,6 +411,7 @@ type IntelligenceTargetInput struct {
 	APIKey          *string      `json:"apiKey,omitempty"`
 	ReasoningEffort *string      `json:"reasoningEffort,omitempty"`
 	TimeoutMinutes  *int         `json:"timeoutMinutes,omitempty"`
+	Benchmark       *string      `json:"benchmark,omitempty"`
 }
 
 type LoadAPIKeyProfileTemplateInput struct {

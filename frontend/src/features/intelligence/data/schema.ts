@@ -32,6 +32,9 @@ export const intelligenceRunSchema = z.object({
   // Thinking level the run requested. Empty on runs recorded before the field
   // existed, and when the provider default applied.
   reasoningEffort: z.string().default(''),
+  // Which check the run used. Empty on runs recorded before the field existed,
+  // which were all pelican.
+  benchmark: z.string().nullish().transform((value) => value ?? ''),
   trigger: z.string().default('manual'),
   // running while the check is in flight; the rest are terminal.
   status: z.enum(['running', 'succeeded', 'failed', 'partial']),
@@ -71,6 +74,9 @@ export const intelligenceTargetSchema = z.object({
   // Per-run budget in minutes. Null means the built-in default applies, and
   // GraphQL sends null for that, so normalize it the same way.
   timeoutMinutes: z.number().nullish().transform((value) => value ?? 0),
+  // Which check this target runs. Null means the pelican default; GraphQL
+  // sends null for that, so normalize it the same way.
+  benchmark: z.string().nullish().transform((value) => value ?? ''),
 });
 export type IntelligenceTarget = z.infer<typeof intelligenceTargetSchema>;
 
