@@ -220,6 +220,20 @@ func TestNarrowIntelligenceConfigByKey(t *testing.T) {
 	require.NotContains(t, err.Error(), "sk-missing-1234567890")
 }
 
+// TestReapKeepsTheSeededKey pins the restart cleanup: a run interrupted by a
+// restart must still name the key it was testing. The reap used to overwrite the
+// results with one unnamed entry, so the history showed a failure with no key.
+func TestReapKeepsTheSeededKey(t *testing.T) {
+	seeded := []objects.IntelligenceKeyResult{{KeyPrefix: "sk-9****9c31"}}
+
+	results := failedRunResults(242, seeded, 0, errors.New("the run was interrupted before it finished"))
+
+	require.Len(t, results, 1)
+	require.Equal(t, "sk-9****9c31", results[0].KeyPrefix, "the key under test survives the reap")
+	require.False(t, results[0].Success)
+	require.Contains(t, lo.FromPtr(results[0].Error), "interrupted")
+}
+
 // TestFailedRunResults covers the failure row: a run seeded with the key it was
 // testing must keep that key when it fails, otherwise the history shows an
 // unnamed failure and the operator cannot tell which credential broke.
