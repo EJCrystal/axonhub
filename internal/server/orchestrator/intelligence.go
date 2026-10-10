@@ -90,7 +90,11 @@ const (
 	// intelligenceMaxConcurrency caps how many channel API keys are evaluated at
 	// the same time. Each key fans out to both the tested model and the detection
 	// service, so the limit also bounds upstream cost and rate-limit pressure.
-	intelligenceMaxConcurrency = 4
+	//
+	// It matches the target ceiling: a channel configured with several keys is the
+	// other way a run fans out, and a lower cap here would silently re-serialise a
+	// manual run that was meant to start everything.
+	intelligenceMaxConcurrency = 10
 )
 
 // defaultIntelligencePrompt is the published pelican task. The upstream service

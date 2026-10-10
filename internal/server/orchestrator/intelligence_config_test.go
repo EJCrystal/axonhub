@@ -242,6 +242,35 @@ func TestFailedRunResults(t *testing.T) {
 	require.NotNil(t, anonymous[0].Error)
 }
 
+// TestTargetConcurrencyForRun covers how many targets a run starts at once. A
+// manual run has to start every configured target the operator selected, up to
+// the ceiling, while the scheduled run keeps the lower default so an unattended
+// check does not open many slow streams at once.
+func TestTargetConcurrencyForRun(t *testing.T) {
+	// Manual runs follow the configuration, so "test now" starts everything.
+	require.Equal(t, 1, targetConcurrencyForRun(1, intelligenceManualTrigger))
+	require.Equal(t, 3, targetConcurrencyForRun(3, intelligenceManualTrigger))
+	require.Equal(t, 4, targetConcurrencyForRun(4, intelligenceManualTrigger))
+	require.Equal(t, 10, targetConcurrencyForRun(10, intelligenceManualTrigger))
+
+	// The ceiling still applies: a large configuration does not open an unbounded
+	// number of simultaneous streams.
+	require.Equal(t, intelligenceTargetConcurrencyCeiling,
+		targetConcurrencyForRun(50, intelligenceManualTrigger))
+
+	// An empty selection has nothing to scale to, so it falls back to the default.
+	require.Equal(t, intelligenceMaxTargetConcurrency,
+		targetConcurrencyForRun(0, intelligenceManualTrigger))
+
+	// The scheduled path is deliberately unchanged.
+	require.Equal(t, intelligenceMaxTargetConcurrency,
+		targetConcurrencyForRun(10, intelligenceScheduledTrigger))
+
+	// The ceiling may not exceed the per-key cap, otherwise one target could not
+	// use the budget the run granted it.
+	require.LessOrEqual(t, intelligenceTargetConcurrencyCeiling, intelligenceMaxConcurrency)
+}
+
 // TestIntelligencePendingResults covers the seeded running row: a target that
 // names a key records its masked prefix immediately, so the history can show
 // which key is under test instead of an empty cell. A target covering every key
