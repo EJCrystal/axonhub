@@ -48,6 +48,9 @@ func (IntelligenceRun) Fields() []ent.Field {
 		field.String("reasoning_effort").
 			Default("").
 			Comment("Thinking level requested for this run; empty when the provider default applied"),
+		field.String("benchmark").
+			Default("").
+			Comment("Which check the run used: empty for the pelican default, or candy"),
 		field.String("trigger").
 			Default("manual").
 			Comment("What started the run: manual or scheduled"),

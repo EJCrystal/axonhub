@@ -2331,6 +2331,10 @@ type IntelligenceRun implements Node {
   """
   reasoningEffort: String!
   """
+  Which check the run used: empty for the pelican default, or candy
+  """
+  benchmark: String!
+  """
   What started the run: manual or scheduled
   """
   trigger: String!
@@ -2518,6 +2522,22 @@ input IntelligenceRunWhereInput {
   reasoningEffortHasSuffix: String
   reasoningEffortEqualFold: String
   reasoningEffortContainsFold: String
+  """
+  benchmark field predicates
+  """
+  benchmark: String
+  benchmarkNEQ: String
+  benchmarkIn: [String!]
+  benchmarkNotIn: [String!]
+  benchmarkGT: String
+  benchmarkGTE: String
+  benchmarkLT: String
+  benchmarkLTE: String
+  benchmarkContains: String
+  benchmarkHasPrefix: String
+  benchmarkHasSuffix: String
+  benchmarkEqualFold: String
+  benchmarkContainsFold: String
   """
   trigger field predicates
   """

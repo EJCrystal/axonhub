@@ -9102,6 +9102,7 @@ type IntelligenceRunMutation struct {
 	channel_name     *string
 	model_id         *string
 	reasoning_effort *string
+	benchmark        *string
 	trigger          *string
 	status           *intelligencerun.Status
 	total_keys       *int
@@ -9510,6 +9511,42 @@ func (m *IntelligenceRunMutation) ResetReasoningEffort() {
 	m.reasoning_effort = nil
 }
 
+// SetBenchmark sets the "benchmark" field.
+func (m *IntelligenceRunMutation) SetBenchmark(s string) {
+	m.benchmark = &s
+}
+
+// Benchmark returns the value of the "benchmark" field in the mutation.
+func (m *IntelligenceRunMutation) Benchmark() (r string, exists bool) {
+	v := m.benchmark
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBenchmark returns the old "benchmark" field's value of the IntelligenceRun entity.
+// If the IntelligenceRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IntelligenceRunMutation) OldBenchmark(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBenchmark is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBenchmark requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBenchmark: %w", err)
+	}
+	return oldValue.Benchmark, nil
+}
+
+// ResetBenchmark resets all changes to the "benchmark" field.
+func (m *IntelligenceRunMutation) ResetBenchmark() {
+	m.benchmark = nil
+}
+
 // SetTrigger sets the "trigger" field.
 func (m *IntelligenceRunMutation) SetTrigger(s string) {
 	m.trigger = &s
@@ -9905,7 +9942,7 @@ func (m *IntelligenceRunMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *IntelligenceRunMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.created_at != nil {
 		fields = append(fields, intelligencerun.FieldCreatedAt)
 	}
@@ -9926,6 +9963,9 @@ func (m *IntelligenceRunMutation) Fields() []string {
 	}
 	if m.reasoning_effort != nil {
 		fields = append(fields, intelligencerun.FieldReasoningEffort)
+	}
+	if m.benchmark != nil {
+		fields = append(fields, intelligencerun.FieldBenchmark)
 	}
 	if m.trigger != nil {
 		fields = append(fields, intelligencerun.FieldTrigger)
@@ -9970,6 +10010,8 @@ func (m *IntelligenceRunMutation) Field(name string) (ent.Value, bool) {
 		return m.ModelID()
 	case intelligencerun.FieldReasoningEffort:
 		return m.ReasoningEffort()
+	case intelligencerun.FieldBenchmark:
+		return m.Benchmark()
 	case intelligencerun.FieldTrigger:
 		return m.Trigger()
 	case intelligencerun.FieldStatus:
@@ -10007,6 +10049,8 @@ func (m *IntelligenceRunMutation) OldField(ctx context.Context, name string) (en
 		return m.OldModelID(ctx)
 	case intelligencerun.FieldReasoningEffort:
 		return m.OldReasoningEffort(ctx)
+	case intelligencerun.FieldBenchmark:
+		return m.OldBenchmark(ctx)
 	case intelligencerun.FieldTrigger:
 		return m.OldTrigger(ctx)
 	case intelligencerun.FieldStatus:
@@ -10078,6 +10122,13 @@ func (m *IntelligenceRunMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetReasoningEffort(v)
+		return nil
+	case intelligencerun.FieldBenchmark:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBenchmark(v)
 		return nil
 	case intelligencerun.FieldTrigger:
 		v, ok := value.(string)
@@ -10281,6 +10332,9 @@ func (m *IntelligenceRunMutation) ResetField(name string) error {
 		return nil
 	case intelligencerun.FieldReasoningEffort:
 		m.ResetReasoningEffort()
+		return nil
+	case intelligencerun.FieldBenchmark:
+		m.ResetBenchmark()
 		return nil
 	case intelligencerun.FieldTrigger:
 		m.ResetTrigger()

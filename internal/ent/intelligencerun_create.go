@@ -105,6 +105,20 @@ func (_c *IntelligenceRunCreate) SetNillableReasoningEffort(v *string) *Intellig
 	return _c
 }
 
+// SetBenchmark sets the "benchmark" field.
+func (_c *IntelligenceRunCreate) SetBenchmark(v string) *IntelligenceRunCreate {
+	_c.mutation.SetBenchmark(v)
+	return _c
+}
+
+// SetNillableBenchmark sets the "benchmark" field if the given value is not nil.
+func (_c *IntelligenceRunCreate) SetNillableBenchmark(v *string) *IntelligenceRunCreate {
+	if v != nil {
+		_c.SetBenchmark(*v)
+	}
+	return _c
+}
+
 // SetTrigger sets the "trigger" field.
 func (_c *IntelligenceRunCreate) SetTrigger(v string) *IntelligenceRunCreate {
 	_c.mutation.SetTrigger(v)
@@ -258,6 +272,10 @@ func (_c *IntelligenceRunCreate) defaults() error {
 		v := intelligencerun.DefaultReasoningEffort
 		_c.mutation.SetReasoningEffort(v)
 	}
+	if _, ok := _c.mutation.Benchmark(); !ok {
+		v := intelligencerun.DefaultBenchmark
+		_c.mutation.SetBenchmark(v)
+	}
 	if _, ok := _c.mutation.Trigger(); !ok {
 		v := intelligencerun.DefaultTrigger
 		_c.mutation.SetTrigger(v)
@@ -301,6 +319,9 @@ func (_c *IntelligenceRunCreate) check() error {
 	}
 	if _, ok := _c.mutation.ReasoningEffort(); !ok {
 		return &ValidationError{Name: "reasoning_effort", err: errors.New(`ent: missing required field "IntelligenceRun.reasoning_effort"`)}
+	}
+	if _, ok := _c.mutation.Benchmark(); !ok {
+		return &ValidationError{Name: "benchmark", err: errors.New(`ent: missing required field "IntelligenceRun.benchmark"`)}
 	}
 	if _, ok := _c.mutation.Trigger(); !ok {
 		return &ValidationError{Name: "trigger", err: errors.New(`ent: missing required field "IntelligenceRun.trigger"`)}
@@ -379,6 +400,10 @@ func (_c *IntelligenceRunCreate) createSpec() (*IntelligenceRun, *sqlgraph.Creat
 	if value, ok := _c.mutation.ReasoningEffort(); ok {
 		_spec.SetField(intelligencerun.FieldReasoningEffort, field.TypeString, value)
 		_node.ReasoningEffort = value
+	}
+	if value, ok := _c.mutation.Benchmark(); ok {
+		_spec.SetField(intelligencerun.FieldBenchmark, field.TypeString, value)
+		_node.Benchmark = value
 	}
 	if value, ok := _c.mutation.Trigger(); ok {
 		_spec.SetField(intelligencerun.FieldTrigger, field.TypeString, value)
@@ -523,6 +548,18 @@ func (u *IntelligenceRunUpsert) SetReasoningEffort(v string) *IntelligenceRunUps
 // UpdateReasoningEffort sets the "reasoning_effort" field to the value that was provided on create.
 func (u *IntelligenceRunUpsert) UpdateReasoningEffort() *IntelligenceRunUpsert {
 	u.SetExcluded(intelligencerun.FieldReasoningEffort)
+	return u
+}
+
+// SetBenchmark sets the "benchmark" field.
+func (u *IntelligenceRunUpsert) SetBenchmark(v string) *IntelligenceRunUpsert {
+	u.Set(intelligencerun.FieldBenchmark, v)
+	return u
+}
+
+// UpdateBenchmark sets the "benchmark" field to the value that was provided on create.
+func (u *IntelligenceRunUpsert) UpdateBenchmark() *IntelligenceRunUpsert {
+	u.SetExcluded(intelligencerun.FieldBenchmark)
 	return u
 }
 
@@ -762,6 +799,20 @@ func (u *IntelligenceRunUpsertOne) SetReasoningEffort(v string) *IntelligenceRun
 func (u *IntelligenceRunUpsertOne) UpdateReasoningEffort() *IntelligenceRunUpsertOne {
 	return u.Update(func(s *IntelligenceRunUpsert) {
 		s.UpdateReasoningEffort()
+	})
+}
+
+// SetBenchmark sets the "benchmark" field.
+func (u *IntelligenceRunUpsertOne) SetBenchmark(v string) *IntelligenceRunUpsertOne {
+	return u.Update(func(s *IntelligenceRunUpsert) {
+		s.SetBenchmark(v)
+	})
+}
+
+// UpdateBenchmark sets the "benchmark" field to the value that was provided on create.
+func (u *IntelligenceRunUpsertOne) UpdateBenchmark() *IntelligenceRunUpsertOne {
+	return u.Update(func(s *IntelligenceRunUpsert) {
+		s.UpdateBenchmark()
 	})
 }
 
@@ -1186,6 +1237,20 @@ func (u *IntelligenceRunUpsertBulk) SetReasoningEffort(v string) *IntelligenceRu
 func (u *IntelligenceRunUpsertBulk) UpdateReasoningEffort() *IntelligenceRunUpsertBulk {
 	return u.Update(func(s *IntelligenceRunUpsert) {
 		s.UpdateReasoningEffort()
+	})
+}
+
+// SetBenchmark sets the "benchmark" field.
+func (u *IntelligenceRunUpsertBulk) SetBenchmark(v string) *IntelligenceRunUpsertBulk {
+	return u.Update(func(s *IntelligenceRunUpsert) {
+		s.SetBenchmark(v)
+	})
+}
+
+// UpdateBenchmark sets the "benchmark" field to the value that was provided on create.
+func (u *IntelligenceRunUpsertBulk) UpdateBenchmark() *IntelligenceRunUpsertBulk {
+	return u.Update(func(s *IntelligenceRunUpsert) {
+		s.UpdateBenchmark()
 	})
 }
 

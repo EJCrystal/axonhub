@@ -89,6 +89,11 @@ func ReasoningEffort(v string) predicate.IntelligenceRun {
 	return predicate.IntelligenceRun(sql.FieldEQ(FieldReasoningEffort, v))
 }
 
+// Benchmark applies equality check predicate on the "benchmark" field. It's identical to BenchmarkEQ.
+func Benchmark(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldEQ(FieldBenchmark, v))
+}
+
 // Trigger applies equality check predicate on the "trigger" field. It's identical to TriggerEQ.
 func Trigger(v string) predicate.IntelligenceRun {
 	return predicate.IntelligenceRun(sql.FieldEQ(FieldTrigger, v))
@@ -467,6 +472,71 @@ func ReasoningEffortEqualFold(v string) predicate.IntelligenceRun {
 // ReasoningEffortContainsFold applies the ContainsFold predicate on the "reasoning_effort" field.
 func ReasoningEffortContainsFold(v string) predicate.IntelligenceRun {
 	return predicate.IntelligenceRun(sql.FieldContainsFold(FieldReasoningEffort, v))
+}
+
+// BenchmarkEQ applies the EQ predicate on the "benchmark" field.
+func BenchmarkEQ(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldEQ(FieldBenchmark, v))
+}
+
+// BenchmarkNEQ applies the NEQ predicate on the "benchmark" field.
+func BenchmarkNEQ(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldNEQ(FieldBenchmark, v))
+}
+
+// BenchmarkIn applies the In predicate on the "benchmark" field.
+func BenchmarkIn(vs ...string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldIn(FieldBenchmark, vs...))
+}
+
+// BenchmarkNotIn applies the NotIn predicate on the "benchmark" field.
+func BenchmarkNotIn(vs ...string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldNotIn(FieldBenchmark, vs...))
+}
+
+// BenchmarkGT applies the GT predicate on the "benchmark" field.
+func BenchmarkGT(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldGT(FieldBenchmark, v))
+}
+
+// BenchmarkGTE applies the GTE predicate on the "benchmark" field.
+func BenchmarkGTE(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldGTE(FieldBenchmark, v))
+}
+
+// BenchmarkLT applies the LT predicate on the "benchmark" field.
+func BenchmarkLT(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldLT(FieldBenchmark, v))
+}
+
+// BenchmarkLTE applies the LTE predicate on the "benchmark" field.
+func BenchmarkLTE(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldLTE(FieldBenchmark, v))
+}
+
+// BenchmarkContains applies the Contains predicate on the "benchmark" field.
+func BenchmarkContains(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldContains(FieldBenchmark, v))
+}
+
+// BenchmarkHasPrefix applies the HasPrefix predicate on the "benchmark" field.
+func BenchmarkHasPrefix(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldHasPrefix(FieldBenchmark, v))
+}
+
+// BenchmarkHasSuffix applies the HasSuffix predicate on the "benchmark" field.
+func BenchmarkHasSuffix(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldHasSuffix(FieldBenchmark, v))
+}
+
+// BenchmarkEqualFold applies the EqualFold predicate on the "benchmark" field.
+func BenchmarkEqualFold(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldEqualFold(FieldBenchmark, v))
+}
+
+// BenchmarkContainsFold applies the ContainsFold predicate on the "benchmark" field.
+func BenchmarkContainsFold(v string) predicate.IntelligenceRun {
+	return predicate.IntelligenceRun(sql.FieldContainsFold(FieldBenchmark, v))
 }
 
 // TriggerEQ applies the EQ predicate on the "trigger" field.

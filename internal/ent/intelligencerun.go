@@ -33,6 +33,8 @@ type IntelligenceRun struct {
 	ModelID string `json:"model_id,omitempty"`
 	// Thinking level requested for this run; empty when the provider default applied
 	ReasoningEffort string `json:"reasoning_effort,omitempty"`
+	// Which check the run used: empty for the pelican default, or candy
+	Benchmark string `json:"benchmark,omitempty"`
 	// What started the run: manual or scheduled
 	Trigger string `json:"trigger,omitempty"`
 	// running while the check is in flight; then succeeded, partial or failed
@@ -59,7 +61,7 @@ func (*IntelligenceRun) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case intelligencerun.FieldID, intelligencerun.FieldDeletedAt, intelligencerun.FieldChannelID, intelligencerun.FieldTotalKeys, intelligencerun.FieldSuccessKeys, intelligencerun.FieldFailedKeys, intelligencerun.FieldDurationMs:
 			values[i] = new(sql.NullInt64)
-		case intelligencerun.FieldChannelName, intelligencerun.FieldModelID, intelligencerun.FieldReasoningEffort, intelligencerun.FieldTrigger, intelligencerun.FieldStatus:
+		case intelligencerun.FieldChannelName, intelligencerun.FieldModelID, intelligencerun.FieldReasoningEffort, intelligencerun.FieldBenchmark, intelligencerun.FieldTrigger, intelligencerun.FieldStatus:
 			values[i] = new(sql.NullString)
 		case intelligencerun.FieldCreatedAt, intelligencerun.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -125,6 +127,12 @@ func (_m *IntelligenceRun) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field reasoning_effort", values[i])
 			} else if value.Valid {
 				_m.ReasoningEffort = value.String
+			}
+		case intelligencerun.FieldBenchmark:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field benchmark", values[i])
+			} else if value.Valid {
+				_m.Benchmark = value.String
 			}
 		case intelligencerun.FieldTrigger:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -226,6 +234,9 @@ func (_m *IntelligenceRun) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("reasoning_effort=")
 	builder.WriteString(_m.ReasoningEffort)
+	builder.WriteString(", ")
+	builder.WriteString("benchmark=")
+	builder.WriteString(_m.Benchmark)
 	builder.WriteString(", ")
 	builder.WriteString("trigger=")
 	builder.WriteString(_m.Trigger)
