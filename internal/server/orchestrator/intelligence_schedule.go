@@ -41,10 +41,28 @@ const (
 	// intelligenceMaxTargetConcurrency caps how many configured targets run at
 	// the same time. Every target is a multi-minute generation, so running them
 	// in sequence made a large configuration take the sum of all of them.
+	//
+	// A manual run is capped by the number of configured targets instead (see
+	// intelligenceManualTargetConcurrency): the operator asked for those checks to
+	// start now, and waiting for a queue of three makes a ten-key configuration
+	// take three rounds of ten minutes. The scheduled path keeps the lower cap so
+	// an unattended run does not open many slow streams at once.
 	intelligenceMaxTargetConcurrency = 3
+
+	// intelligenceTargetConcurrencyCeiling is the upper bound for the manual cap.
+	// Ten runs are already minutes of generation each against the same upstreams,
+	// so the ceiling keeps a large configuration from opening an unbounded number
+	// of simultaneous streams.
+	intelligenceTargetConcurrencyCeiling = 10
 
 	// intelligenceSchedulerTask is the name of the scheduled task.
 	intelligenceSchedulerTask = "intelligence-check"
+
+	// The trigger recorded on a run: who asked for it. A manual run may start
+	// every configured target at once; a scheduled one stays behind the default
+	// cap.
+	intelligenceManualTrigger    = "manual"
+	intelligenceScheduledTrigger = "scheduled"
 )
 
 // intelligenceTargetKey identifies one target: a key may run several models on
@@ -324,7 +342,7 @@ func (s *IntelligenceService) runScheduled(ctx context.Context) {
 
 	// The scheduler tick already carries the configured interval, so reaching
 	// here means the run is due.
-	s.runConfiguredTargets(runCtx, config, "scheduled")
+	s.runConfiguredTargets(runCtx, config, intelligenceScheduledTrigger)
 }
 
 // RunManual evaluates the configured targets immediately, whatever the schedule
@@ -361,7 +379,7 @@ func (s *IntelligenceService) RunManual(ctx context.Context, channelID int, apiK
 			}
 		}()
 
-		s.runConfiguredTargets(bgCtx, config, "manual")
+		s.runConfiguredTargets(bgCtx, config, intelligenceManualTrigger)
 	}()
 
 	return len(config.Targets), nil
@@ -401,6 +419,22 @@ func narrowIntelligenceConfig(config *objects.IntelligenceConfig, channelID int,
 	}, nil
 }
 
+// targetConcurrencyForRun picks how many targets a run may evaluate at once.
+// Manual runs use the configured target count so "test now" starts every check
+// the operator selected, bounded by the ceiling; the scheduled run keeps the
+// lower default.
+func targetConcurrencyForRun(targetCount int, trigger string) int {
+	if trigger != intelligenceManualTrigger {
+		return intelligenceMaxTargetConcurrency
+	}
+
+	if targetCount <= 0 {
+		return intelligenceMaxTargetConcurrency
+	}
+
+	return min(targetCount, intelligenceTargetConcurrencyCeiling)
+}
+
 // runConfiguredTargets evaluates every target, one channel at a time so a run
 // does not fan out past the upstream concurrency the check already uses.
 //
@@ -414,7 +448,7 @@ func (s *IntelligenceService) runConfiguredTargets(ctx context.Context, config *
 	runTargetsConcurrently(
 		ctx,
 		config.Targets,
-		intelligenceMaxTargetConcurrency,
+		targetConcurrencyForRun(len(config.Targets), trigger),
 		func(ctx context.Context, target objects.IntelligenceTarget) {
 			if err := s.runOneChannel(ctx, target, trigger); err != nil {
 				log.Error(ctx, "intelligence check: channel run failed",
