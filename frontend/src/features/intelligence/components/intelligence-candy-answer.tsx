@@ -14,11 +14,13 @@ interface Props {
 
 // CandyAnswer renders the candy question's answer as prose.
 //
-// The answer is markdown the model wrote, with LaTeX for its arithmetic, so it
-// goes through the app's markdown renderer rather than a plain paragraph. That
-// is what turns \(6+4=10\) into a formula instead of showing the backslashes,
-// and what lays out the tables some answers end with. The long reasoning stays
-// collapsed until the reader asks for it.
+// The answer is markdown the model wrote, with its arithmetic wrapped in LaTeX.
+// The delimiters come off before rendering (see normalizeCandyAnswerMarkdown):
+// the renderer's math step would otherwise paint each formula three times over,
+// because the app carries neither KaTeX's stylesheet nor the class names its
+// sanitize step strips. What is left is the markdown the renderer does handle
+// well — bold, lists, and the tables some answers end with. The long reasoning
+// stays collapsed until the reader asks for it.
 const COLLAPSED_HEIGHT = 120;
 
 export function CandyAnswer({ answer }: Props) {
