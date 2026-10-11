@@ -482,7 +482,7 @@ type IntelligenceTarget {
 
 input IntelligenceConfigInput {
   enabled: Boolean!
-  # Scheduling interval in minutes. One of 10, 30 or 60.
+  # Scheduling interval in minutes. One of 10, 30, 60, 300 or 1440.
   intervalMinutes: Int!
   # Disable a channel key when a scheduled run finds it degraded. Omit or false
   # to only record the verdict.
