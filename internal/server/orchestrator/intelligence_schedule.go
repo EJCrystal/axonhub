@@ -88,7 +88,7 @@ func maskIntelligenceTargetKey(key string) string {
 }
 
 // allowedIntelligenceIntervals are the intervals the configuration accepts.
-var allowedIntelligenceIntervals = []int{10, 30, 60}
+var allowedIntelligenceIntervals = []int{10, 30, 60, 300, 1440}
 
 // allowedReasoningEfforts are the thinking levels a target may request. These
 // mirror llm/reasoning.go; an empty value means "use the provider default" and

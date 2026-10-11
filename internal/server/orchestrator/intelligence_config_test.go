@@ -30,7 +30,7 @@ func TestDefaultIntelligenceConfig(t *testing.T) {
 // TestAllowedIntelligenceIntervals pins the intervals the settings UI offers;
 // anything else has to be rejected before it reaches the scheduler.
 func TestAllowedIntelligenceIntervals(t *testing.T) {
-	require.Equal(t, []int{10, 30, 60}, allowedIntelligenceIntervals)
+	require.Equal(t, []int{10, 30, 60, 300, 1440}, allowedIntelligenceIntervals)
 
 	for _, minutes := range allowedIntelligenceIntervals {
 		require.True(t, isAllowedInterval(minutes))

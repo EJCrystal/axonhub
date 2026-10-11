@@ -448,6 +448,13 @@ interface ChannelCardProps {
   onRun: (target: DraftTarget) => void;
 }
 
+// The rows share one column template with the header above them, so the header
+// lines up with the values it names and the actions sit right after the last
+// field. Pushing the actions to the far edge with an auto margin is what left
+// the button stranded across a wide window.
+const ROW_GRID = 'grid items-center gap-2';
+const ROW_COLUMNS = 'grid-cols-[1.5rem_11rem_12rem_10rem_6rem_8rem_max-content_1fr]';
+
 // ChannelTargetCard holds one channel's keys.
 //
 // The channel is what the card is: it is chosen by the tab above, so the card
@@ -511,50 +518,69 @@ function ChannelTargetCard({
         </Button>
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={({ active }) => setActiveID(String(active.id))}
-        onDragCancel={() => setActiveID(null)}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext items={itemIDs} strategy={verticalListSortingStrategy}>
-          <div className='divide-y'>
-            {group.indices.map((index, position) => {
-              const target = targets[index];
-              if (!target) return null;
-
-              return (
-                <SortableTargetRow
-                  key={String(index)}
-                  id={String(index)}
-                  position={position}
-                  target={target}
-                  index={index}
-                  dragging={activeID === String(index)}
-                  readOnly={readOnly}
-                  canRun={canRun}
-                  runPending={runPending}
-                  saved={isSavedRow(index)}
-                  keys={(() => {
-                    const keys = freeKeysFor(target.channelID, index);
-                    // Keep the row's own key selectable even when it is the
-                    // reason the pair reads as taken, so the current value still
-                    // renders.
-                    if (target.apiKey && !keys.includes(target.apiKey)) keys.unshift(target.apiKey);
-                    return keys;
-                  })()}
-                  models={modelsFor(target.channelID, target.apiKey)}
-                  modelsFor={modelsFor}
-                  onUpdate={onUpdate}
-                  onRemove={onRemoveRow}
-                  onRun={onRun}
-                />
-              );
-            })}
+      {/* The columns are named once above the rows, the way the history table is:
+          a row of bare selects gives no clue which one is the model and which the
+          thinking level. A narrow window scrolls sideways instead of squeezing
+          the columns together. */}
+      <div className='overflow-x-auto'>
+        <div className='min-w-[980px]'>
+          <div className={ROW_GRID + ' ' + ROW_COLUMNS + ' border-b px-3 py-1.5'}>
+            <span />
+            <span className='text-muted-foreground text-xs font-medium'>{t('intelligence.settings.keyColumn')}</span>
+            <span className='text-muted-foreground text-xs font-medium'>{t('intelligence.settings.modelColumn')}</span>
+            <span className='text-muted-foreground text-xs font-medium'>{t('intelligence.settings.effortColumn')}</span>
+            <span className='text-muted-foreground text-xs font-medium'>{t('intelligence.settings.timeoutColumn')}</span>
+            <span className='text-muted-foreground text-xs font-medium'>{t('intelligence.settings.benchmarkColumn')}</span>
+            <span />
+            <span />
           </div>
-        </SortableContext>
-      </DndContext>
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={({ active }) => setActiveID(String(active.id))}
+            onDragCancel={() => setActiveID(null)}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={itemIDs} strategy={verticalListSortingStrategy}>
+              <div className='divide-y'>
+                {group.indices.map((index, position) => {
+                  const target = targets[index];
+                  if (!target) return null;
+
+                  return (
+                    <SortableTargetRow
+                      key={String(index)}
+                      id={String(index)}
+                      position={position}
+                      target={target}
+                      index={index}
+                      dragging={activeID === String(index)}
+                      readOnly={readOnly}
+                      canRun={canRun}
+                      runPending={runPending}
+                      saved={isSavedRow(index)}
+                      keys={(() => {
+                        const keys = freeKeysFor(target.channelID, index);
+                        // Keep the row's own key selectable even when it is the
+                        // reason the pair reads as taken, so the current value
+                        // still renders.
+                        if (target.apiKey && !keys.includes(target.apiKey)) keys.unshift(target.apiKey);
+                        return keys;
+                      })()}
+                      models={modelsFor(target.channelID, target.apiKey)}
+                      modelsFor={modelsFor}
+                      onUpdate={onUpdate}
+                      onRemove={onRemoveRow}
+                      onRun={onRun}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
+      </div>
     </div>
   );
 }
@@ -608,7 +634,7 @@ function SortableTargetRow({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       data-testid='intelligence-target-row'
-      className={`flex flex-wrap items-center gap-2 px-3 py-2 ${dragging ? 'bg-accent/40' : ''}`}
+      className={ROW_GRID + ' ' + ROW_COLUMNS + ' px-3 py-2' + (dragging ? 'bg-accent/40' : '')}
     >
       <button
         type='button'
@@ -628,7 +654,7 @@ function SortableTargetRow({
         onValueChange={(value) => onUpdate(index, { apiKey: value, modelID: modelsFor(target.channelID, value)[0] ?? '' })}
         disabled={readOnly || keys.length === 0}
       >
-        <SelectTrigger className='h-8 w-40' data-testid='intelligence-target-key'>
+        <SelectTrigger className='h-8 w-full' data-testid='intelligence-target-key'>
           <SelectValue placeholder={t('intelligence.settings.keyPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -645,7 +671,7 @@ function SortableTargetRow({
         onValueChange={(value) => onUpdate(index, { modelID: value })}
         disabled={readOnly || models.length === 0}
       >
-        <SelectTrigger className='h-8 w-44'>
+        <SelectTrigger className='h-8 w-full'>
           <SelectValue placeholder={t('intelligence.settings.modelPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -664,7 +690,7 @@ function SortableTargetRow({
         onValueChange={(value) => onUpdate(index, { reasoningEffort: value === NO_EFFORT ? '' : value })}
         disabled={readOnly}
       >
-        <SelectTrigger className='h-8 w-36'>
+        <SelectTrigger className='h-8 w-full'>
           <SelectValue placeholder={t('intelligence.settings.effortPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
@@ -692,7 +718,7 @@ function SortableTargetRow({
           });
         }}
         disabled={readOnly}
-        className='h-8 w-20'
+        className='h-8 w-full'
       />
 
       <Select
@@ -700,7 +726,7 @@ function SortableTargetRow({
         onValueChange={(value) => onUpdate(index, { benchmark: value === INTELLIGENCE_BENCHMARKS[0] ? '' : value })}
         disabled={readOnly}
       >
-        <SelectTrigger className='h-8 w-28'>
+        <SelectTrigger className='h-8 w-full'>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -712,7 +738,10 @@ function SortableTargetRow({
         </SelectContent>
       </Select>
 
-      <div className='ml-auto flex items-center gap-1'>
+      {/* The actions follow the last field rather than jumping to the right edge:
+          the empty cell after them is what holds the row's slack, so the button
+          stays next to the values it acts on. */}
+      <div className='flex items-center gap-1 whitespace-nowrap'>
         {/* Runs the saved target, not the row as edited: the backend works from
             the stored configuration, so an unsaved change would be ignored. */}
         <Button
@@ -731,6 +760,8 @@ function SortableTargetRow({
           <IconTrash size={15} />
         </Button>
       </div>
+
+      <span />
     </div>
   );
 }

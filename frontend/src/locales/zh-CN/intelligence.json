@@ -104,5 +104,7 @@
   "intelligence.settings.disableDegradedKeysHint": "仅定时测试生效：某轮判定某 Key 降智就禁用它，后续轮次判定正常后自动恢复。禁用会影响该 Key 的真实流量，请谨慎开启。手动禁用的 Key 不会被自动恢复。",
   "intelligence.settings.keyCount": "{{count}} 个 Key",
   "intelligence.settings.dragKey": "拖动调整 {{key}} 的顺序",
-  "intelligence.settings.dragHint": "按住左侧手柄可拖动，调整同一渠道内 Key 的展示顺序。"
+  "intelligence.settings.dragHint": "按住左侧手柄可拖动，调整同一渠道内 Key 的展示顺序。",
+  "intelligence.interval.300": "每 5 小时",
+  "intelligence.interval.1440": "每 1 天"
 }

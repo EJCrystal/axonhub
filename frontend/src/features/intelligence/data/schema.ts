@@ -97,5 +97,5 @@ export const intelligenceConfigSchema = z.object({
 export type IntelligenceConfig = z.infer<typeof intelligenceConfigSchema>;
 
 // The intervals the backend accepts.
-export const INTELLIGENCE_INTERVALS = [10, 30, 60] as const;
+export const INTELLIGENCE_INTERVALS = [10, 30, 60, 300, 1440] as const;
 export type IntelligenceInterval = (typeof INTELLIGENCE_INTERVALS)[number];
