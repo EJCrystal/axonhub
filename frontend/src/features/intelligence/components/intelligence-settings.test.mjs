@@ -17,16 +17,15 @@ test('a row is identified by channel plus key, not by channel alone', () => {
   assert.doesNotMatch(pairGate, /seen\.has\(channelIdKey/, 'a channel-only uniqueness check would forbid several keys per channel');
 });
 
-// Switching a card to another channel must land on keys that channel has not
-// already used, otherwise the save would be rejected as a duplicate. The whole
-// card turns over at once, so a row keeps its key only when the new channel
-// still carries it; otherwise it takes a key the other rows have not taken.
-test('switching a card picks keys that are still free on the new channel', () => {
-  const switchBlock = source.slice(source.indexOf('const switchGroupChannel'), source.indexOf('// Removing a card takes its rows with it'));
-  assert.ok(switchBlock, 'the card-level switch must exist');
-  assert.match(switchBlock, /keysFor\(channelID\)/, 'the new channel keys are looked up');
-  assert.match(switchBlock, /!isPairConfigured\(channelID, key, index\)/, 'a taken pair is skipped');
-  assert.match(switchBlock, /modelsFor\(channelID, apiKey\)/, 'and the model follows the key');
+// Keys are matched per channel everywhere they are offered: the add dialog must
+// never propose a channel+key pair the configuration already holds.
+test('a free key is looked up per channel', () => {
+  assert.match(source, /const freeKeysFor = \(channelID: string, skipIndex: number\)/, 'the helper is per channel');
+  assert.match(
+    source,
+    /keysFor\(channelID\)\.filter\(\(key\) => !isPairConfigured\(channelID, key, skipIndex\)\)/,
+    'and skips taken pairs'
+  );
 });
 
 // The add button has to know whether anything is left to add.
@@ -34,15 +33,17 @@ test('the add button is disabled once every pair is configured', () => {
   assert.match(source, /disabled=\{readOnly \|\| loading \|\| !firstFreePair\(\)\}/);
 });
 
-// The channel picker must list every channel, since a channel is now allowed to
-// appear again for a different key.
-test('the channel picker no longer filters out used channels', () => {
-  const select = source.slice(
-    source.indexOf('{channelOptions.map((channel) => ('),
-    source.indexOf('</SelectContent>', source.indexOf('{channelOptions.map((channel) => ('))
-  );
-  assert.ok(select, 'the channel picker must exist');
-  assert.doesNotMatch(select, /used\.has\(/, 'channels must not be filtered out');
+// The channel is chosen by the tab above the card, so the card carries no
+// picker of its own. Switching a three-key card onto a one-key channel used to
+// leave rows pointing at keys that channel does not have; removing the picker
+// removes the whole class of bug rather than patching its symptoms.
+test('a card does not carry a channel picker', () => {
+  const card = source.slice(source.indexOf('function ChannelTargetCard'), source.indexOf('interface SortableRowProps'));
+  assert.ok(card, 'the card must exist');
+  assert.doesNotMatch(card, /onSwitchChannel/, 'no channel switch on the card');
+  assert.doesNotMatch(card, /channelOptions/, 'and no channel list to switch with');
+  assert.doesNotMatch(card, /intelligence\.settings\.channelSwitch/, 'nor its label');
+  assert.doesNotMatch(source, /const switchGroupChannel/, 'the switch helper is gone too');
 });
 
 // A row keeps its own key selectable even when the pair would read as taken.
@@ -157,4 +158,18 @@ test('the row controls are not drag handles', () => {
   // A select in the same file must not carry the listeners as well.
   const keySelect = row.slice(row.indexOf("data-testid='intelligence-target-key'"), row.indexOf('</SelectContent>'));
   assert.doesNotMatch(keySelect, /\.\.\.listeners/, 'a select is not a drag handle');
+});
+
+// The channels run across the top, the way the history view lists them, so a
+// channel with a long key list no longer buries the next one below it.
+test('the channels are laid out as horizontal tabs', () => {
+  assert.match(source, /intelligence-channel-tab/, 'the channel tab is present');
+  assert.match(source, /<TabsList/, 'the channels share one tab strip');
+  assert.match(source, /<TabsContent/, 'and each owns a panel');
+  assert.match(source, /channelNameOf\(channelOfGroup\(group\)\)/, 'the tab is named after the channel');
+  assert.doesNotMatch(source, /<div className='space-y-3'>\s*\{groups\.map/, 'no vertical stack of cards');
+
+  // The selection follows the groups, so removing the showing channel cannot
+  // leave an empty panel behind.
+  assert.match(source, /if \(!keys\.includes\(activeGroupKey\)\) setActiveGroupKey\(keys\[0\]\)/, 'the tab falls back');
 });

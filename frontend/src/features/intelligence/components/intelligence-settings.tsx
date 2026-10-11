@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQueryChannels } from '@/features/channels/data/channels';
 import { modelsForAPIKey } from '../data/api-key-models';
 import { INTELLIGENCE_BENCHMARKS, REASONING_EFFORT_OPTIONS, benchmarkLabelKey } from '../data/benchmarks';
@@ -70,6 +71,8 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
   const [disableDegradedKeys, setDisableDegradedKeys] = useState(false);
   const [intervalMinutes, setIntervalMinutes] = useState<IntelligenceInterval>(60);
   const [targets, setTargets] = useState<DraftTarget[]>([]);
+  // Which channel's key list is showing. Empty lets the first group claim it.
+  const [activeGroupKey, setActiveGroupKey] = useState<string>('');
 
   useEffect(() => {
     if (!config) return;
@@ -231,41 +234,6 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
     setTargets((prev) => arrayMove(prev, fromIndex, toIndex));
   };
 
-  // A card may only switch to a channel no other card holds: channels are
-  // separated by card, so two cards for one channel would defeat the grouping.
-  const channelsAvailableTo = (groupIndex: number) => {
-    const held = new Map<string, number>();
-    groups.forEach((group, index) => held.set(channelIdKey(channelOfGroup(group)), index));
-
-    return channelOptions.filter((channel) => (held.get(channelIdKey(channel.id)) ?? groupIndex) === groupIndex);
-  };
-
-  const switchGroupChannel = (groupIndex: number, channelID: string) => {
-    const group = groups[groupIndex];
-    if (!group) return;
-
-    setTargets((prev) => {
-      const next = [...prev];
-      // Every row of the card moves together, except a row whose key the new
-      // channel does not have: that key would be unsaveable there, so the row
-      // takes the first key of the new channel the others have not taken.
-      const used = new Set<string>();
-      for (const index of group.indices) {
-        const available = keysFor(channelID);
-        const preferred = available.includes(next[index].apiKey) ? next[index].apiKey : undefined;
-        const apiKey = preferred ?? available.find((key) => !used.has(key) && !isPairConfigured(channelID, key, index)) ?? '';
-        used.add(apiKey);
-        next[index] = {
-          ...next[index],
-          channelID,
-          apiKey,
-          modelID: modelsFor(channelID, apiKey)[0] ?? '',
-        };
-      }
-      return next;
-    });
-  };
-
   // Removing a card takes its rows with it; removing one row leaves the card.
   const removeGroup = (group: { indices: number[] }) => {
     setTargets((prev) => prev.filter((_, index) => !group.indices.includes(index)));
@@ -286,6 +254,20 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
       (saved) => sameChannelId(saved.channelID, draft.channelID) && (saved.apiKey ?? '') === draft.apiKey && saved.modelID === draft.modelID
     );
   };
+
+  // The tab selection has to follow the groups: removing the channel that was
+  // showing would otherwise leave the panel empty, with the reader's rows in a
+  // tab no longer rendered.
+  useEffect(() => {
+    const keys = groups.map((group) => channelIdKey(channelOfGroup(group)));
+    if (keys.length === 0) {
+      if (activeGroupKey !== '') setActiveGroupKey('');
+      return;
+    }
+    if (!keys.includes(activeGroupKey)) setActiveGroupKey(keys[0]);
+    // channelOfGroup reads the live targets, so the group list is the dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, activeGroupKey]);
 
   // Two cards, because the screen holds two different jobs: deciding when the
   // check runs, and deciding what it runs against. One card for both buried the
@@ -373,32 +355,51 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
               {t('intelligence.settings.noTargets')}
             </p>
           ) : (
-            <div className='space-y-3'>
-              {groups.map((group, groupIndex) => (
-                <ChannelTargetCard
-                  key={channelIdKey(channelOfGroup(group))}
-                  group={group}
-                  targets={targets}
-                  channelName={channelNameOf(channelOfGroup(group))}
-                  channelOptions={channelsAvailableTo(groupIndex)}
-                  channelValue={channelOfGroup(group)}
-                  readOnly={readOnly}
-                  canRun={canRun}
-                  runPending={runNow.isPending}
-                  isSavedRow={isRowSaved}
-                  keysFor={keysFor}
-                  modelsFor={modelsFor}
-                  freeKeysFor={freeKeysFor}
-                  isPairConfigured={isPairConfigured}
-                  onSwitchChannel={(value) => switchGroupChannel(groupIndex, value)}
-                  onUpdate={updateTarget}
-                  onRemoveRow={removeTargetRow}
-                  onRemoveGroup={() => removeGroup(group)}
-                  onReorder={(from, to) => reorderWithinGroup(group, from, to)}
-                  onRun={(target) => runNow.mutate({ channelID: target.channelID, apiKey: target.apiKey })}
-                />
-              ))}
-            </div>
+            // The channels run across the top, the way the history view lists
+            // them: one channel's keys are read at a time, and a channel with a
+            // long key list no longer buries the next one several screens down.
+            <Tabs
+              // The tabs own their selection, falling back to the first group
+              // so a channel removed elsewhere cannot leave the panel empty.
+              value={activeGroupKey}
+              onValueChange={setActiveGroupKey}
+              className='space-y-3'
+            >
+              <TabsList className='h-auto w-full flex-wrap justify-start gap-1'>
+                {groups.map((group) => {
+                  const key = channelIdKey(channelOfGroup(group));
+                  return (
+                    <TabsTrigger key={key} value={key} className='flex-none px-3' data-testid='intelligence-channel-tab'>
+                      {channelNameOf(channelOfGroup(group))}
+                      <span className='text-muted-foreground ml-1 text-xs'>({group.indices.length})</span>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+              {groups.map((group) => {
+                const key = channelIdKey(channelOfGroup(group));
+                return (
+                  <TabsContent key={key} value={key}>
+                    <ChannelTargetCard
+                      group={group}
+                      targets={targets}
+                      channelName={channelNameOf(channelOfGroup(group))}
+                      readOnly={readOnly}
+                      canRun={canRun}
+                      runPending={runNow.isPending}
+                      isSavedRow={isRowSaved}
+                      modelsFor={modelsFor}
+                      freeKeysFor={freeKeysFor}
+                      onUpdate={updateTarget}
+                      onRemoveRow={removeTargetRow}
+                      onRemoveGroup={() => removeGroup(group)}
+                      onReorder={(from, to) => reorderWithinGroup(group, from, to)}
+                      onRun={(target) => runNow.mutate({ channelID: target.channelID, apiKey: target.apiKey })}
+                    />
+                  </TabsContent>
+                );
+              })}
+            </Tabs>
           )}
 
           <p className='text-muted-foreground text-xs'>{t('intelligence.settings.targetsHint')}</p>
@@ -430,26 +431,16 @@ interface TargetGroup {
   indices: number[];
 }
 
-interface ChannelOption {
-  id: string;
-  name: string;
-}
-
 interface ChannelCardProps {
   group: TargetGroup;
   targets: DraftTarget[];
   channelName: string;
-  channelOptions: ChannelOption[];
-  channelValue: string;
   readOnly: boolean;
   canRun: boolean;
   runPending: boolean;
   isSavedRow: (index: number) => boolean;
-  keysFor: (channelID: string) => string[];
   modelsFor: (channelID: string, apiKey: string) => string[];
   freeKeysFor: (channelID: string, skipIndex: number) => string[];
-  isPairConfigured: (channelID: string, apiKey: string, skipIndex?: number) => boolean;
-  onSwitchChannel: (channelID: string) => void;
   onUpdate: (index: number, patch: Partial<DraftTarget>) => void;
   onRemoveRow: (index: number) => void;
   onRemoveGroup: () => void;
@@ -459,25 +450,23 @@ interface ChannelCardProps {
 
 // ChannelTargetCard holds one channel's keys.
 //
-// A flat list mixes the keys of every channel together, so the reader cannot see
-// how many keys a channel has or which of them belong together. The card gives
-// each channel a heading, a count, and a list whose order the reader controls:
-// the order is what will be shown, and it is saved with the configuration.
+// The channel is what the card is: it is chosen by the tab above, so the card
+// carries no channel picker of its own. That used to be a trap — switching a
+// card with three keys to a channel that has one left rows pointing at keys the
+// channel does not have — and the picker is gone rather than patched.
+//
+// What the card does own is the order of its rows: the reader drags them, and
+// that order is what gets saved.
 function ChannelTargetCard({
   group,
   targets,
   channelName,
-  channelOptions,
-  channelValue,
   readOnly,
   canRun,
   runPending,
   isSavedRow,
-  keysFor,
   modelsFor,
   freeKeysFor,
-  isPairConfigured,
-  onSwitchChannel,
   onUpdate,
   onRemoveRow,
   onRemoveGroup,
@@ -517,33 +506,9 @@ function ChannelTargetCard({
             {t('intelligence.settings.keyCount', { count: group.indices.length })}
           </Badge>
         </div>
-        <div className='flex items-center gap-1'>
-          {/* The channel belongs to the card, not to a row: one dropdown moves
-              every key of this card together, which is what "this card is this
-              channel" means. */}
-          <Select value={channelValue} onValueChange={onSwitchChannel} disabled={readOnly}>
-            <SelectTrigger className='h-7 w-44 text-xs' aria-label={t('intelligence.settings.channelSwitch')}>
-              <SelectValue placeholder={t('intelligence.settings.channelColumn')} />
-            </SelectTrigger>
-            <SelectContent>
-              {channelOptions.map((channel) => (
-                <SelectItem key={channel.id} value={channel.id}>
-                  {channel.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant='ghost'
-            size='icon'
-            className='h-7 w-7'
-            onClick={onRemoveGroup}
-            disabled={readOnly}
-            aria-label={t('common.delete')}
-          >
-            <IconTrash size={15} />
-          </Button>
-        </div>
+        <Button variant='ghost' size='icon' className='h-7 w-7' onClick={onRemoveGroup} disabled={readOnly} aria-label={t('common.delete')}>
+          <IconTrash size={15} />
+        </Button>
       </div>
 
       <DndContext
@@ -580,9 +545,7 @@ function ChannelTargetCard({
                     return keys;
                   })()}
                   models={modelsFor(target.channelID, target.apiKey)}
-                  keysFor={keysFor}
                   modelsFor={modelsFor}
-                  isPairConfigured={isPairConfigured}
                   onUpdate={onUpdate}
                   onRemove={onRemoveRow}
                   onRun={onRun}
@@ -608,9 +571,7 @@ interface SortableRowProps {
   saved: boolean;
   keys: string[];
   models: string[];
-  keysFor: (channelID: string) => string[];
   modelsFor: (channelID: string, apiKey: string) => string[];
-  isPairConfigured: (channelID: string, apiKey: string, skipIndex?: number) => boolean;
   onUpdate: (index: number, patch: Partial<DraftTarget>) => void;
   onRemove: (index: number) => void;
   onRun: (target: DraftTarget) => void;

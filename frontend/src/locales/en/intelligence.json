@@ -102,8 +102,6 @@
   "intelligence.history.filters": "Filters",
   "intelligence.settings.disableDegradedKeys": "Disable a key when it is degraded",
   "intelligence.settings.disableDegradedKeysHint": "Scheduled runs only: a key judged degraded is disabled, and re-enabled once a later run judges it normal. Disabling also removes the key from live traffic, so enable with care. Keys you disabled by hand are never re-enabled automatically.",
-  "intelligence.settings.channelCardTitle": "Channel",
-  "intelligence.settings.channelSwitch": "Change channel",
   "intelligence.settings.keyCount": "{{count}} keys",
   "intelligence.settings.dragKey": "Drag to reorder {{key}}",
   "intelligence.settings.dragHint": "Drag the handle to reorder the keys within a channel."
