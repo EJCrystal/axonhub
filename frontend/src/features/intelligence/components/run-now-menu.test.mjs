@@ -25,8 +25,8 @@ test('the run button sits on the settings row and names the key', () => {
 // Running reads the stored configuration, so a row that was edited but not saved
 // cannot be run: the click would silently check the previous values.
 test('only a saved row can be run', () => {
-  assert.match(settings, /isSavedTarget\(index\)/, 'the button checks the row against the saved config');
-  assert.match(settings, /!canRun \|\| readOnly \|\| runNow\.isPending \|\| !isSavedTarget\(index\)/, 'and is disabled otherwise');
+  assert.match(settings, /isSavedRow\(index\)/, 'the button checks the row against the saved config');
+  assert.match(settings, /!canRun \|\| readOnly \|\| runPending \|\| !saved/, 'and is disabled otherwise');
 });
 
 // The old header menu is gone; the button that ran everything stays.

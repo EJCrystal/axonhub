@@ -1,23 +1,26 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { IconGripVertical, IconPlayerPlay, IconPlus, IconTrash } from '@tabler/icons-react';
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
-import { IconPlayerPlay, IconPlus, IconTrash } from '@tabler/icons-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQueryChannels } from '@/features/channels/data/channels';
 import { modelsForAPIKey } from '../data/api-key-models';
-import { maskAPIKey } from '../data/mask-key';
-import { sameChannelId } from '../data/channel-id';
-import { INTELLIGENCE_INTERVALS, IntelligenceConfig, IntelligenceInterval } from '../data/schema';
 import { INTELLIGENCE_BENCHMARKS, REASONING_EFFORT_OPTIONS, benchmarkLabelKey } from '../data/benchmarks';
-import { IntelligenceAddTargetDialog } from './intelligence-add-target-dialog';
+import { channelIdKey, sameChannelId } from '../data/channel-id';
 import { useRunIntelligenceCheckNow, useSetIntelligenceConfig } from '../data/intelligence';
+import { maskAPIKey } from '../data/mask-key';
+import { INTELLIGENCE_INTERVALS, IntelligenceConfig, IntelligenceInterval } from '../data/schema';
+import { IntelligenceAddTargetDialog } from './intelligence-add-target-dialog';
 
 // Radix Select reserves the empty string, so "provider default" needs its own value.
 const NO_EFFORT = '__default__';
@@ -31,7 +34,6 @@ const MAX_TIMEOUT_MINUTES = 20;
 // The published benchmarks. The empty string means pelican, which is what every
 // stored target used before the choice existed, so the picker shows the pelican
 // default as its own explicit value.
-
 
 interface Props {
   config?: IntelligenceConfig;
@@ -53,7 +55,6 @@ interface DraftTarget {
   // Which check this row runs. Empty means the pelican default.
   benchmark: string;
 }
-
 
 export function IntelligenceSettings({ config, loading, readOnly, canRun }: Props) {
   const { t } = useTranslation();
@@ -124,10 +125,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
   // is about, and each one runs its own model and thinking level. What must not
   // repeat is the channel+key pair.
   const isPairConfigured = (channelID: string, apiKey: string, skipIndex?: number) =>
-    targets.some(
-      (target, index) =>
-        index !== skipIndex && sameChannelId(target.channelID, channelID) && target.apiKey === apiKey
-    );
+    targets.some((target, index) => index !== skipIndex && sameChannelId(target.channelID, channelID) && target.apiKey === apiKey);
 
   // The first pair still free. Returns null when every enabled key of every
   // channel is already configured, so the caller can keep the button disabled.
@@ -173,25 +171,6 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
     setTargets((prev) => prev.map((target, i) => (i === index ? { ...target, ...patch } : target)));
   };
 
-  const removeTarget = (index: number) => {
-    setTargets((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // isSavedTarget reports whether this row still matches something the backend
-  // has stored. A newly added or edited row cannot be run yet, because the run
-  // reads the saved configuration.
-  const isSavedTarget = (index: number) => {
-    const draft = targets[index];
-    if (!draft) return false;
-
-    return (config?.targets ?? []).some(
-      (saved) =>
-        sameChannelId(saved.channelID, draft.channelID) &&
-        (saved.apiKey ?? '') === draft.apiKey &&
-        saved.modelID === draft.modelID
-    );
-  };
-
   const handleSave = () => {
     save.mutate({
       enabled,
@@ -211,9 +190,106 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
     });
   };
 
+  // Grouping is by channel, so the reader sees one block per channel instead of
+  // a flat list where three keys of the same channel sit rows apart. The groups
+  // keep the order the targets were saved in, and each group keeps its own order
+  // inside, which is the order the drag handle edits.
+  const groups = useMemo(() => {
+    const order: string[] = [];
+    const byChannel = new Map<string, { channelID: string; indices: number[] }>();
+
+    targets.forEach((target, index) => {
+      const key = channelIdKey(target.channelID);
+      const existing = byChannel.get(key);
+      if (existing) {
+        existing.indices.push(index);
+        return;
+      }
+      order.push(key);
+      byChannel.set(key, { channelID: target.channelID, indices: [index] });
+    });
+
+    return order.map((key) => byChannel.get(key)!);
+  }, [targets]);
+
+  // The channel a card currently holds, read back from the targets so switching
+  // turns the whole card over at once rather than leaving its keys behind.
+  const channelOfGroup = (group: { indices: number[] }) => targets[group.indices[0]]?.channelID ?? '';
+
+  // A saved target may name a channel the list no longer carries, and the card
+  // title still has to say something. The stored id is the last resort.
+  const channelNameOf = (channelID: string) => channelByID(channelID)?.name ?? channelID;
+
+  // Reordering happens inside one channel, so a drag can never land a key on a
+  // channel it does not belong to. The move is applied to the underlying index
+  // list, which leaves every other channel's rows where they were.
+  const reorderWithinGroup = (group: { indices: number[] }, from: number, to: number) => {
+    const fromIndex = group.indices[from];
+    const toIndex = group.indices[to];
+    if (fromIndex === undefined || toIndex === undefined || fromIndex === toIndex) return;
+
+    setTargets((prev) => arrayMove(prev, fromIndex, toIndex));
+  };
+
+  // A card may only switch to a channel no other card holds: channels are
+  // separated by card, so two cards for one channel would defeat the grouping.
+  const channelsAvailableTo = (groupIndex: number) => {
+    const held = new Map<string, number>();
+    groups.forEach((group, index) => held.set(channelIdKey(channelOfGroup(group)), index));
+
+    return channelOptions.filter((channel) => (held.get(channelIdKey(channel.id)) ?? groupIndex) === groupIndex);
+  };
+
+  const switchGroupChannel = (groupIndex: number, channelID: string) => {
+    const group = groups[groupIndex];
+    if (!group) return;
+
+    setTargets((prev) => {
+      const next = [...prev];
+      // Every row of the card moves together, except a row whose key the new
+      // channel does not have: that key would be unsaveable there, so the row
+      // takes the first key of the new channel the others have not taken.
+      const used = new Set<string>();
+      for (const index of group.indices) {
+        const available = keysFor(channelID);
+        const preferred = available.includes(next[index].apiKey) ? next[index].apiKey : undefined;
+        const apiKey = preferred ?? available.find((key) => !used.has(key) && !isPairConfigured(channelID, key, index)) ?? '';
+        used.add(apiKey);
+        next[index] = {
+          ...next[index],
+          channelID,
+          apiKey,
+          modelID: modelsFor(channelID, apiKey)[0] ?? '',
+        };
+      }
+      return next;
+    });
+  };
+
+  // Removing a card takes its rows with it; removing one row leaves the card.
+  const removeGroup = (group: { indices: number[] }) => {
+    setTargets((prev) => prev.filter((_, index) => !group.indices.includes(index)));
+  };
+
+  const removeTargetRow = (index: number) => {
+    setTargets((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // A row may be run once the backend has stored exactly this channel, key and
+  // model. A newly added or edited row cannot be run yet, because the run reads
+  // the saved configuration.
+  const isRowSaved = (index: number) => {
+    const draft = targets[index];
+    if (!draft) return false;
+
+    return (config?.targets ?? []).some(
+      (saved) => sameChannelId(saved.channelID, draft.channelID) && (saved.apiKey ?? '') === draft.apiKey && saved.modelID === draft.modelID
+    );
+  };
+
   // Two cards, because the screen holds two different jobs: deciding when the
   // check runs, and deciding what it runs against. One card for both buried the
-  // schedule under a table that can be long.
+  // schedule under a list that can be long.
   return (
     <div className='space-y-4'>
       <Card>
@@ -246,7 +322,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
               <SelectContent>
                 {INTELLIGENCE_INTERVALS.map((minutes) => (
                   <SelectItem key={minutes} value={String(minutes)}>
-                    {t(`intelligence.interval.${minutes}`)}
+                    {t('intelligence.interval.' + minutes)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -256,9 +332,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
           <div className='flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4'>
             <div className='space-y-1'>
               <Label htmlFor='intelligence-disable-degraded'>{t('intelligence.settings.disableDegradedKeys')}</Label>
-              <p className='text-muted-foreground text-xs max-w-prose'>
-                {t('intelligence.settings.disableDegradedKeysHint')}
-              </p>
+              <p className='text-muted-foreground max-w-prose text-xs'>{t('intelligence.settings.disableDegradedKeysHint')}</p>
             </div>
             <Switch
               id='intelligence-disable-degraded'
@@ -277,228 +351,425 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
           <CardDescription>{t('intelligence.settings.description')}</CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
-        <div className='space-y-2'>
           <div className='flex items-center justify-between'>
             <Label className='flex items-center gap-2'>
               {t('intelligence.settings.targets')}
               <span className='text-muted-foreground text-xs tabular-nums'>({targets.length})</span>
             </Label>
-            <Button variant='outline' size='sm' onClick={() => setAddOpen(true)} disabled={readOnly || loading || !firstFreePair()} data-testid='add-intelligence-target'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => setAddOpen(true)}
+              disabled={readOnly || loading || !firstFreePair()}
+              data-testid='add-intelligence-target'
+            >
               <IconPlus className='mr-1 h-4 w-4' />
               {t('intelligence.settings.addTarget')}
             </Button>
           </div>
 
-          <div className='rounded-lg border'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('intelligence.settings.channelColumn')}</TableHead>
-                  <TableHead>{t('intelligence.settings.keyColumn')}</TableHead>
-                  <TableHead>{t('intelligence.settings.modelColumn')}</TableHead>
-                  <TableHead>{t('intelligence.settings.effortColumn')}</TableHead>
-                  <TableHead>{t('intelligence.settings.timeoutColumn')}</TableHead>
-                  <TableHead>{t('intelligence.settings.benchmarkColumn')}</TableHead>
-                  <TableHead className='w-16'></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {targets.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className='text-muted-foreground text-center text-xs'>
-                      {t('intelligence.settings.noTargets')}
-                    </TableCell>
-                  </TableRow>
-                )}
-                {targets.map((target, index) => {
-                  const keys = freeKeysFor(target.channelID, index);
-                  // Keep the row's own key selectable even when it is the reason
-                  // the pair reads as taken, so the current value still renders.
-                  if (target.apiKey && !keys.includes(target.apiKey)) keys.unshift(target.apiKey);
-                  const models = modelsFor(target.channelID, target.apiKey);
-                  return (
-                    <TableRow key={`${target.channelID}-${index}`}>
-                      <TableCell>
-                        <Select
-                          value={target.channelID}
-                          onValueChange={(value) => {
-                            const apiKey = keysFor(value).find((key) => !isPairConfigured(value, key, index)) ?? '';
-                            updateTarget(index, { channelID: value, apiKey, modelID: modelsFor(value, apiKey)[0] ?? '' });
-                          }}
-                          disabled={readOnly}
-                        >
-                          <SelectTrigger className='w-44'>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {channelOptions.map((channel) => (
-                                <SelectItem key={channel.id} value={channel.id}>
-                                  {channel.name}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={target.apiKey}
-                          onValueChange={(value) => updateTarget(index, { apiKey: value, modelID: modelsFor(target.channelID, value)[0] ?? '' })}
-                          disabled={readOnly || keys.length === 0}
-                        >
-                          <SelectTrigger className='w-40'>
-                            <SelectValue placeholder={t('intelligence.settings.keyPlaceholder')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {keys.map((key) => (
-                              <SelectItem key={key} value={key}>
-                                <span className='font-mono text-xs'>{maskAPIKey(key)}</span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={target.modelID}
-                          onValueChange={(value) => updateTarget(index, { modelID: value })}
-                          disabled={readOnly || models.length === 0}
-                        >
-                          <SelectTrigger className='w-44'>
-                            <SelectValue placeholder={t('intelligence.settings.modelPlaceholder')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {models.map((model) => (
-                              <SelectItem key={model} value={model}>
-                                {model}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        {/* Not every model accepts every level, and an empty
-                            choice lets the provider apply its own default. */}
-                        <Select
-                          value={target.reasoningEffort || NO_EFFORT}
-                          onValueChange={(value) =>
-                            updateTarget(index, { reasoningEffort: value === NO_EFFORT ? '' : value })
-                          }
-                          disabled={readOnly}
-                        >
-                          <SelectTrigger className='w-36'>
-                            <SelectValue placeholder={t('intelligence.settings.effortPlaceholder')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={NO_EFFORT}>{t('intelligence.settings.effortDefault')}</SelectItem>
-                            {REASONING_EFFORT_OPTIONS.map((effort) => (
-                              <SelectItem key={effort} value={effort}>
-                                {effort}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        {/* Zero keeps the built-in budget. A slow upstream can ask
-                            for more time without changing anything else. */}
-                        <Input
-                          type='number'
-                          min={0}
-                          max={MAX_TIMEOUT_MINUTES}
-                          value={target.timeoutMinutes || ''}
-                          placeholder={String(DEFAULT_TIMEOUT_MINUTES)}
-                          onChange={(event) => {
-                            const parsed = Number(event.target.value);
-                            updateTarget(index, {
-                              timeoutMinutes:
-                                Number.isFinite(parsed) && parsed > 0
-                                  ? Math.min(parsed, MAX_TIMEOUT_MINUTES)
-                                  : 0,
-                            });
-                          }}
-                          disabled={readOnly}
-                          className='w-24'
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {/* Which check this row runs. Both benchmarks are asked of the
-                            same model, so the choice belongs next to the model. */}
-                        <Select
-                          value={target.benchmark || INTELLIGENCE_BENCHMARKS[0]}
-                          onValueChange={(value) =>
-                            updateTarget(index, {
-                              benchmark: value === INTELLIGENCE_BENCHMARKS[0] ? '' : value,
-                            })
-                          }
-                          disabled={readOnly}
-                        >
-                          <SelectTrigger className='w-32'>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {INTELLIGENCE_BENCHMARKS.map((value) => (
-                              <SelectItem key={value} value={value}>
-                                {t(benchmarkLabelKey(value))}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <div className='flex items-center gap-1'>
-                          {/* Runs the saved target, not the row as edited: the
-                              backend works from the stored configuration, so an
-                              unsaved change would silently be ignored. */}
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            className='h-7'
-                            disabled={!canRun || readOnly || runNow.isPending || !isSavedTarget(index)}
-                            onClick={() =>
-                              runNow.mutate({ channelID: target.channelID, apiKey: target.apiKey })
-                            }
-                            aria-label={t('intelligence.settings.runThisTarget')}
-                            data-testid='run-intelligence-target'
-                          >
-                            <IconPlayerPlay size={14} className='mr-1' />
-                            {t('intelligence.settings.runThisTarget')}
-                          </Button>
-                          <Button
-                            variant='ghost'
-                            size='icon'
-                            onClick={() => removeTarget(index)}
-                            disabled={readOnly}
-                          >
-                            <IconTrash size={16} />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+          {targets.length === 0 ? (
+            <p className='text-muted-foreground rounded-lg border border-dashed py-10 text-center text-xs'>
+              {t('intelligence.settings.noTargets')}
+            </p>
+          ) : (
+            <div className='space-y-3'>
+              {groups.map((group, groupIndex) => (
+                <ChannelTargetCard
+                  key={channelIdKey(channelOfGroup(group))}
+                  group={group}
+                  targets={targets}
+                  channelName={channelNameOf(channelOfGroup(group))}
+                  channelOptions={channelsAvailableTo(groupIndex)}
+                  channelValue={channelOfGroup(group)}
+                  readOnly={readOnly}
+                  canRun={canRun}
+                  runPending={runNow.isPending}
+                  isSavedRow={isRowSaved}
+                  keysFor={keysFor}
+                  modelsFor={modelsFor}
+                  freeKeysFor={freeKeysFor}
+                  isPairConfigured={isPairConfigured}
+                  onSwitchChannel={(value) => switchGroupChannel(groupIndex, value)}
+                  onUpdate={updateTarget}
+                  onRemoveRow={removeTargetRow}
+                  onRemoveGroup={() => removeGroup(group)}
+                  onReorder={(from, to) => reorderWithinGroup(group, from, to)}
+                  onRun={(target) => runNow.mutate({ channelID: target.channelID, apiKey: target.apiKey })}
+                />
+              ))}
+            </div>
+          )}
+
           <p className='text-muted-foreground text-xs'>{t('intelligence.settings.targetsHint')}</p>
-        </div>
+          <p className='text-muted-foreground text-xs'>{t('intelligence.settings.dragHint')}</p>
 
-        <div className='flex justify-end'>
-          <Button onClick={handleSave} disabled={readOnly || save.isPending} data-testid='save-intelligence-config'>
-            {save.isPending ? t('intelligence.settings.saving') : t('intelligence.settings.save')}
-          </Button>
-        </div>
+          <div className='flex justify-end'>
+            <Button onClick={handleSave} disabled={readOnly || save.isPending} data-testid='save-intelligence-config'>
+              {save.isPending ? t('intelligence.settings.saving') : t('intelligence.settings.save')}
+            </Button>
+          </div>
 
-        <IntelligenceAddTargetDialog
-          open={addOpen}
-          onOpenChange={setAddOpen}
-          channels={dialogChannels}
-          isPairConfigured={(channelID, apiKey) =>
-            targets.some((target) => sameChannelId(target.channelID, channelID) && target.apiKey === apiKey)
-          }
-          onAdd={(target) => addTarget({ ...target, timeoutMinutes: 0 })}
-        />
+          <IntelligenceAddTargetDialog
+            open={addOpen}
+            onOpenChange={setAddOpen}
+            channels={dialogChannels}
+            isPairConfigured={(channelID, apiKey) =>
+              targets.some((target) => sameChannelId(target.channelID, channelID) && target.apiKey === apiKey)
+            }
+            onAdd={(target) => addTarget({ ...target, timeoutMinutes: 0 })}
+          />
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+interface TargetGroup {
+  channelID: string;
+  indices: number[];
+}
+
+interface ChannelOption {
+  id: string;
+  name: string;
+}
+
+interface ChannelCardProps {
+  group: TargetGroup;
+  targets: DraftTarget[];
+  channelName: string;
+  channelOptions: ChannelOption[];
+  channelValue: string;
+  readOnly: boolean;
+  canRun: boolean;
+  runPending: boolean;
+  isSavedRow: (index: number) => boolean;
+  keysFor: (channelID: string) => string[];
+  modelsFor: (channelID: string, apiKey: string) => string[];
+  freeKeysFor: (channelID: string, skipIndex: number) => string[];
+  isPairConfigured: (channelID: string, apiKey: string, skipIndex?: number) => boolean;
+  onSwitchChannel: (channelID: string) => void;
+  onUpdate: (index: number, patch: Partial<DraftTarget>) => void;
+  onRemoveRow: (index: number) => void;
+  onRemoveGroup: () => void;
+  onReorder: (from: number, to: number) => void;
+  onRun: (target: DraftTarget) => void;
+}
+
+// ChannelTargetCard holds one channel's keys.
+//
+// A flat list mixes the keys of every channel together, so the reader cannot see
+// how many keys a channel has or which of them belong together. The card gives
+// each channel a heading, a count, and a list whose order the reader controls:
+// the order is what will be shown, and it is saved with the configuration.
+function ChannelTargetCard({
+  group,
+  targets,
+  channelName,
+  channelOptions,
+  channelValue,
+  readOnly,
+  canRun,
+  runPending,
+  isSavedRow,
+  keysFor,
+  modelsFor,
+  freeKeysFor,
+  isPairConfigured,
+  onSwitchChannel,
+  onUpdate,
+  onRemoveRow,
+  onRemoveGroup,
+  onReorder,
+  onRun,
+}: ChannelCardProps) {
+  const { t } = useTranslation();
+
+  // Drag ends are reported by row key, so the ids must be stable across renders:
+  // they are the target's position in the whole list, which is what the move is
+  // applied to.
+  const itemIDs = group.indices.map((index) => String(index));
+  const [activeID, setActiveID] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    setActiveID(null);
+    if (!over || active.id === over.id) return;
+
+    const from = group.indices.findIndex((index) => String(index) === String(active.id));
+    const to = group.indices.findIndex((index) => String(index) === String(over.id));
+    if (from < 0 || to < 0) return;
+
+    onReorder(from, to);
+  };
+
+  return (
+    <div className='rounded-lg border' data-testid='intelligence-channel-card'>
+      <div className='bg-muted/40 flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2'>
+        <div className='flex items-center gap-2'>
+          <span className='text-sm font-medium'>{channelName}</span>
+          <Badge variant='outline' className='h-5 px-1.5 text-[11px]'>
+            {t('intelligence.settings.keyCount', { count: group.indices.length })}
+          </Badge>
+        </div>
+        <div className='flex items-center gap-1'>
+          {/* The channel belongs to the card, not to a row: one dropdown moves
+              every key of this card together, which is what "this card is this
+              channel" means. */}
+          <Select value={channelValue} onValueChange={onSwitchChannel} disabled={readOnly}>
+            <SelectTrigger className='h-7 w-44 text-xs' aria-label={t('intelligence.settings.channelSwitch')}>
+              <SelectValue placeholder={t('intelligence.settings.channelColumn')} />
+            </SelectTrigger>
+            <SelectContent>
+              {channelOptions.map((channel) => (
+                <SelectItem key={channel.id} value={channel.id}>
+                  {channel.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant='ghost'
+            size='icon'
+            className='h-7 w-7'
+            onClick={onRemoveGroup}
+            disabled={readOnly}
+            aria-label={t('common.delete')}
+          >
+            <IconTrash size={15} />
+          </Button>
+        </div>
+      </div>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={({ active }) => setActiveID(String(active.id))}
+        onDragCancel={() => setActiveID(null)}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={itemIDs} strategy={verticalListSortingStrategy}>
+          <div className='divide-y'>
+            {group.indices.map((index, position) => {
+              const target = targets[index];
+              if (!target) return null;
+
+              return (
+                <SortableTargetRow
+                  key={String(index)}
+                  id={String(index)}
+                  position={position}
+                  target={target}
+                  index={index}
+                  dragging={activeID === String(index)}
+                  readOnly={readOnly}
+                  canRun={canRun}
+                  runPending={runPending}
+                  saved={isSavedRow(index)}
+                  keys={(() => {
+                    const keys = freeKeysFor(target.channelID, index);
+                    // Keep the row's own key selectable even when it is the
+                    // reason the pair reads as taken, so the current value still
+                    // renders.
+                    if (target.apiKey && !keys.includes(target.apiKey)) keys.unshift(target.apiKey);
+                    return keys;
+                  })()}
+                  models={modelsFor(target.channelID, target.apiKey)}
+                  keysFor={keysFor}
+                  modelsFor={modelsFor}
+                  isPairConfigured={isPairConfigured}
+                  onUpdate={onUpdate}
+                  onRemove={onRemoveRow}
+                  onRun={onRun}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
+
+interface SortableRowProps {
+  id: string;
+  position: number;
+  index: number;
+  target: DraftTarget;
+  dragging: boolean;
+  readOnly: boolean;
+  canRun: boolean;
+  runPending: boolean;
+  saved: boolean;
+  keys: string[];
+  models: string[];
+  keysFor: (channelID: string) => string[];
+  modelsFor: (channelID: string, apiKey: string) => string[];
+  isPairConfigured: (channelID: string, apiKey: string, skipIndex?: number) => boolean;
+  onUpdate: (index: number, patch: Partial<DraftTarget>) => void;
+  onRemove: (index: number) => void;
+  onRun: (target: DraftTarget) => void;
+}
+
+// SortableTargetRow is one key of a channel: which key, and what the check asks
+// of it. The handle is the only drag start, so the selects and the input inside
+// the row keep working normally.
+function SortableTargetRow({
+  id,
+  position,
+  index,
+  target,
+  dragging,
+  readOnly,
+  canRun,
+  runPending,
+  saved,
+  keys,
+  models,
+  modelsFor,
+  onUpdate,
+  onRemove,
+  onRun,
+}: SortableRowProps) {
+  const { t } = useTranslation();
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition } = useSortable({
+    id,
+    disabled: readOnly,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      data-testid='intelligence-target-row'
+      className={`flex flex-wrap items-center gap-2 px-3 py-2 ${dragging ? 'bg-accent/40' : ''}`}
+    >
+      <button
+        type='button'
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        className='text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing disabled:cursor-not-allowed'
+        disabled={readOnly}
+        aria-label={t('intelligence.settings.dragKey', { key: target.apiKey ? maskAPIKey(target.apiKey) : position + 1 })}
+        data-testid='intelligence-target-drag-handle'
+      >
+        <IconGripVertical size={16} />
+      </button>
+
+      <Select
+        value={target.apiKey}
+        onValueChange={(value) => onUpdate(index, { apiKey: value, modelID: modelsFor(target.channelID, value)[0] ?? '' })}
+        disabled={readOnly || keys.length === 0}
+      >
+        <SelectTrigger className='h-8 w-40' data-testid='intelligence-target-key'>
+          <SelectValue placeholder={t('intelligence.settings.keyPlaceholder')} />
+        </SelectTrigger>
+        <SelectContent>
+          {keys.map((key) => (
+            <SelectItem key={key} value={key}>
+              <span className='font-mono text-xs'>{maskAPIKey(key)}</span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={target.modelID}
+        onValueChange={(value) => onUpdate(index, { modelID: value })}
+        disabled={readOnly || models.length === 0}
+      >
+        <SelectTrigger className='h-8 w-44'>
+          <SelectValue placeholder={t('intelligence.settings.modelPlaceholder')} />
+        </SelectTrigger>
+        <SelectContent>
+          {models.map((model) => (
+            <SelectItem key={model} value={model}>
+              {model}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Not every model accepts every level, and an empty choice lets the
+          provider apply its own default. */}
+      <Select
+        value={target.reasoningEffort || NO_EFFORT}
+        onValueChange={(value) => onUpdate(index, { reasoningEffort: value === NO_EFFORT ? '' : value })}
+        disabled={readOnly}
+      >
+        <SelectTrigger className='h-8 w-36'>
+          <SelectValue placeholder={t('intelligence.settings.effortPlaceholder')} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NO_EFFORT}>{t('intelligence.settings.effortDefault')}</SelectItem>
+          {REASONING_EFFORT_OPTIONS.map((effort) => (
+            <SelectItem key={effort} value={effort}>
+              {effort}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Zero keeps the built-in budget. A slow upstream can ask for more time
+          without changing anything else. */}
+      <Input
+        type='number'
+        min={0}
+        max={MAX_TIMEOUT_MINUTES}
+        value={target.timeoutMinutes || ''}
+        placeholder={String(DEFAULT_TIMEOUT_MINUTES)}
+        onChange={(event) => {
+          const parsed = Number(event.target.value);
+          onUpdate(index, {
+            timeoutMinutes: Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, MAX_TIMEOUT_MINUTES) : 0,
+          });
+        }}
+        disabled={readOnly}
+        className='h-8 w-20'
+      />
+
+      <Select
+        value={target.benchmark || INTELLIGENCE_BENCHMARKS[0]}
+        onValueChange={(value) => onUpdate(index, { benchmark: value === INTELLIGENCE_BENCHMARKS[0] ? '' : value })}
+        disabled={readOnly}
+      >
+        <SelectTrigger className='h-8 w-28'>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {INTELLIGENCE_BENCHMARKS.map((value) => (
+            <SelectItem key={value} value={value}>
+              {t(benchmarkLabelKey(value))}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <div className='ml-auto flex items-center gap-1'>
+        {/* Runs the saved target, not the row as edited: the backend works from
+            the stored configuration, so an unsaved change would be ignored. */}
+        <Button
+          variant='outline'
+          size='sm'
+          className='h-7'
+          disabled={!canRun || readOnly || runPending || !saved}
+          onClick={() => onRun(target)}
+          aria-label={t('intelligence.settings.runThisTarget')}
+          data-testid='run-intelligence-target'
+        >
+          <IconPlayerPlay size={14} className='mr-1' />
+          {t('intelligence.settings.runThisTarget')}
+        </Button>
+        <Button variant='ghost' size='icon' className='h-7 w-7' onClick={() => onRemove(index)} disabled={readOnly}>
+          <IconTrash size={15} />
+        </Button>
+      </div>
     </div>
   );
 }
