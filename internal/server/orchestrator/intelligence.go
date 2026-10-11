@@ -754,6 +754,10 @@ var intelligenceRetriableGenerationErrors = []string{
 	"temporarily unavailable",
 	"service is busy",
 	"upstream request failed",
+	// A relay that speaks HTTP/2 to its own upstream reports the stream dying as
+	// this name, not as one of the older timeout signatures above.
+	"upstream_http2_stream_error",
+	"http2 stream failed",
 	"error code: 524",
 	"error code: 502",
 	"error code: 503",

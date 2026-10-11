@@ -456,11 +456,15 @@ interface ChannelCardProps {
 // The value columns are fractional rather than fixed: fixed tracks left the
 // whole right side of a wide card empty, while the fields stayed narrow. They
 // now take a share of the width each, which keeps the row filling the card and
-// grows the selects with it. The last track is a small minimum so the row never
-// overflows when the card is narrow.
+// grows the selects with it.
+//
+// The actions track is a fixed width, not max-content. A max-content track is
+// sized by what it holds, and the header holds an empty spacer there while a
+// row holds the two buttons, so the two templates resolved to different widths
+// and every heading drifted a little further right of its value.
 const ROW_GRID = 'grid items-center gap-2';
 const ROW_COLUMNS =
-  'grid-cols-[1.5rem_minmax(9rem,1.2fr)_minmax(10rem,1.4fr)_minmax(8rem,1fr)_minmax(5rem,0.7fr)_minmax(7rem,0.9fr)_max-content]';
+  'grid-cols-[1.5rem_minmax(9rem,1.2fr)_minmax(10rem,1.4fr)_minmax(8rem,1fr)_minmax(5rem,0.7fr)_minmax(7rem,0.9fr)_13rem]';
 
 // The header names the columns. It is centred over its values and set a step
 // darker than the muted labels elsewhere, so it reads as a heading rather than

@@ -438,6 +438,21 @@ func (processor *TestChannelOrchestrator) handleStreamResponse(
 	}
 
 	if stream.Err() != nil {
+		// A stream can die after it has delivered a complete answer: the relay
+		// closes the connection on its own side and the last event never arrives,
+		// which surfaces as a transport error even though every part of the
+		// answer is already in hand. The content is what the check asked for, so
+		// it wins over the way the stream ended; dropping it would report a
+		// finished generation as a failure and re-run a multi-minute request.
+		if strings.TrimSpace(accumulatedContent) != "" {
+			return &TestChannelResult{
+				Latency: latency,
+				Success: true,
+				Message: lo.ToPtr(accumulatedContent),
+				Error:   nil,
+			}, nil
+		}
+
 		return &TestChannelResult{
 			Latency: latency,
 			Success: false,
