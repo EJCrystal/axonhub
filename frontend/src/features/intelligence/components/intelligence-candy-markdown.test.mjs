@@ -22,46 +22,67 @@ const CLOSE_BRACKET = BACKSLASH + ']';
 
 // The renderer this answer goes through paints a formula three times over —
 // MathML, the TeX source, and the HTML copy — because the app carries neither
-// KaTeX's stylesheet nor the class names its sanitize step would need to keep.
-// Unwrapping the delimiters is what keeps the arithmetic readable as text, so
-// the formula has to come out bare, with no delimiter and no backslash left.
-test('inline math keeps the formula as plain text', () => {
+// KaTeX's stylesheet nor the class names its sanitize step needs to keep. The
+// math is therefore reduced to text, and nothing of LaTeX may be left behind.
+test('inline math is reduced to the text it stands for', () => {
   const out = normalizeCandyAnswerMarkdown('只有 ' + OPEN_PAREN + '6+4=10' + CLOSE_PAREN + ' 个。');
   assert.equal(out, '只有 6+4=10 个。');
 });
 
-test('display math keeps the formula on its own paragraph', () => {
+// The whole reason the answer goes through this helper: the symbols the model
+// writes as commands have to read as the characters a person expects.
+test('symbol commands become their characters', () => {
+  const out = normalizeCandyAnswerMarkdown('当 ' + OPEN_PAREN + 'x ' + BACKSLASH + 'le 21' + CLOSE_PAREN + ' 时成立。');
+  assert.match(out, /x ≤ 21/, 'a relation reads as its symbol');
+});
+
+// A fraction is arithmetic a reader can follow, so it stays readable rather
+// than turning into braces around two numbers.
+test('a fraction becomes a slash', () => {
+  const out = normalizeCandyAnswerMarkdown('平均 ' + OPEN_PAREN + BACKSLASH + 'frac{42}{2} = 21' + CLOSE_PAREN + ' 个。');
+  assert.match(out, /42\/2 = 21/, 'the fraction is a division');
+});
+
+// The wrappers are the commands that actually show up in the answers, and they
+// nest, so the body has to survive every layer.
+test('nested wrappers keep the value they wrap', () => {
+  const out = normalizeCandyAnswerMarkdown('答案：' + OPEN_BRACKET + BACKSLASH + 'boxed{29' + BACKSLASH + 'text{ 颗}}' + CLOSE_BRACKET);
+  assert.match(out, /29 颗/, 'the wrapped value is what the reader sees');
+  assert.ok(!out.includes('boxed') && !out.includes('text'), 'the wrappers are gone');
+});
+
+// A display formula stands on its own and is not followed by a run of blank
+// lines, which would read as a hole in the answer.
+test('display math keeps the formula on one padded paragraph', () => {
   const out = normalizeCandyAnswerMarkdown('合计：' + OPEN_BRACKET + '\n7+9+12=28\n' + CLOSE_BRACKET + '结束。');
   assert.ok(out.includes('\n\n7+9+12=28\n\n'), 'the formula stands alone');
-  assert.ok(!out.includes(OPEN_BRACKET), 'no display opener left');
-  assert.ok(!out.includes(CLOSE_BRACKET), 'no display closer left');
+  assert.ok(!out.includes('\n\n\n'), 'and is not padded twice');
 });
 
 // The defect this replaced was a formula that reached the renderer as math and
-// came out as "7+9+12=287+9+12=28". Nothing in the output may look like math
-// any more: neither the model's own delimiters nor the dollar pair Streamdown
-// would treat as a formula.
-test('no math delimiter survives either conversion', () => {
+// came out as "7+9+12=287+9+12=28". Nothing may look like math any more, and no
+// delimiter or command may survive to be shown as typed.
+test('no math syntax survives, whatever the model wrote', () => {
   const out = normalizeCandyAnswerMarkdown(
-    '共 ' + OPEN_PAREN + '9+6+8+4=27' + CLOSE_PAREN + ' 个：' + OPEN_BRACKET + '7+9+12=28' + CLOSE_BRACKET + '\n'
+    '共 ' + OPEN_PAREN + '9+6+8+4=27' + CLOSE_PAREN + ' 个：' + OPEN_BRACKET + BACKSLASH + 'boxed{7+9+12=28}' + CLOSE_BRACKET + '\n'
   );
-  assert.ok(!out.includes(OPEN_PAREN), 'no inline opener left');
-  assert.ok(!out.includes(CLOSE_PAREN), 'no inline closer left');
-  assert.ok(!out.includes(OPEN_BRACKET), 'no display opener left');
-  assert.ok(!out.includes(CLOSE_BRACKET), 'no display closer left');
-  assert.ok(!out.includes('$'), 'no dollar delimiter is introduced');
+
+  const leftovers = [OPEN_PAREN, CLOSE_PAREN, OPEN_BRACKET, CLOSE_BRACKET, '$$', '{', '}', BACKSLASH];
+  for (const leftover of leftovers) {
+    assert.ok(!out.includes(leftover), 'no leftover: ' + leftover);
+  }
+
   assert.ok(out.includes('9+6+8+4=27'), 'the inline formula is still readable');
   assert.ok(out.includes('7+9+12=28'), 'the display formula is still readable');
 });
 
-// A double dollar pair would reach the renderer as math just like the
-// backslash forms do, so it comes off the same way. A single pair is not math
-// under this renderer's configuration and is left as the text the model wrote.
-test('a double dollar pair is unwrapped, a single one is left alone', () => {
-  const out = normalizeCandyAnswerMarkdown('共 $$7+9+12=28$$ 个，另有 $6+4=10$ 个。');
-  assert.ok(!out.includes('$$'), 'no double dollar delimiter left');
-  assert.ok(out.includes('7+9+12=28'), 'the display formula stays');
-  assert.ok(out.includes('$6+4=10$'), 'a single dollar pair is not math here and stays as written');
+// An unknown command is a command the model reached for that this helper has no
+// character for. Its name is kept, because dropping it would delete content;
+// what it must not do is keep the backslash.
+test('an unknown command keeps its name but loses the backslash', () => {
+  const out = normalizeCandyAnswerMarkdown('取 ' + OPEN_PAREN + BACKSLASH + 'mathbin{+} 21' + CLOSE_PAREN + ' 个。');
+  assert.ok(!out.includes(BACKSLASH), 'no backslash left');
+  assert.ok(out.includes('21'), 'the value is untouched');
 });
 
 // The answers also carry markdown the renderer handles on its own; the
@@ -71,11 +92,17 @@ test('markdown around the math is untouched', () => {
   const out = normalizeCandyAnswerMarkdown(input);
   assert.ok(out.includes('**21 个一定够**'), 'bold survives');
   assert.ok(out.includes('| 甲 | 21 |'), 'the table survives');
-  assert.ok(out.includes('6+4=10'), 'the math is unwrapped');
+  assert.ok(out.includes('6+4=10'), 'the math is reduced');
 });
 
-// An answer without math is returned as written, so plain prose is not
-// rewritten just because it went through the helper.
+// A backslash in the reader's own prose is not math and must be left alone, or
+// a path or an escape in the model's words would be rewritten.
+test('prose outside the math is not rewritten', () => {
+  const plain = '见 C:' + BACKSLASH + 'temp 里的文件，最少需要取出 21 个。';
+  assert.equal(normalizeCandyAnswerMarkdown(plain), plain);
+});
+
+// An answer without math is returned as written.
 test('an answer without math is unchanged', () => {
   const plain = '最少需要取出 21 个。';
   assert.equal(normalizeCandyAnswerMarkdown(plain), plain);

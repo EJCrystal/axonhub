@@ -452,8 +452,20 @@ interface ChannelCardProps {
 // lines up with the values it names and the actions sit right after the last
 // field. Pushing the actions to the far edge with an auto margin is what left
 // the button stranded across a wide window.
+//
+// The value columns are fractional rather than fixed: fixed tracks left the
+// whole right side of a wide card empty, while the fields stayed narrow. They
+// now take a share of the width each, which keeps the row filling the card and
+// grows the selects with it. The last track is a small minimum so the row never
+// overflows when the card is narrow.
 const ROW_GRID = 'grid items-center gap-2';
-const ROW_COLUMNS = 'grid-cols-[1.5rem_11rem_12rem_10rem_6rem_8rem_max-content_1fr]';
+const ROW_COLUMNS =
+  'grid-cols-[1.5rem_minmax(9rem,1.2fr)_minmax(10rem,1.4fr)_minmax(8rem,1fr)_minmax(5rem,0.7fr)_minmax(7rem,0.9fr)_max-content]';
+
+// The header names the columns. It is centred over its values and set a step
+// darker than the muted labels elsewhere, so it reads as a heading rather than
+// as one more piece of the row.
+const HEADER_CELL = 'text-center text-xs font-semibold';
 
 // ChannelTargetCard holds one channel's keys.
 //
@@ -523,15 +535,14 @@ function ChannelTargetCard({
           thinking level. A narrow window scrolls sideways instead of squeezing
           the columns together. */}
       <div className='overflow-x-auto'>
-        <div className='min-w-[980px]'>
+        <div className='min-w-[860px]'>
           <div className={ROW_GRID + ' ' + ROW_COLUMNS + ' border-b px-3 py-1.5'}>
             <span />
-            <span className='text-muted-foreground text-xs font-medium'>{t('intelligence.settings.keyColumn')}</span>
-            <span className='text-muted-foreground text-xs font-medium'>{t('intelligence.settings.modelColumn')}</span>
-            <span className='text-muted-foreground text-xs font-medium'>{t('intelligence.settings.effortColumn')}</span>
-            <span className='text-muted-foreground text-xs font-medium'>{t('intelligence.settings.timeoutColumn')}</span>
-            <span className='text-muted-foreground text-xs font-medium'>{t('intelligence.settings.benchmarkColumn')}</span>
-            <span />
+            <span className={HEADER_CELL}>{t('intelligence.settings.keyColumn')}</span>
+            <span className={HEADER_CELL}>{t('intelligence.settings.modelColumn')}</span>
+            <span className={HEADER_CELL}>{t('intelligence.settings.effortColumn')}</span>
+            <span className={HEADER_CELL}>{t('intelligence.settings.timeoutColumn')}</span>
+            <span className={HEADER_CELL}>{t('intelligence.settings.benchmarkColumn')}</span>
             <span />
           </div>
 
@@ -760,8 +771,6 @@ function SortableTargetRow({
           <IconTrash size={15} />
         </Button>
       </div>
-
-      <span />
     </div>
   );
 }
