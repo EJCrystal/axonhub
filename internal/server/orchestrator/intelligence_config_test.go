@@ -47,6 +47,28 @@ func TestIntelligenceTaskSpecFollowsCron(t *testing.T) {
 	require.Equal(t, defaultIntelligenceCron, spec.CronExpr)
 }
 
+func TestNextIntelligenceExecutionAt(t *testing.T) {
+	location, err := time.LoadLocation(intelligenceScheduleTimezone)
+	require.NoError(t, err)
+
+	now := time.Date(2026, time.October, 12, 16, 54, 49, 0, location)
+	next := NextIntelligenceExecutionAt(&objects.IntelligenceConfig{
+		Enabled:        true,
+		CronExpression: "0 */5 * * *",
+	}, now)
+	require.NotNil(t, next)
+	require.Equal(t, time.Date(2026, time.October, 12, 20, 0, 0, 0, location), *next)
+
+	require.Nil(t, NextIntelligenceExecutionAt(&objects.IntelligenceConfig{
+		Enabled:        false,
+		CronExpression: "0 * * * *",
+	}, now))
+	require.Nil(t, NextIntelligenceExecutionAt(&objects.IntelligenceConfig{
+		Enabled:        true,
+		CronExpression: "not-a-cron",
+	}, now))
+}
+
 func TestNormalizeLegacyIntelligenceConfig(t *testing.T) {
 	config := &objects.IntelligenceConfig{IntervalMinutes: 300}
 	normalizeIntelligenceConfig(config)

@@ -353,6 +353,7 @@ type InitializeSystemPayload struct {
 type IntelligenceConfig struct {
 	Enabled             bool                  `json:"enabled"`
 	CronExpression      string                `json:"cronExpression"`
+	NextExecutionAt     *time.Time            `json:"nextExecutionAt,omitempty"`
 	DisableDegradedKeys bool                  `json:"disableDegradedKeys"`
 	Targets             []*IntelligenceTarget `json:"targets"`
 }

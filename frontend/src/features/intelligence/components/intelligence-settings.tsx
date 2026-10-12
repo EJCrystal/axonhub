@@ -92,6 +92,9 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
   // Which channel's key list is showing. Empty lets the first group claim it.
   const [activeGroupKey, setActiveGroupKey] = useState<string>('');
 
+  const scheduleDraftDirty =
+    config !== undefined && (enabled !== config.enabled || cronExpression.trim() !== config.cronExpression.trim());
+
   useEffect(() => {
     if (!config) return;
     setEnabled(config.enabled);
@@ -327,6 +330,20 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
               </p>
               <p className='text-xs' data-testid='intelligence-cron-meaning'>
                 {cronMeaning(cronExpression, t, i18n.language)}
+              </p>
+              <p className='text-muted-foreground text-xs' data-testid='intelligence-next-execution'>
+                {scheduleDraftDirty
+                  ? t('intelligence.settings.nextExecutionSaveHint')
+                  : config?.nextExecutionAt
+                  ? t('intelligence.settings.nextExecution', {
+                      value: new Intl.DateTimeFormat(i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US', {
+                        timeZone: 'Asia/Shanghai',
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                        hour12: false,
+                      }).format(new Date(config.nextExecutionAt)),
+                    })
+                  : t(config?.enabled ? 'intelligence.settings.nextExecutionUnavailable' : 'intelligence.settings.nextExecutionDisabled')}
               </p>
             </div>
           </div>

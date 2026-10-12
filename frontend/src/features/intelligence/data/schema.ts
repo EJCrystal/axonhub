@@ -89,6 +89,7 @@ export type IntelligenceTarget = z.infer<typeof intelligenceTargetSchema>;
 export const intelligenceConfigSchema = z.object({
   enabled: z.boolean().default(false),
   cronExpression: z.string().default('0 * * * *'),
+  nextExecutionAt: z.string().nullish().transform((value) => value ?? null),
   // Off unless switched on: disabling a key also takes it out of the
   // channel's live rotation, so it is opt-in.
   disableDegradedKeys: z.boolean().default(false),

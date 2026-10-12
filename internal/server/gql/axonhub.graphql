@@ -493,6 +493,9 @@ input IntelligenceConfigInput {
 type IntelligenceConfig {
   enabled: Boolean!
   cronExpression: String!
+  # The next scheduled run in Asia/Shanghai. Null when scheduling is disabled
+  # or the expression has no future occurrence.
+  nextExecutionAt: Time
   # Whether a degraded key is disabled automatically on a scheduled run.
   disableDegradedKeys: Boolean!
   targets: [IntelligenceTarget!]!

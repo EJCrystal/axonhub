@@ -840,6 +840,7 @@ type ComplexityRoot struct {
 		CronExpression      func(childComplexity int) int
 		DisableDegradedKeys func(childComplexity int) int
 		Enabled             func(childComplexity int) int
+		NextExecutionAt     func(childComplexity int) int
 		Targets             func(childComplexity int) int
 	}
 
@@ -5457,6 +5458,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.IntelligenceConfig.Enabled(childComplexity), true
+	case "IntelligenceConfig.nextExecutionAt":
+		if e.complexity.IntelligenceConfig.NextExecutionAt == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceConfig.NextExecutionAt(childComplexity), true
 	case "IntelligenceConfig.targets":
 		if e.complexity.IntelligenceConfig.Targets == nil {
 			break
@@ -30757,6 +30764,35 @@ func (ec *executionContext) fieldContext_IntelligenceConfig_cronExpression(_ con
 	return fc, nil
 }
 
+func (ec *executionContext) _IntelligenceConfig_nextExecutionAt(ctx context.Context, field graphql.CollectedField, obj *IntelligenceConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IntelligenceConfig_nextExecutionAt,
+		func(ctx context.Context) (any, error) {
+			return obj.NextExecutionAt, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_IntelligenceConfig_nextExecutionAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IntelligenceConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _IntelligenceConfig_disableDegradedKeys(ctx context.Context, field graphql.CollectedField, obj *IntelligenceConfig) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -36267,6 +36303,8 @@ func (ec *executionContext) fieldContext_Mutation_setIntelligenceConfig(ctx cont
 				return ec.fieldContext_IntelligenceConfig_enabled(ctx, field)
 			case "cronExpression":
 				return ec.fieldContext_IntelligenceConfig_cronExpression(ctx, field)
+			case "nextExecutionAt":
+				return ec.fieldContext_IntelligenceConfig_nextExecutionAt(ctx, field)
 			case "disableDegradedKeys":
 				return ec.fieldContext_IntelligenceConfig_disableDegradedKeys(ctx, field)
 			case "targets":
@@ -48287,6 +48325,8 @@ func (ec *executionContext) fieldContext_Query_intelligenceConfig(_ context.Cont
 				return ec.fieldContext_IntelligenceConfig_enabled(ctx, field)
 			case "cronExpression":
 				return ec.fieldContext_IntelligenceConfig_cronExpression(ctx, field)
+			case "nextExecutionAt":
+				return ec.fieldContext_IntelligenceConfig_nextExecutionAt(ctx, field)
 			case "disableDegradedKeys":
 				return ec.fieldContext_IntelligenceConfig_disableDegradedKeys(ctx, field)
 			case "targets":
@@ -102671,6 +102711,8 @@ func (ec *executionContext) _IntelligenceConfig(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "nextExecutionAt":
+			out.Values[i] = ec._IntelligenceConfig_nextExecutionAt(ctx, field, obj)
 		case "disableDegradedKeys":
 			out.Values[i] = ec._IntelligenceConfig_disableDegradedKeys(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
