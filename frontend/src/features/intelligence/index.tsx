@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { IconBrain, IconChevronDown, IconChevronUp, IconFilter, IconRefresh } from '@tabler/icons-react';
+import { IconBrain, IconChevronDown, IconFilter, IconRefresh } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Main } from '@/components/layout/main';
@@ -176,8 +177,9 @@ export default function IntelligenceManagement() {
   const fetching = showingAll ? allRuns.isFetching : historyQuery.isFetching;
   const configured = (config?.targets.length ?? 0) > 0;
   const filterActive = isHistoryFilterActive(filter);
-  // The count shown on the disclosure: how many axes are narrowing the list.
-  const filterCount = [benchmark !== undefined, apiKey !== undefined, verdict !== 'all'].filter(Boolean).length;
+  const historyFilterActive = filterActive || channelID !== undefined;
+  // The count shown on the toolbar: how many axes are narrowing the list.
+  const filterCount = [channelID !== undefined, benchmark !== undefined, apiKey !== undefined, verdict !== 'all'].filter(Boolean).length;
 
   const refresh = () => {
     if (showingAll) {
@@ -187,125 +189,133 @@ export default function IntelligenceManagement() {
     }
   };
 
-  // The three filters are one job, so they fold into a disclosure. It starts
-  // open when something already narrows the list, and closed otherwise.
-  const [filtersOpen, setFiltersOpen] = useState(filterActive);
+  // The three filters are one job, so they fold into a popover. It starts open
+  // when something already narrows the list, and closed otherwise.
+  const [filtersOpen, setFiltersOpen] = useState(historyFilterActive);
 
-  // The bar lives in the content area rather than the page header: it grows to
-  // two rows when it opens, and inside the header that growth shoved the refresh
-  // and run buttons down with it.
-  const filterBar = (
-    <div className='flex flex-col gap-2'>
-      <div className='flex flex-wrap items-center gap-2'>
+  const filterPopover = (
+    <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+      <PopoverTrigger asChild>
         <Button
-          variant={filterActive ? 'secondary' : 'outline'}
+          variant={historyFilterActive ? 'secondary' : 'outline'}
           size='sm'
-          onClick={() => setFiltersOpen((open) => !open)}
           aria-expanded={filtersOpen}
           data-testid='toggle-history-filters'
+          className='min-w-24 justify-between sm:justify-center'
         >
-          <IconFilter className='mr-1 h-4 w-4' />
-          {t('intelligence.history.filters')}
-          {filterCount > 0 && (
-            <span className='bg-primary text-primary-foreground ml-1 rounded-full px-1.5 text-[10px] tabular-nums'>{filterCount}</span>
-          )}
-          {filtersOpen ? <IconChevronUp size={14} className='ml-1' /> : <IconChevronDown size={14} className='ml-1' />}
+          <span className='flex items-center gap-1.5'>
+            <IconFilter className='h-4 w-4' />
+            {t('intelligence.history.filters')}
+            {filterCount > 0 && (
+              <span className='bg-primary text-primary-foreground rounded-full px-1.5 text-[10px] leading-4 tabular-nums'>{filterCount}</span>
+            )}
+          </span>
+          <IconChevronDown size={14} className='ml-1 opacity-70' />
         </Button>
-      </div>
-
-      {filtersOpen && (
-        <div className='flex flex-wrap items-center gap-2 rounded-lg border p-2'>
-          {channelOptions.length > 0 && (
-            <Select value={channelID ?? ALL_CHANNELS} onValueChange={(value) => setChannelID(value === ALL_CHANNELS ? undefined : value)}>
-              <SelectTrigger className='w-44' aria-label={t('intelligence.history.channelPlaceholder')}>
-                <SelectValue placeholder={t('intelligence.history.channelPlaceholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_CHANNELS}>{t('intelligence.history.allChannels')}</SelectItem>
-                {channelOptions.map((channel) => (
-                  <SelectItem key={channel.id} value={channel.id}>
-                    {channel.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* A key belongs to exactly one channel, so this picker is only offered
-            once the list is narrowed to a single channel. */}
-          {!showingAll && keySelectOptions.length > 0 && (
-            <Select
-              value={apiKey ? maskAPIKey(apiKey) : ALL_KEYS}
-              onValueChange={(value) => {
-                if (value === ALL_KEYS) {
+      </PopoverTrigger>
+      <PopoverContent align='end' className='w-80 max-w-[calc(100vw-2rem)] p-3'>
+        <div className='space-y-3'>
+          <div className='flex items-start justify-between gap-3'>
+            <div>
+              <p className='text-sm font-medium'>{t('intelligence.history.filters')}</p>
+              <p className='text-muted-foreground mt-0.5 text-xs'>{t('intelligence.history.filterHint')}</p>
+            </div>
+            {historyFilterActive && (
+              <Button
+                variant='ghost'
+                size='sm'
+                className='h-7 shrink-0 px-2 text-xs'
+                onClick={() => {
+                  setChannelID(undefined);
+                  setVerdict(DEFAULT_HISTORY_FILTER.verdict);
                   setApiKey(undefined);
-                  return;
-                }
-                setApiKey(keyOptions.find((key) => maskAPIKey(key) === value));
+                  setBenchmark(undefined);
+                }}
+              >
+                {t('intelligence.history.clearFilters')}
+              </Button>
+            )}
+          </div>
+
+          <div className='grid gap-2'>
+            {channelOptions.length > 0 && (
+              <Select value={channelID ?? ALL_CHANNELS} onValueChange={(value) => setChannelID(value === ALL_CHANNELS ? undefined : value)}>
+                <SelectTrigger className='w-full' aria-label={t('intelligence.history.channelPlaceholder')}>
+                  <SelectValue placeholder={t('intelligence.history.channelPlaceholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_CHANNELS}>{t('intelligence.history.allChannels')}</SelectItem>
+                  {channelOptions.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      {channel.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* A key belongs to exactly one channel, so this picker is only offered
+              once the list is narrowed to a single channel. */}
+            {!showingAll && keySelectOptions.length > 0 && (
+              <Select
+                value={apiKey ? maskAPIKey(apiKey) : ALL_KEYS}
+                onValueChange={(value) => {
+                  if (value === ALL_KEYS) {
+                    setApiKey(undefined);
+                    return;
+                  }
+                  setApiKey(keyOptions.find((key) => maskAPIKey(key) === value));
+                }}
+              >
+                <SelectTrigger className='w-full' aria-label={t('intelligence.history.keyPlaceholder')}>
+                  <SelectValue placeholder={t('intelligence.history.keyPlaceholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_KEYS}>{t('intelligence.history.allKeys')}</SelectItem>
+                  {keySelectOptions.map((masked) => (
+                    <SelectItem key={masked} value={masked}>
+                      {masked}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Both benchmarks are always offered: a reader may want to ask for one
+              the current history has no rows for yet. */}
+            <Select
+              value={benchmark === undefined ? ALL_BENCHMARKS : benchmark || PELICAN_OPTION}
+              onValueChange={(value) => {
+                if (value === ALL_BENCHMARKS) return setBenchmark(undefined);
+                return setBenchmark(value === PELICAN_OPTION ? '' : value);
               }}
             >
-              <SelectTrigger className='w-44' aria-label={t('intelligence.history.keyPlaceholder')}>
-                <SelectValue placeholder={t('intelligence.history.keyPlaceholder')} />
+              <SelectTrigger className='w-full' aria-label={t('intelligence.history.benchmarkFilter')}>
+                <SelectValue placeholder={t('intelligence.history.benchmarkFilter')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL_KEYS}>{t('intelligence.history.allKeys')}</SelectItem>
-                {keySelectOptions.map((masked) => (
-                  <SelectItem key={masked} value={masked}>
-                    {masked}
-                  </SelectItem>
-                ))}
+                <SelectItem value={ALL_BENCHMARKS}>{t('intelligence.history.allBenchmarks')}</SelectItem>
+                <SelectItem value={PELICAN_OPTION}>{t('intelligence.settings.benchmarkPelican')}</SelectItem>
+                <SelectItem value='candy'>{t('intelligence.settings.benchmarkCandy')}</SelectItem>
               </SelectContent>
             </Select>
-          )}
 
-          {/* Both benchmarks are always offered: a reader may want to ask for one
-            the current history has no rows for yet. */}
-          <Select
-            value={benchmark === undefined ? ALL_BENCHMARKS : benchmark || PELICAN_OPTION}
-            onValueChange={(value) => {
-              if (value === ALL_BENCHMARKS) return setBenchmark(undefined);
-              return setBenchmark(value === PELICAN_OPTION ? '' : value);
-            }}
-          >
-            <SelectTrigger className='w-36' aria-label={t('intelligence.history.benchmarkFilter')}>
-              <SelectValue placeholder={t('intelligence.history.benchmarkFilter')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_BENCHMARKS}>{t('intelligence.history.allBenchmarks')}</SelectItem>
-              <SelectItem value={PELICAN_OPTION}>{t('intelligence.settings.benchmarkPelican')}</SelectItem>
-              <SelectItem value='candy'>{t('intelligence.settings.benchmarkCandy')}</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={verdict} onValueChange={(value) => setVerdict(value as VerdictFilter)}>
-            <SelectTrigger className='w-44' aria-label={t('intelligence.history.verdictFilter.label')}>
-              <SelectValue placeholder={t('intelligence.history.verdictFilter.label')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='all'>{t('intelligence.history.verdictFilter.all')}</SelectItem>
-              <SelectItem value='degraded'>{t('intelligence.history.verdictFilter.degraded')}</SelectItem>
-              <SelectItem value='inconclusive'>{t('intelligence.history.verdictFilter.inconclusive')}</SelectItem>
-              <SelectItem value='failed'>{t('intelligence.history.verdictFilter.failed')}</SelectItem>
-              <SelectItem value='normal'>{t('intelligence.history.verdictFilter.normal')}</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {filterActive && (
-            <Button
-              variant='ghost'
-              size='sm'
-              onClick={() => {
-                setVerdict(DEFAULT_HISTORY_FILTER.verdict);
-                setApiKey(undefined);
-                setBenchmark(undefined);
-              }}
-            >
-              {t('intelligence.history.clearFilters')}
-            </Button>
-          )}
+            <Select value={verdict} onValueChange={(value) => setVerdict(value as VerdictFilter)}>
+              <SelectTrigger className='w-full' aria-label={t('intelligence.history.verdictFilter.label')}>
+                <SelectValue placeholder={t('intelligence.history.verdictFilter.label')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>{t('intelligence.history.verdictFilter.all')}</SelectItem>
+                <SelectItem value='degraded'>{t('intelligence.history.verdictFilter.degraded')}</SelectItem>
+                <SelectItem value='inconclusive'>{t('intelligence.history.verdictFilter.inconclusive')}</SelectItem>
+                <SelectItem value='failed'>{t('intelligence.history.verdictFilter.failed')}</SelectItem>
+                <SelectItem value='normal'>{t('intelligence.history.verdictFilter.normal')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 
   // One menu entry per configured target. A channel can appear several times, so
@@ -343,46 +353,37 @@ export default function IntelligenceManagement() {
     </Button>
   );
 
-  // The header keeps only the two buttons that act on the whole page. The
-  // filters used to sit here too, and expanding them made the header taller,
-  // which pushed these buttons down with it: a disclosure that grows must not
-  // move the controls next to it.
-  const historyActions = (
-    <div className='flex flex-wrap items-center gap-2'>
-      <Button variant='outline' size='sm' onClick={refresh} disabled={fetching}>
-        <IconRefresh className='mr-1 h-4 w-4' />
-        {t('intelligence.history.refresh')}
-      </Button>
-      {runButton}
-    </div>
-  );
-
-  // The settings screen adds, edits and runs targets row by row, so it gets no
-  // header actions at all: a "test everything" button there would sit next to
-  // "add channel" and read as another editing step.
-  const settingsActions = undefined;
-
   return (
     <Main>
       <PageHeader
         title={t('intelligence.title')}
         description={t('intelligence.description')}
-        // The actions describe the visible tab, and the run button says how many
-        // targets it will start.
-        actions={activeTab === 'settings' ? settingsActions : historyActions}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className='space-y-4'>
-        <TabsList>
-          <TabsTrigger value='history'>{t('intelligence.tabs.history')}</TabsTrigger>
-          <TabsTrigger value='settings'>{t('intelligence.tabs.settings')}</TabsTrigger>
-        </TabsList>
+        <div className='bg-card/70 flex flex-col gap-2 rounded-xl border p-2 shadow-sm sm:flex-row sm:items-center sm:justify-between'>
+          <TabsList className='w-full sm:w-auto'>
+            <TabsTrigger value='history' className='flex-1 sm:flex-none'>
+              {t('intelligence.tabs.history')}
+            </TabsTrigger>
+            <TabsTrigger value='settings' className='flex-1 sm:flex-none'>
+              {t('intelligence.tabs.settings')}
+            </TabsTrigger>
+          </TabsList>
+
+          {activeTab === 'history' && (
+            <div className='flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto'>
+              <Button variant='outline' size='sm' onClick={refresh} disabled={fetching}>
+                <IconRefresh className='h-4 w-4' />
+                {t('intelligence.history.refresh')}
+              </Button>
+              {filterPopover}
+              {runButton}
+            </div>
+          )}
+        </div>
 
         <TabsContent value='history' className='space-y-3'>
-          {/* The filters belong to the history view, and they sit in the content
-              column so opening them pushes the records down rather than moving
-              the header's buttons. */}
-          {filterBar}
           {showingAll ? (
             groups.length > 0 && selectedGroup ? (
               // Channels run across the top rather than down the page: with a
