@@ -151,11 +151,12 @@ test('the compact timestamp keeps the minute and drops the locale noise', () => 
   assert.match(fn, /Number\.isNaN/, 'an unparsable value falls back to the raw string');
 });
 
-// The header keeps one line of controls: the filters fold into a disclosure that
-// opens by itself only when something is already narrowing the list.
-test('the history filters live behind a disclosure', () => {
+// The history toolbar keeps filters in a popover so opening them never changes
+// the height of the records area.
+test('the history filters live behind a popover', () => {
   assert.match(page, /toggle-history-filters/, 'there is a toggle');
-  assert.match(page, /const \[filtersOpen, setFiltersOpen\] = useState\(filterActive\)/, 'it starts open only when a filter is active');
-  assert.match(page, /\{filtersOpen && \(/, 'and the controls render only when open');
+  assert.match(page, /const \[filtersOpen, setFiltersOpen\] = useState\(historyFilterActive\)/, 'it starts open only when a filter is active');
+  assert.match(page, /<Popover open=\{filtersOpen\} onOpenChange=\{setFiltersOpen\}>/, 'the filters have a controlled popover');
+  assert.match(page, /<PopoverContent/, 'and the controls render inside it');
   assert.match(page, /filterCount/, 'the toggle shows how many filters are on');
 });
