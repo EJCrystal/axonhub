@@ -78,6 +78,23 @@ export const ChannelExpandedRow = memo(({ channel: listChannel, columnsLength, g
                     )}
                   </div>
                 </div>
+                <div className='flex items-start justify-between gap-4'>
+                  <span className='text-muted-foreground shrink-0'>{t('channels.expandedRow.apiKeyRemarks')}:</span>
+                  <div className='flex max-w-[280px] flex-col items-end gap-1'>
+                    {(channel.credentials?.apiKeys ?? []).map((key, index) => {
+                      const remark = channel.credentials?.apiKeyRemarks?.[index]?.trim();
+                      if (!remark) return null;
+                      const masked = key.length > 8 ? key.slice(0, 4) + '****' + key.slice(-4) : '****';
+                      return (
+                        <div key={key + '-' + index} className='text-right text-xs'>
+                          <span className='font-mono'>{masked}</span>
+                          <span className='text-muted-foreground ml-2'>{remark}</span>
+                        </div>
+                      );
+                    })}
+                    {!(channel.credentials?.apiKeyRemarks ?? []).some((remark) => remark?.trim()) && <span>-</span>}
+                  </div>
+                </div>
               </div>
             </div>
 

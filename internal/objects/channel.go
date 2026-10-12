@@ -350,7 +350,8 @@ type ChannelCredentials struct {
 
 	// APIKeys is a list of API keys for the channel.
 	// When multiple keys are provided, they will be used in a round-robin fashion.
-	APIKeys []string `json:"apiKeys,omitempty"`
+	APIKeys       []string `json:"apiKeys,omitempty"`
+	APIKeyRemarks []string `json:"apiKeyRemarks,omitempty"`
 
 	// APIKeyModels maps each API key to the upstream models it can serve.
 	// A missing entry means the key inherits the channel model list for

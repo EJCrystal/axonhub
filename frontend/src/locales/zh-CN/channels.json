@@ -988,5 +988,7 @@
   "channels.templates.dialogs.edit.title": "编辑模板",
   "channels.templates.dialogs.edit.description": "更新模板配置。在你重新应用模板之前，改动不会影响任何渠道。",
   "channels.templates.validation.duplicateName": "已存在名为 \"{{name}}\" 的模板，请更换名称。",
-  "channels.dialogs.intelligence.verdict.failed": "失败"
+  "channels.dialogs.intelligence.verdict.failed": "失败",
+  "channels.dialogs.fields.apiKey.remarkPlaceholder": "备注（可选）",
+  "channels.expandedRow.apiKeyRemarks": "Key 备注"
 }

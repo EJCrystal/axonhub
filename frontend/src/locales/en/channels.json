@@ -988,5 +988,7 @@
   "channels.templates.dialogs.edit.title": "Edit Template",
   "channels.templates.dialogs.edit.description": "Update the template configuration. Changes do not affect channels until you apply the template again.",
   "channels.templates.validation.duplicateName": "A template named \"{{name}}\" already exists. Choose a different name.",
-  "channels.dialogs.intelligence.verdict.failed": "Failed"
+  "channels.dialogs.intelligence.verdict.failed": "Failed",
+  "channels.dialogs.fields.apiKey.remarkPlaceholder": "Remark (optional)",
+  "channels.expandedRow.apiKeyRemarks": "Key remarks"
 }

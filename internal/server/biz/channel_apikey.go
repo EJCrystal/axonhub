@@ -328,13 +328,20 @@ func (svc *ChannelService) DeleteDisabledAPIKeys(ctx context.Context, channelID 
 	newCredentials := ch.Credentials
 	if len(newCredentials.APIKeys) > 0 {
 		filteredKeys := make([]string, 0, len(newCredentials.APIKeys))
-		for _, k := range newCredentials.APIKeys {
+		filteredRemarks := make([]string, 0, len(newCredentials.APIKeys))
+		for index, k := range newCredentials.APIKeys {
 			if _, found := keysToDelete[k]; !found {
 				filteredKeys = append(filteredKeys, k)
+				if index < len(newCredentials.APIKeyRemarks) {
+					filteredRemarks = append(filteredRemarks, newCredentials.APIKeyRemarks[index])
+				} else {
+					filteredRemarks = append(filteredRemarks, "")
+				}
 			}
 		}
 
 		newCredentials.APIKeys = filteredKeys
+		newCredentials.APIKeyRemarks = filteredRemarks
 	}
 
 	if newCredentials.APIKey != "" {

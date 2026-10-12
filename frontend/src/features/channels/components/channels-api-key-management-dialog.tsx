@@ -22,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChannels } from '../context/channels-context';
 import {
@@ -67,6 +68,8 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
   // 本弹窗独立的 key 列表：基于 currentRow 快照初始化，导入/删除后本地更新，
   // 避免依赖不会随 query 刷新而更新的 currentRow 快照。
   const [localKeys, setLocalKeys] = useState<string[]>([]);
+  const [localRemarks, setLocalRemarks] = useState<string[]>([]);
+  const [keySearch, setKeySearch] = useState('');
   const abortRef = useRef(false);
 
   const testSingleKey = useTestChannelAPIKey();
@@ -76,6 +79,12 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
   const deleteDisabledAPIKeys = useDeleteDisabledChannelAPIKeys();
 
   const validKeys = useMemo(() => localKeys.filter((key) => key.trim().length > 0), [localKeys]);
+  const visibleKeyEntries = useMemo(() => {
+    const search = keySearch.trim().toLowerCase();
+    return validKeys
+      .map((key, index) => ({ key, index, remark: localRemarks[index] ?? '' }))
+      .filter(({ key, remark }) => !search || key.toLowerCase().includes(search) || key.slice(-4).toLowerCase().includes(search) || remark.toLowerCase().includes(search));
+  }, [keySearch, localRemarks, validKeys]);
   // 服务端实时禁用的 key 集合（所有 disable/enable mutation 都会 invalidate 此 query）
   const { data: disabledKeys = [], isLoading: disabledLoading } = useChannelDisabledAPIKeys(currentRow?.id || '', {
     enabled: open && !!currentRow?.id,
@@ -107,6 +116,8 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
     if (open) {
       setBulkImportText('');
       setLocalKeys(currentRow?.credentials?.apiKeys ?? []);
+      setLocalRemarks(currentRow?.credentials?.apiKeyRemarks ?? []);
+      setKeySearch('');
       setSelectedKeys(new Set());
       setTestingKey(null);
       setTestResults({});
@@ -163,11 +174,13 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
         input: {
           credentials: {
             apiKeys: [...validKeys, ...deduped],
+            apiKeyRemarks: [...validKeys.map((_, index) => localRemarks[index] ?? ''), ...deduped.map(() => '')],
           },
         },
       });
       // 本地同步更新，避免依赖不会刷新的 currentRow 快照
       setLocalKeys((prev) => [...prev, ...deduped]);
+      setLocalRemarks((prev) => [...validKeys.map((_, index) => prev[index] ?? ''), ...deduped.map(() => '')]);
       setBulkImportText('');
     } catch {
       // handled by hook
@@ -193,12 +206,40 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
     if (active.length > 0) {
       await updateChannel.mutateAsync({
         id: currentRow.id,
-        input: { credentials: { apiKeys: remainingKeys } },
+        input: {
+          credentials: {
+            apiKeys: remainingKeys,
+            apiKeyRemarks: validKeys
+              .map((key, index) => ({ key, remark: localRemarks[index] ?? '' }))
+              .filter(({ key }) => !removed.has(key))
+              .map(({ remark }) => remark),
+          },
+        },
       });
     }
     // 本地同步更新（disabled 删除走 deleteDisabledAPIKeys 不触发 updateChannel，
     // 但同样要从弹窗列表里移除）
     setLocalKeys(remainingKeys);
+    setLocalRemarks(
+      validKeys
+        .map((key, index) => ({ key, remark: localRemarks[index] ?? '' }))
+        .filter(({ key }) => !removed.has(key))
+        .map(({ remark }) => remark)
+    );
+  };
+
+  const saveRemark = async (index: number, value: string) => {
+    const nextRemarks = [...localRemarks];
+    nextRemarks[index] = value;
+    setLocalRemarks(nextRemarks);
+    try {
+      await updateChannel.mutateAsync({
+        id: currentRow.id,
+        input: { credentials: { apiKeys: validKeys, apiKeyRemarks: nextRemarks.slice(0, validKeys.length) } },
+      });
+    } catch {
+      // handled by hook
+    }
   };
 
   const handleDeleteSingle = async (key: string) => {
@@ -354,6 +395,16 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
             </div>
           </div>
 
+          <div className='relative'>
+            <IconKey className='text-muted-foreground absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2' />
+            <Input
+              value={keySearch}
+              onChange={(event) => setKeySearch(event.target.value)}
+              placeholder={t('channels.dialogs.keyManagement.searchPlaceholder')}
+              className='h-9 pl-8'
+            />
+          </div>
+
           {/* 表格 */}
           <div className='flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border'>
             {/* 批量操作头 */}
@@ -430,8 +481,14 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
                         {t('channels.dialogs.keyManagement.noKeys')}
                       </TableCell>
                     </TableRow>
+                  ) : visibleKeyEntries.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className='h-24 text-center text-sm text-muted-foreground'>
+                        {t('channels.dialogs.keyManagement.noSearchResults')}
+                      </TableCell>
+                    </TableRow>
                   ) : (
-                    validKeys.map((key) => {
+                    visibleKeyEntries.map(({ key, index: keyIndex }) => {
                       const isTesting = testingKey === key;
                       const isDisabled = isKeyDisabled(key);
                       const result = getKeyResult(key);
@@ -468,6 +525,13 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
                                 {result ? result.keyPrefix : maskAPIKey(key)}
                               </code>
                             </div>
+                            <Input
+                              defaultValue={localRemarks[keyIndex] ?? ''}
+                              onBlur={(event) => void saveRemark(keyIndex, event.target.value.trim())}
+                              placeholder={t('channels.dialogs.keyManagement.remarkPlaceholder')}
+                              className='mt-2 h-8 max-w-sm text-xs'
+                              disabled={isPending}
+                            />
                             {result?.error && (
                               <div className='mt-1 flex items-start gap-1 text-xs text-destructive'>
                                 <IconAlertTriangle className='mt-0.5 h-3 w-3 shrink-0' />

@@ -69,12 +69,18 @@ func (r *channelResolver) Credentials(ctx context.Context, obj *ent.Channel) (*o
 		// For OAuth channels (e.g., antigravity, claudecode, codex), only return single API key.
 		// Clear APIKeys as OAuth only supports single credential.
 		creds.APIKeys = nil
+		creds.APIKeyRemarks = nil
 		return &creds, nil
 	}
 
 	// For non-OAuth channel types, use api keys array.
 	creds.APIKeys = creds.GetAllAPIKeys()
 	creds.APIKey = ""
+	if len(creds.APIKeyRemarks) < len(creds.APIKeys) {
+		creds.APIKeyRemarks = append(creds.APIKeyRemarks, make([]string, len(creds.APIKeys)-len(creds.APIKeyRemarks))...)
+	} else if len(creds.APIKeyRemarks) > len(creds.APIKeys) {
+		creds.APIKeyRemarks = creds.APIKeyRemarks[:len(creds.APIKeys)]
+	}
 
 	return &creds, nil
 }

@@ -1052,6 +1052,7 @@ const CHANNEL_QUERY_FULL_NODE_SELECTION = `
           credentials {
             apiKey
             apiKeys
+            apiKeyRemarks
             apiKeyModels {
               apiKey
               models

@@ -402,6 +402,7 @@ type ComplexityRoot struct {
 		APIKey              func(childComplexity int) int
 		APIKeyFetchedModels func(childComplexity int) int
 		APIKeyModels        func(childComplexity int) int
+		APIKeyRemarks       func(childComplexity int) int
 		APIKeys             func(childComplexity int) int
 		GCP                 func(childComplexity int) int
 		OAuth               func(childComplexity int) int
@@ -3891,6 +3892,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelCredentials.APIKeyModels(childComplexity), true
+	case "ChannelCredentials.apiKeyRemarks":
+		if e.complexity.ChannelCredentials.APIKeyRemarks == nil {
+			break
+		}
+
+		return e.complexity.ChannelCredentials.APIKeyRemarks(childComplexity), true
 	case "ChannelCredentials.apiKeys":
 		if e.complexity.ChannelCredentials.APIKeys == nil {
 			break
@@ -22311,6 +22318,8 @@ func (ec *executionContext) fieldContext_Channel_credentials(_ context.Context, 
 				return ec.fieldContext_ChannelCredentials_apiKey(ctx, field)
 			case "apiKeys":
 				return ec.fieldContext_ChannelCredentials_apiKeys(ctx, field)
+			case "apiKeyRemarks":
+				return ec.fieldContext_ChannelCredentials_apiKeyRemarks(ctx, field)
 			case "apiKeyModels":
 				return ec.fieldContext_ChannelCredentials_apiKeyModels(ctx, field)
 			case "apiKeyFetchedModels":
@@ -22613,6 +22622,35 @@ func (ec *executionContext) _ChannelCredentials_apiKeys(ctx context.Context, fie
 }
 
 func (ec *executionContext) fieldContext_ChannelCredentials_apiKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelCredentials_apiKeyRemarks(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelCredentials_apiKeyRemarks,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKeyRemarks, nil
+		},
+		nil,
+		ec.marshalOString2ᚕstringᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelCredentials_apiKeyRemarks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ChannelCredentials",
 		Field:      field,
@@ -69800,7 +69838,7 @@ func (ec *executionContext) unmarshalInputChannelCredentialsInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"apiKey", "apiKeys", "apiKeyModels", "apiKeyFetchedModels", "gcp", "oauth", "managementApiKey"}
+	fieldsInOrder := [...]string{"apiKey", "apiKeys", "apiKeyRemarks", "apiKeyModels", "apiKeyFetchedModels", "gcp", "oauth", "managementApiKey"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -69821,6 +69859,13 @@ func (ec *executionContext) unmarshalInputChannelCredentialsInput(ctx context.Co
 				return it, err
 			}
 			it.APIKeys = data
+		case "apiKeyRemarks":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKeyRemarks"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APIKeyRemarks = data
 		case "apiKeyModels":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKeyModels"))
 			data, err := ec.unmarshalOChannelAPIKeyModelsInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModelsᚄ(ctx, v)
@@ -98876,6 +98921,8 @@ func (ec *executionContext) _ChannelCredentials(ctx context.Context, sel ast.Sel
 			out.Values[i] = ec._ChannelCredentials_apiKey(ctx, field, obj)
 		case "apiKeys":
 			out.Values[i] = ec._ChannelCredentials_apiKeys(ctx, field, obj)
+		case "apiKeyRemarks":
+			out.Values[i] = ec._ChannelCredentials_apiKeyRemarks(ctx, field, obj)
 		case "apiKeyModels":
 			out.Values[i] = ec._ChannelCredentials_apiKeyModels(ctx, field, obj)
 		case "apiKeyFetchedModels":

@@ -871,6 +871,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
               // OAuth 类型的凭据存储在 apiKey 字段，不放入 apiKeys
               apiKey: currentRow.credentials?.apiKey || undefined,
               apiKeys: currentRow.credentials?.apiKeys || [],
+              apiKeyRemarks: currentRow.credentials?.apiKeyRemarks || [],
               apiKeyModels: getInitialAPIKeyModels(currentRow.credentials || {}),
               apiKeyFetchedModels: currentRow.credentials?.apiKeyFetchedModels || [],
               managementApiKey: currentRow.credentials?.managementApiKey || undefined,
@@ -899,6 +900,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                 // OAuth 类型的凭据存储在 apiKey 字段，不放入 apiKeys
                 apiKey: duplicateFromRow.credentials?.apiKey || undefined,
                 apiKeys: duplicateFromRow.credentials?.apiKeys || [],
+                apiKeyRemarks: duplicateFromRow.credentials?.apiKeyRemarks || [],
                 apiKeyModels: getInitialAPIKeyModels(duplicateFromRow.credentials || {}),
                 apiKeyFetchedModels: duplicateFromRow.credentials?.apiKeyFetchedModels || [],
                 managementApiKey: duplicateFromRow.credentials?.managementApiKey || undefined,
@@ -916,6 +918,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
               policies: { stream: 'unlimited' },
               credentials: {
                 apiKeys: [],
+                apiKeyRemarks: [],
                 apiKeyModels: [],
                 apiKeyFetchedModels: [],
                 managementApiKey: undefined,
@@ -934,6 +937,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   });
 
   const apiKeys = useWatch({ control: form.control, name: 'credentials.apiKeys' });
+  const apiKeyRemarks = useWatch({ control: form.control, name: 'credentials.apiKeyRemarks' }) || [];
   // These arrays are edited by the per-key model picker rather than a visible
   // FormField. Subscribe explicitly so the picker and submit handler always see
   // the latest values, including fields that are not otherwise registered.
@@ -1678,6 +1682,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
             ...valuesForSubmit.credentials,
             apiKeyModels: latestAPIKeyModels ?? valuesForSubmit.credentials.apiKeyModels,
             apiKeyFetchedModels: latestAPIKeyFetchedModels ?? valuesForSubmit.credentials.apiKeyFetchedModels,
+            apiKeyRemarks: (valuesForSubmit.credentials.apiKeyRemarks ?? []).slice(0, valuesForSubmit.credentials.apiKeys?.length ?? 0),
           }
         : valuesForSubmit.credentials;
       // Lock in what the per-key picker shows before saving: a key with no
@@ -3731,12 +3736,14 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                       const isLastKey = validKeys.length <= 1;
                       const enabledKeysCount = validKeys.filter((k) => savedAPIKeySet.has(k) && !disabledKeySet.has(k)).length;
                       return validKeys
-                        .filter((k) => {
+                        .map((k, index) => ({ k, index }))
+                        .filter(({ k, index }) => {
                           if (!apiKeysSearch.trim()) return true;
                           const search = apiKeysSearch.trim().toLowerCase();
-                          return k.toLowerCase().includes(search) || k.slice(-4).toLowerCase().includes(search);
+                          const remark = apiKeyRemarks[index] ?? '';
+                          return k.toLowerCase().includes(search) || k.slice(-4).toLowerCase().includes(search) || remark.toLowerCase().includes(search);
                         })
-                        .map((key) => {
+                        .map(({ k: key, index }) => {
                           const isSelected = selectedKeysToRemove.has(key);
                           const isDisabled = disabledKeySet.has(key);
                           const isSavedKey = savedAPIKeySet.has(key);
@@ -3786,6 +3793,17 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                       </Badge>
                                     )}
                                   </div>
+                                  <Input
+                                    value={apiKeyRemarks[index] ?? ''}
+                                    onChange={(event) => {
+                                      const next = [...(form.getValues('credentials.apiKeyRemarks') || [])];
+                                      next[index] = event.target.value;
+                                      form.setValue('credentials.apiKeyRemarks', next, { shouldDirty: true, shouldTouch: true });
+                                    }}
+                                    placeholder={t('channels.dialogs.fields.apiKey.remarkPlaceholder')}
+                                    className='mt-1 h-7 max-w-sm text-xs'
+                                    disabled={isSubmitting}
+                                  />
                                   {isDisabled && (
                                     <p className='text-muted-foreground mt-1 text-xs'>{t('channels.dialogs.fields.apiKey.disabledHint')}</p>
                                   )}

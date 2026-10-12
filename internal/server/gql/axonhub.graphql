@@ -324,6 +324,7 @@ type ChannelAPIKeyModels {
 type ChannelCredentials {
   apiKey: String
   apiKeys: [String!]
+  apiKeyRemarks: [String!]
   apiKeyModels: [ChannelAPIKeyModels!]
   apiKeyFetchedModels: [ChannelAPIKeyModels!]
   gcp: GCPCredential
@@ -361,6 +362,7 @@ input ChannelAPIKeyModelsInput {
 input ChannelCredentialsInput {
   apiKey: String
   apiKeys: [String!]
+  apiKeyRemarks: [String!]
   apiKeyModels: [ChannelAPIKeyModelsInput!]
   apiKeyFetchedModels: [ChannelAPIKeyModelsInput!]
   gcp: GCPCredentialInput
