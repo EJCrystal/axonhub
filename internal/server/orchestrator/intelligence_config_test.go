@@ -23,41 +23,34 @@ import (
 func TestDefaultIntelligenceConfig(t *testing.T) {
 	config := defaultIntelligenceConfig()
 	require.False(t, config.Enabled)
-	require.Equal(t, 60, config.IntervalMinutes)
+	require.Equal(t, defaultIntelligenceCron, config.CronExpression)
 	require.Empty(t, config.Targets)
 }
 
-// TestAllowedIntelligenceIntervals pins the intervals the settings UI offers;
-// anything else has to be rejected before it reaches the scheduler.
-func TestAllowedIntelligenceIntervals(t *testing.T) {
-	require.Equal(t, []int{10, 30, 60, 300, 1440}, allowedIntelligenceIntervals)
-
-	for _, minutes := range allowedIntelligenceIntervals {
-		require.True(t, isAllowedInterval(minutes))
+func TestIntelligenceCronValidation(t *testing.T) {
+	for _, expression := range []string{"0 * * * *", "*/15 * * * *", "30 8 * * 1-5"} {
+		require.NoError(t, validateIntelligenceCron(expression), expression)
 	}
-
-	for _, minutes := range []int{-1, 0, 5, 15, 45, 120} {
-		require.False(t, isAllowedInterval(minutes))
+	for _, expression := range []string{"", "0 * *", "60 * * * *", "0 25 * * *", "0 * * * * * *"} {
+		require.Error(t, validateIntelligenceCron(expression), expression)
 	}
 }
 
-// TestIntelligenceTaskSpecFollowsInterval pins the fix for a fixed 10 minute
-// tick: the interval the operator picks has to reach the scheduler, otherwise
-// the tick wheel quantises every setting into the same slot and 30/60 minute
-// configurations fire far more often than asked.
-func TestIntelligenceTaskSpecFollowsInterval(t *testing.T) {
-	for _, minutes := range allowedIntelligenceIntervals {
-		spec := intelligenceTaskSpec(minutes)
-		require.Equal(t, intelligenceSchedulerTask, spec.Name)
-		require.Equal(t, time.Duration(minutes)*time.Minute, spec.FixRate)
-	}
+func TestIntelligenceTaskSpecFollowsCron(t *testing.T) {
+	spec := intelligenceTaskSpec("30 8 * * 1-5")
+	require.Equal(t, intelligenceSchedulerTask, spec.Name)
+	require.Equal(t, "30 8 * * 1-5", spec.CronExpr)
+	require.Equal(t, intelligenceScheduleTimezone, spec.Timezone)
+	require.Zero(t, spec.FixRate)
 
-	// Anything the settings UI does not offer falls back to the default rather
-	// than scheduling a zero-length tick, which the timer wheel would spin on.
-	for _, minutes := range []int{-1, 0, 5, 120} {
-		spec := intelligenceTaskSpec(minutes)
-		require.Equal(t, time.Duration(defaultIntelligenceConfig().IntervalMinutes)*time.Minute, spec.FixRate)
-	}
+	spec = intelligenceTaskSpec("not-a-cron")
+	require.Equal(t, defaultIntelligenceCron, spec.CronExpr)
+}
+
+func TestNormalizeLegacyIntelligenceConfig(t *testing.T) {
+	config := &objects.IntelligenceConfig{IntervalMinutes: 300}
+	normalizeIntelligenceConfig(config)
+	require.Equal(t, "0 */5 * * *", config.CronExpression)
 }
 
 // TestAllowedReasoningEfforts pins the levels a target may request: the seven
@@ -161,8 +154,8 @@ func TestValidateIntelligenceTargetTimeout(t *testing.T) {
 // fail loudly rather than silently running everything.
 func TestNarrowIntelligenceConfig(t *testing.T) {
 	config := &objects.IntelligenceConfig{
-		Enabled:         true,
-		IntervalMinutes: 30,
+		Enabled:        true,
+		CronExpression: "*/30 * * * *",
 		Targets: []objects.IntelligenceTarget{
 			{ChannelID: 6, ModelID: "gpt-6.1-sol", ReasoningEffort: "high"},
 			{ChannelID: 9, ModelID: "other", ReasoningEffort: "low"},
@@ -177,7 +170,7 @@ func TestNarrowIntelligenceConfig(t *testing.T) {
 
 	// The schedule settings survive the narrowing untouched.
 	require.True(t, narrowed.Enabled)
-	require.Equal(t, 30, narrowed.IntervalMinutes)
+	require.Equal(t, "*/30 * * * *", narrowed.CronExpression)
 
 	// The original is not mutated, so the scheduled path is unaffected.
 	require.Len(t, config.Targets, 2)
@@ -193,8 +186,8 @@ func TestNarrowIntelligenceConfig(t *testing.T) {
 // key has to pick one out.
 func TestNarrowIntelligenceConfigByKey(t *testing.T) {
 	config := &objects.IntelligenceConfig{
-		Enabled:         true,
-		IntervalMinutes: 60,
+		Enabled:        true,
+		CronExpression: "0 * * * *",
 		Targets: []objects.IntelligenceTarget{
 			{ChannelID: 6, APIKey: "sk-aaa", ModelID: "gpt-6.1-sol", ReasoningEffort: "high"},
 			{ChannelID: 6, APIKey: "sk-bbb", ModelID: "gpt-6-astra", ReasoningEffort: "low"},

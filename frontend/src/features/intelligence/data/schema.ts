@@ -88,14 +88,10 @@ export type IntelligenceTarget = z.infer<typeof intelligenceTargetSchema>;
 
 export const intelligenceConfigSchema = z.object({
   enabled: z.boolean().default(false),
-  intervalMinutes: z.number().default(60),
+  cronExpression: z.string().default('0 * * * *'),
   // Off unless switched on: disabling a key also takes it out of the
   // channel's live rotation, so it is opt-in.
   disableDegradedKeys: z.boolean().default(false),
   targets: z.array(intelligenceTargetSchema).default([]),
 });
 export type IntelligenceConfig = z.infer<typeof intelligenceConfigSchema>;
-
-// The intervals the backend accepts.
-export const INTELLIGENCE_INTERVALS = [10, 30, 60, 300, 1440] as const;
-export type IntelligenceInterval = (typeof INTELLIGENCE_INTERVALS)[number];

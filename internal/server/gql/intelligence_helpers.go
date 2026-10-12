@@ -41,7 +41,7 @@ func (r *mutationResolver) intelligenceConfigPayload(ctx context.Context) (*Inte
 
 	return &IntelligenceConfig{
 		Enabled:             config.Enabled,
-		IntervalMinutes:     config.IntervalMinutes,
+		CronExpression:      config.CronExpression,
 		DisableDegradedKeys: config.DisableDegradedKeys,
 		Targets:             targets,
 	}, nil

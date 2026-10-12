@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { IconGripVertical, IconPlayerPlay, IconPlus, IconTrash } from '@tabler/icons-react';
+import { toString as describeCron } from 'cronstrue/i18n';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -20,7 +21,7 @@ import { INTELLIGENCE_BENCHMARKS, REASONING_EFFORT_OPTIONS, benchmarkLabelKey } 
 import { channelIdKey, sameChannelId } from '../data/channel-id';
 import { useRunIntelligenceCheckNow, useSetIntelligenceConfig } from '../data/intelligence';
 import { maskAPIKey } from '../data/mask-key';
-import { INTELLIGENCE_INTERVALS, IntelligenceConfig, IntelligenceInterval } from '../data/schema';
+import { IntelligenceConfig } from '../data/schema';
 import { IntelligenceAddTargetDialog } from './intelligence-add-target-dialog';
 
 // Radix Select reserves the empty string, so "provider default" needs its own value.
@@ -31,6 +32,23 @@ const NO_EFFORT = '__default__';
 // and orchestrator.intelligenceMaxTimeoutMinutes.
 const DEFAULT_TIMEOUT_MINUTES = 12;
 const MAX_TIMEOUT_MINUTES = 20;
+
+function cronMeaning(value: string, t: (key: string, options?: Record<string, unknown>) => string, locale: string) {
+  const expression = value.trim().replace(/\s+/g, ' ');
+  const fields = expression.split(' ');
+  if (fields.length !== 5 || fields.some((field) => field === '')) return t('intelligence.settings.cronInvalid');
+
+  try {
+    const description = describeCron(expression, {
+      locale: locale.startsWith('zh') ? 'zh_CN' : 'en',
+      use24HourTimeFormat: true,
+      throwExceptionOnParseError: true,
+    });
+    return t('intelligence.settings.cronMeaning', { value: description });
+  } catch {
+    return t('intelligence.settings.cronInvalid');
+  }
+}
 
 // The published benchmarks. The empty string means pelican, which is what every
 // stored target used before the choice existed, so the picker shows the pelican
@@ -58,7 +76,7 @@ interface DraftTarget {
 }
 
 export function IntelligenceSettings({ config, loading, readOnly, canRun }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const save = useSetIntelligenceConfig();
   const runNow = useRunIntelligenceCheckNow();
 
@@ -69,7 +87,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
 
   const [enabled, setEnabled] = useState(false);
   const [disableDegradedKeys, setDisableDegradedKeys] = useState(false);
-  const [intervalMinutes, setIntervalMinutes] = useState<IntelligenceInterval>(60);
+  const [cronExpression, setCronExpression] = useState('0 * * * *');
   const [targets, setTargets] = useState<DraftTarget[]>([]);
   // Which channel's key list is showing. Empty lets the first group claim it.
   const [activeGroupKey, setActiveGroupKey] = useState<string>('');
@@ -78,7 +96,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
     if (!config) return;
     setEnabled(config.enabled);
     setDisableDegradedKeys(config.disableDegradedKeys ?? false);
-    setIntervalMinutes((config.intervalMinutes as IntelligenceInterval) ?? 60);
+    setCronExpression(config.cronExpression ?? '0 * * * *');
     setTargets(
       config.targets.map((target) => ({
         channelID: target.channelID,
@@ -177,7 +195,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
   const handleSave = () => {
     save.mutate({
       enabled,
-      intervalMinutes,
+      cronExpression: cronExpression.trim(),
       disableDegradedKeys,
       targets: targets.map((target) => ({
         channelID: target.channelID,
@@ -288,27 +306,29 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
             <Switch id='intelligence-enabled' checked={enabled} onCheckedChange={setEnabled} disabled={readOnly} />
           </div>
 
-          <div className='flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4'>
+          <div className='flex flex-wrap items-start justify-between gap-4 rounded-lg border p-4'>
             <div className='space-y-1'>
-              <Label>{t('intelligence.settings.interval')}</Label>
+              <Label htmlFor='intelligence-cron'>{t('intelligence.settings.cron')}</Label>
               <p className='text-muted-foreground text-xs'>{t('intelligence.settings.intervalHint')}</p>
             </div>
-            <Select
-              value={String(intervalMinutes)}
-              onValueChange={(value) => setIntervalMinutes(Number(value) as IntelligenceInterval)}
-              disabled={readOnly}
-            >
-              <SelectTrigger className='w-40' data-testid='intelligence-interval'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {INTELLIGENCE_INTERVALS.map((minutes) => (
-                  <SelectItem key={minutes} value={String(minutes)}>
-                    {t('intelligence.interval.' + minutes)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className='w-full max-w-md space-y-2 sm:w-auto'>
+              <Input
+                id='intelligence-cron'
+                value={cronExpression}
+                onChange={(event) => setCronExpression(event.target.value)}
+                placeholder='0 * * * *'
+                disabled={readOnly}
+                className='font-mono'
+                data-testid='intelligence-cron'
+                aria-describedby='intelligence-cron-help'
+              />
+              <p id='intelligence-cron-help' className='text-muted-foreground text-xs'>
+                {t('intelligence.settings.cronFormat')}
+              </p>
+              <p className='text-xs' data-testid='intelligence-cron-meaning'>
+                {cronMeaning(cronExpression, t, i18n.language)}
+              </p>
+            </div>
           </div>
 
           <div className='flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4'>

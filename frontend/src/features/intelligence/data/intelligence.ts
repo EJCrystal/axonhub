@@ -5,7 +5,6 @@ import { graphqlRequest } from '@/gql/graphql';
 import { useErrorHandler } from '@/hooks/use-error-handler';
 import {
   IntelligenceConfig,
-  IntelligenceInterval,
   IntelligenceRunConnection,
   intelligenceConfigSchema,
   intelligenceRunConnectionSchema,
@@ -16,7 +15,7 @@ const INTELLIGENCE_CONFIG_QUERY = `
   query IntelligenceConfig {
     intelligenceConfig {
       enabled
-      intervalMinutes
+      cronExpression
       disableDegradedKeys
       targets {
         channelID
@@ -35,7 +34,7 @@ const SET_INTELLIGENCE_CONFIG_MUTATION = `
   mutation SetIntelligenceConfig($input: IntelligenceConfigInput!) {
     setIntelligenceConfig(input: $input) {
       enabled
-      intervalMinutes
+      cronExpression
       disableDegradedKeys
       targets {
         channelID
@@ -160,7 +159,7 @@ export function useSetIntelligenceConfig() {
   return useMutation({
     mutationFn: async (input: {
       enabled: boolean;
-      intervalMinutes: IntelligenceInterval;
+      cronExpression: string;
       disableDegradedKeys?: boolean;
       targets: {
         channelID: string;

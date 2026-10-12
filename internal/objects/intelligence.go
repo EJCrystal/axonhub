@@ -8,8 +8,14 @@ type IntelligenceConfig struct {
 	// available.
 	Enabled bool `json:"enabled"`
 
-	// IntervalMinutes is the fixed-rate interval between runs.
-	IntervalMinutes int `json:"intervalMinutes"`
+	// CronExpression is a standard five-field crontab expression interpreted
+	// in the intelligence schedule timezone.
+	CronExpression string `json:"cronExpression"`
+
+	// IntervalMinutes is retained only to migrate configurations written by
+	// releases before cron scheduling was introduced. It is cleared after the
+	// configuration is read and normalized.
+	IntervalMinutes int `json:"intervalMinutes,omitempty"`
 
 	// DisableDegradedKeys turns an automatic key disable on when a scheduled run
 	// finds a key degraded. It is off by default: disabling a credential also

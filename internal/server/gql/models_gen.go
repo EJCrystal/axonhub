@@ -352,14 +352,14 @@ type InitializeSystemPayload struct {
 
 type IntelligenceConfig struct {
 	Enabled             bool                  `json:"enabled"`
-	IntervalMinutes     int                   `json:"intervalMinutes"`
+	CronExpression      string                `json:"cronExpression"`
 	DisableDegradedKeys bool                  `json:"disableDegradedKeys"`
 	Targets             []*IntelligenceTarget `json:"targets"`
 }
 
 type IntelligenceConfigInput struct {
 	Enabled             bool                       `json:"enabled"`
-	IntervalMinutes     int                        `json:"intervalMinutes"`
+	CronExpression      string                     `json:"cronExpression"`
 	DisableDegradedKeys *bool                      `json:"disableDegradedKeys,omitempty"`
 	Targets             []*IntelligenceTargetInput `json:"targets"`
 }
