@@ -16,6 +16,7 @@ const INTELLIGENCE_CONFIG_QUERY = `
     intelligenceConfig {
       enabled
       cronExpression
+      nextExecutionAt
       disableDegradedKeys
       targets {
         channelID
@@ -35,6 +36,7 @@ const SET_INTELLIGENCE_CONFIG_MUTATION = `
     setIntelligenceConfig(input: $input) {
       enabled
       cronExpression
+      nextExecutionAt
       disableDegradedKeys
       targets {
         channelID
@@ -144,6 +146,7 @@ const ALL_INTELLIGENCE_RUNS_QUERY = `
 export function useIntelligenceConfig() {
   return useQuery({
     queryKey: ['intelligence-config'],
+    refetchInterval: 60_000,
     queryFn: async () => {
       const data = await graphqlRequest<{ intelligenceConfig: unknown }>(INTELLIGENCE_CONFIG_QUERY);
       return intelligenceConfigSchema.parse(data.intelligenceConfig);

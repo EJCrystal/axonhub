@@ -3,11 +3,13 @@ package gql
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/samber/lo"
 
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/server/orchestrator"
 )
 
 // intelligenceConfigPayload renders the stored configuration with the channel
@@ -42,6 +44,7 @@ func (r *mutationResolver) intelligenceConfigPayload(ctx context.Context) (*Inte
 	return &IntelligenceConfig{
 		Enabled:             config.Enabled,
 		CronExpression:      config.CronExpression,
+		NextExecutionAt:     orchestrator.NextIntelligenceExecutionAt(config, time.Now()),
 		DisableDegradedKeys: config.DisableDegradedKeys,
 		Targets:             targets,
 	}, nil

@@ -117,6 +117,12 @@ test('the schedule field explains cron expressions in the active locale', () => 
   assert.match(settingsSource, /intelligence-cron-meaning/, 'the explanation is visible below the input');
 });
 
+test('the schedule field shows the server-calculated next execution', () => {
+  assert.match(settingsSource, /intelligence-next-execution/, 'the next execution is visible below the cron meaning');
+  assert.match(settingsSource, /config\?\.nextExecutionAt/, 'the displayed time comes from the saved server schedule');
+  assert.match(settingsSource, /timeZone: 'Asia\/Shanghai'/, 'the time is formatted in the scheduler timezone');
+});
+
 // The automatic disable takes a credential out of the channel's live rotation,
 // so it ships off and only a scheduled run may act on it. The hint has to say
 // both, or the switch reads as harmless.

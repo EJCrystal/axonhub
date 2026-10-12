@@ -244,6 +244,38 @@ func intelligenceTaskSpec(cronExpression string) scheduler.TaskSpec {
 	}
 }
 
+// NextIntelligenceExecutionAt returns the next wall-clock time at which an
+// enabled intelligence schedule will fire. It uses the same parser and
+// timezone as intelligenceTaskSpec so the admin console stays in sync with
+// the scheduler.
+func NextIntelligenceExecutionAt(config *objects.IntelligenceConfig, now time.Time) *time.Time {
+	if config == nil || !config.Enabled {
+		return nil
+	}
+
+	expression := strings.TrimSpace(config.CronExpression)
+	if validateIntelligenceCron(expression) != nil {
+		return nil
+	}
+
+	location, err := time.LoadLocation(intelligenceScheduleTimezone)
+	if err != nil {
+		return nil
+	}
+
+	parsed, err := cronexpr.ParseStrict(expression)
+	if err != nil {
+		return nil
+	}
+
+	next := parsed.Next(now.In(location))
+	if next.IsZero() {
+		return nil
+	}
+
+	return &next
+}
+
 // RegisterScheduledTasks wires the check into the scheduler at the interval the
 // stored configuration asks for. The task always registers; the handler itself
 // honours the Enabled flag so toggling the configuration does not need a
