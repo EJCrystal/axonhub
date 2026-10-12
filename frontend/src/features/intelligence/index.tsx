@@ -1,19 +1,18 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { IconBrain, IconChevronDown, IconChevronUp, IconFilter, IconRefresh } from '@tabler/icons-react';
-import { Main } from '@/components/layout/main';
-import { PageHeader } from '@/components/layout/page-header';
+import { useTranslation } from 'react-i18next';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { usePermissions } from '@/hooks/usePermissions';
+import { Main } from '@/components/layout/main';
+import { PageHeader } from '@/components/layout/page-header';
 import { useQueryChannels } from '@/features/channels/data/channels';
-import { IntelligenceSettings } from './components/intelligence-settings';
 import { IntelligenceHistoryList } from './components/intelligence-history-list';
+import { IntelligenceSettings } from './components/intelligence-settings';
 import { channelIdKey } from './data/channel-id';
-import { maskAPIKey } from './data/mask-key';
 import {
   DEFAULT_HISTORY_FILTER,
   HistoryFilter,
@@ -24,12 +23,8 @@ import {
   isHistoryFilterActive,
   pickActiveChannel,
 } from './data/history-filter';
-import {
-  useAllIntelligenceRuns,
-  useIntelligenceConfig,
-  useIntelligenceHistory,
-  useRunIntelligenceCheckNow,
-} from './data/intelligence';
+import { useAllIntelligenceRuns, useIntelligenceConfig, useIntelligenceHistory, useRunIntelligenceCheckNow } from './data/intelligence';
+import { maskAPIKey } from './data/mask-key';
 import { IntelligenceRun, IntelligenceRunConnection } from './data/schema';
 
 // Sentinels for the "all ..." choices. Radix Select reserves the empty string,
@@ -119,10 +114,7 @@ export default function IntelligenceManagement() {
     setBenchmark(undefined);
   }, [channelID]);
 
-  const selectedChannel = useMemo(
-    () => (channels?.edges ?? []).find((edge) => edge.node.id === channelID)?.node,
-    [channels, channelID]
-  );
+  const selectedChannel = useMemo(() => (channels?.edges ?? []).find((edge) => edge.node.id === channelID)?.node, [channels, channelID]);
 
   // Keys come from the selected channel's own credentials. While every channel
   // is merged there is no single key list, so that picker is hidden and the
@@ -138,10 +130,7 @@ export default function IntelligenceManagement() {
   }, [selectedChannel]);
 
   const rawRuns = useMemo(() => allRuns.data?.edges.map((edge) => edge.node) ?? [], [allRuns.data]);
-  const singleChannelRuns = useMemo(
-    () => historyQuery.data?.edges.map((edge) => edge.node) ?? [],
-    [historyQuery.data]
-  );
+  const singleChannelRuns = useMemo(() => historyQuery.data?.edges.map((edge) => edge.node) ?? [], [historyQuery.data]);
 
   const sourceRuns = showingAll ? rawRuns : singleChannelRuns;
 
@@ -199,11 +188,13 @@ export default function IntelligenceManagement() {
   };
 
   // The three filters are one job, so they fold into a disclosure. It starts
-  // open when something already narrows the list, and closed otherwise, so the
-  // header stays a single line of controls.
+  // open when something already narrows the list, and closed otherwise.
   const [filtersOpen, setFiltersOpen] = useState(filterActive);
 
-  const filters = (
+  // The bar lives in the content area rather than the page header: it grows to
+  // two rows when it opens, and inside the header that growth shoved the refresh
+  // and run buttons down with it.
+  const filterBar = (
     <div className='flex flex-col gap-2'>
       <div className='flex flex-wrap items-center gap-2'>
         <Button
@@ -216,9 +207,7 @@ export default function IntelligenceManagement() {
           <IconFilter className='mr-1 h-4 w-4' />
           {t('intelligence.history.filters')}
           {filterCount > 0 && (
-            <span className='bg-primary text-primary-foreground ml-1 rounded-full px-1.5 text-[10px] tabular-nums'>
-              {filterCount}
-            </span>
+            <span className='bg-primary text-primary-foreground ml-1 rounded-full px-1.5 text-[10px] tabular-nums'>{filterCount}</span>
           )}
           {filtersOpen ? <IconChevronUp size={14} className='ml-1' /> : <IconChevronDown size={14} className='ml-1' />}
         </Button>
@@ -226,51 +215,48 @@ export default function IntelligenceManagement() {
 
       {filtersOpen && (
         <div className='flex flex-wrap items-center gap-2 rounded-lg border p-2'>
-        {channelOptions.length > 0 && (
-          <Select
-            value={channelID ?? ALL_CHANNELS}
-            onValueChange={(value) => setChannelID(value === ALL_CHANNELS ? undefined : value)}
-          >
-            <SelectTrigger className='w-44' aria-label={t('intelligence.history.channelPlaceholder')}>
-              <SelectValue placeholder={t('intelligence.history.channelPlaceholder')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_CHANNELS}>{t('intelligence.history.allChannels')}</SelectItem>
-              {channelOptions.map((channel) => (
-                <SelectItem key={channel.id} value={channel.id}>
-                  {channel.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+          {channelOptions.length > 0 && (
+            <Select value={channelID ?? ALL_CHANNELS} onValueChange={(value) => setChannelID(value === ALL_CHANNELS ? undefined : value)}>
+              <SelectTrigger className='w-44' aria-label={t('intelligence.history.channelPlaceholder')}>
+                <SelectValue placeholder={t('intelligence.history.channelPlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_CHANNELS}>{t('intelligence.history.allChannels')}</SelectItem>
+                {channelOptions.map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    {channel.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
-        {/* A key belongs to exactly one channel, so this picker is only offered
+          {/* A key belongs to exactly one channel, so this picker is only offered
             once the list is narrowed to a single channel. */}
-        {!showingAll && keySelectOptions.length > 0 && (
-          <Select
-            value={apiKey ? maskAPIKey(apiKey) : ALL_KEYS}
-            onValueChange={(value) => {
-              if (value === ALL_KEYS) {
-                setApiKey(undefined);
-                return;
-              }
-              setApiKey(keyOptions.find((key) => maskAPIKey(key) === value));
-            }}
-          >
-            <SelectTrigger className='w-44' aria-label={t('intelligence.history.keyPlaceholder')}>
-              <SelectValue placeholder={t('intelligence.history.keyPlaceholder')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_KEYS}>{t('intelligence.history.allKeys')}</SelectItem>
-              {keySelectOptions.map((masked) => (
-                <SelectItem key={masked} value={masked}>
-                  {masked}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+          {!showingAll && keySelectOptions.length > 0 && (
+            <Select
+              value={apiKey ? maskAPIKey(apiKey) : ALL_KEYS}
+              onValueChange={(value) => {
+                if (value === ALL_KEYS) {
+                  setApiKey(undefined);
+                  return;
+                }
+                setApiKey(keyOptions.find((key) => maskAPIKey(key) === value));
+              }}
+            >
+              <SelectTrigger className='w-44' aria-label={t('intelligence.history.keyPlaceholder')}>
+                <SelectValue placeholder={t('intelligence.history.keyPlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_KEYS}>{t('intelligence.history.allKeys')}</SelectItem>
+                {keySelectOptions.map((masked) => (
+                  <SelectItem key={masked} value={masked}>
+                    {masked}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Both benchmarks are always offered: a reader may want to ask for one
             the current history has no rows for yet. */}
@@ -291,37 +277,36 @@ export default function IntelligenceManagement() {
             </SelectContent>
           </Select>
 
-        <Select value={verdict} onValueChange={(value) => setVerdict(value as VerdictFilter)}>
-          <SelectTrigger className='w-44' aria-label={t('intelligence.history.verdictFilter.label')}>
-            <SelectValue placeholder={t('intelligence.history.verdictFilter.label')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='all'>{t('intelligence.history.verdictFilter.all')}</SelectItem>
-            <SelectItem value='degraded'>{t('intelligence.history.verdictFilter.degraded')}</SelectItem>
-            <SelectItem value='inconclusive'>{t('intelligence.history.verdictFilter.inconclusive')}</SelectItem>
-            <SelectItem value='failed'>{t('intelligence.history.verdictFilter.failed')}</SelectItem>
-            <SelectItem value='normal'>{t('intelligence.history.verdictFilter.normal')}</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={verdict} onValueChange={(value) => setVerdict(value as VerdictFilter)}>
+            <SelectTrigger className='w-44' aria-label={t('intelligence.history.verdictFilter.label')}>
+              <SelectValue placeholder={t('intelligence.history.verdictFilter.label')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>{t('intelligence.history.verdictFilter.all')}</SelectItem>
+              <SelectItem value='degraded'>{t('intelligence.history.verdictFilter.degraded')}</SelectItem>
+              <SelectItem value='inconclusive'>{t('intelligence.history.verdictFilter.inconclusive')}</SelectItem>
+              <SelectItem value='failed'>{t('intelligence.history.verdictFilter.failed')}</SelectItem>
+              <SelectItem value='normal'>{t('intelligence.history.verdictFilter.normal')}</SelectItem>
+            </SelectContent>
+          </Select>
 
-        {filterActive && (
-          <Button
-            variant='ghost'
-            size='sm'
-            onClick={() => {
-              setVerdict(DEFAULT_HISTORY_FILTER.verdict);
-              setApiKey(undefined);
-              setBenchmark(undefined);
-            }}
-          >
-            {t('intelligence.history.clearFilters')}
-          </Button>
-        )}
+          {filterActive && (
+            <Button
+              variant='ghost'
+              size='sm'
+              onClick={() => {
+                setVerdict(DEFAULT_HISTORY_FILTER.verdict);
+                setApiKey(undefined);
+                setBenchmark(undefined);
+              }}
+            >
+              {t('intelligence.history.clearFilters')}
+            </Button>
+          )}
         </div>
       )}
     </div>
   );
-
 
   // One menu entry per configured target. A channel can appear several times, so
   // the entry has to say which key it will exercise and with what — a bare
@@ -330,10 +315,7 @@ export default function IntelligenceManagement() {
     () =>
       (config?.targets ?? []).map((target) => ({
         channelID: target.channelID,
-        channelName:
-          target.channelName ||
-          channelOptions.find((option) => option.id === target.channelID)?.name ||
-          '',
+        channelName: target.channelName || channelOptions.find((option) => option.id === target.channelID)?.name || '',
         modelID: target.modelID,
         apiKey: target.apiKey ?? '',
         keyLabel: target.apiKey ? maskAPIKey(target.apiKey) : '',
@@ -342,11 +324,7 @@ export default function IntelligenceManagement() {
     [config, channelOptions]
   );
 
-  const runDisabled =
-    !canRun ||
-    runNow.isPending ||
-    (config?.targets.length ?? 0) === 0 ||
-    configuredTargets.length === 0;
+  const runDisabled = !canRun || runNow.isPending || (config?.targets.length ?? 0) === 0 || configuredTargets.length === 0;
 
   // The run button starts every configured target, so it is labelled with the
   // count: "immediately test" alone reads as if it covered the row in view.
@@ -365,11 +343,12 @@ export default function IntelligenceManagement() {
     </Button>
   );
 
-  // Each tab owns its own header actions: the history filters mean nothing on
-  // the settings screen, and the run button is not a configuration step.
+  // The header keeps only the two buttons that act on the whole page. The
+  // filters used to sit here too, and expanding them made the header taller,
+  // which pushed these buttons down with it: a disclosure that grows must not
+  // move the controls next to it.
   const historyActions = (
     <div className='flex flex-wrap items-center gap-2'>
-      {filters}
       <Button variant='outline' size='sm' onClick={refresh} disabled={fetching}>
         <IconRefresh className='mr-1 h-4 w-4' />
         {t('intelligence.history.refresh')}
@@ -399,7 +378,11 @@ export default function IntelligenceManagement() {
           <TabsTrigger value='settings'>{t('intelligence.tabs.settings')}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value='history'>
+        <TabsContent value='history' className='space-y-3'>
+          {/* The filters belong to the history view, and they sit in the content
+              column so opening them pushes the records down rather than moving
+              the header's buttons. */}
+          {filterBar}
           {showingAll ? (
             groups.length > 0 && selectedGroup ? (
               // Channels run across the top rather than down the page: with a

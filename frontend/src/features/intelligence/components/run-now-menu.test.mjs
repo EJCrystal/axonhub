@@ -39,10 +39,22 @@ test('the header no longer offers a per-channel menu', () => {
 // configured target, so it must not sit next to the channel filters (which
 // describe the history) nor on the settings screen (where it would read as
 // another editing step next to "add channel").
-test('the history header carries the filters and the run button', () => {
+test('the history header carries the run button', () => {
   const block = page.slice(page.indexOf('const historyActions ='), page.indexOf('const settingsActions ='));
-  assert.match(block, /\{filters\}/, 'the filters belong to the history view');
-  assert.match(block, /\{runButton\}/, 'and so does the run control');
+  assert.match(block, /\{runButton\}/, 'the run control belongs to the history view');
+  assert.match(block, /intelligence\.history\.refresh/, 'and so does refresh');
+});
+
+// The filters grow to two rows when they open. Inside the header that growth
+// pushed the buttons down with it, so the filter bar moved into the content
+// column, where opening it can only push the records down.
+test('the filters sit in the content column, not the page header', () => {
+  const header = page.slice(page.indexOf('const historyActions ='), page.indexOf('const settingsActions ='));
+  assert.doesNotMatch(header, /\{filterBar\}/, 'the filter bar is not in the header actions');
+
+  const content = page.slice(page.indexOf("<TabsContent value='history'"), page.indexOf('</TabsContent>'));
+  assert.match(content, /\{filterBar\}/, 'it is rendered with the history content');
+  assert.match(page, /data-testid='toggle-history-filters'/, 'and still owns the disclosure toggle');
 });
 
 test('the settings header does not offer the run button', () => {
