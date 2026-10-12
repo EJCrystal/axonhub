@@ -417,9 +417,9 @@ func (r *mutationResolver) EvaluateChannelIntelligence(ctx context.Context, inpu
 // SetIntelligenceConfig is the resolver for the setIntelligenceConfig field.
 func (r *mutationResolver) SetIntelligenceConfig(ctx context.Context, input IntelligenceConfigInput) (*IntelligenceConfig, error) {
 	config := &objects.IntelligenceConfig{
-		Enabled:         input.Enabled,
-		IntervalMinutes: input.IntervalMinutes,
-		Targets:         make([]objects.IntelligenceTarget, 0, len(input.Targets)),
+		Enabled:        input.Enabled,
+		CronExpression: input.CronExpression,
+		Targets:        make([]objects.IntelligenceTarget, 0, len(input.Targets)),
 	}
 	if input.DisableDegradedKeys != nil {
 		config.DisableDegradedKeys = *input.DisableDegradedKeys

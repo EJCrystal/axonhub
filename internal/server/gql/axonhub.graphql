@@ -482,8 +482,8 @@ type IntelligenceTarget {
 
 input IntelligenceConfigInput {
   enabled: Boolean!
-  # Scheduling interval in minutes. One of 10, 30, 60, 300 or 1440.
-  intervalMinutes: Int!
+  # Standard five-field crontab expression, interpreted in Asia/Shanghai.
+  cronExpression: String!
   # Disable a channel key when a scheduled run finds it degraded. Omit or false
   # to only record the verdict.
   disableDegradedKeys: Boolean
@@ -492,7 +492,7 @@ input IntelligenceConfigInput {
 
 type IntelligenceConfig {
   enabled: Boolean!
-  intervalMinutes: Int!
+  cronExpression: String!
   # Whether a degraded key is disabled automatically on a scheduled run.
   disableDegradedKeys: Boolean!
   targets: [IntelligenceTarget!]!

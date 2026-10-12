@@ -104,11 +104,17 @@ test('the settings screen splits the schedule from the targets', () => {
   const cards = settingsSource.match(/<Card>/g) ?? [];
   assert.equal(cards.length, 2, 'exactly two cards');
 
-  // The switch and the interval belong to the first card; the table to the second.
+  // The switch and the cron field belong to the first card; the table to the second.
   const firstCard = settingsSource.slice(0, settingsSource.indexOf('intelligence.settings.targetsTitle'));
   assert.match(firstCard, /intelligence-enabled/, 'the schedule card holds the switch');
-  assert.match(firstCard, /intelligence-interval/, 'and the interval');
+  assert.match(firstCard, /intelligence-cron/, 'and the cron expression');
   assert.doesNotMatch(firstCard, /<Table>/, 'the table is not in the schedule card');
+});
+
+test('the schedule field explains cron expressions in the active locale', () => {
+  assert.match(settingsSource, /from 'cronstrue\/i18n'/, 'cron descriptions use the maintained parser');
+  assert.match(settingsSource, /cronMeaning\(cronExpression, t, i18n\.language\)/, 'the explanation follows the active locale');
+  assert.match(settingsSource, /intelligence-cron-meaning/, 'the explanation is visible below the input');
 });
 
 // The automatic disable takes a credential out of the channel's live rotation,

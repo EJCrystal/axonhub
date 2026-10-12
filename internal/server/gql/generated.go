@@ -837,9 +837,9 @@ type ComplexityRoot struct {
 	}
 
 	IntelligenceConfig struct {
+		CronExpression      func(childComplexity int) int
 		DisableDegradedKeys func(childComplexity int) int
 		Enabled             func(childComplexity int) int
-		IntervalMinutes     func(childComplexity int) int
 		Targets             func(childComplexity int) int
 	}
 
@@ -5439,6 +5439,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.InitializeSystemPayload.User(childComplexity), true
 
+	case "IntelligenceConfig.cronExpression":
+		if e.complexity.IntelligenceConfig.CronExpression == nil {
+			break
+		}
+
+		return e.complexity.IntelligenceConfig.CronExpression(childComplexity), true
 	case "IntelligenceConfig.disableDegradedKeys":
 		if e.complexity.IntelligenceConfig.DisableDegradedKeys == nil {
 			break
@@ -5451,12 +5457,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.IntelligenceConfig.Enabled(childComplexity), true
-	case "IntelligenceConfig.intervalMinutes":
-		if e.complexity.IntelligenceConfig.IntervalMinutes == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceConfig.IntervalMinutes(childComplexity), true
 	case "IntelligenceConfig.targets":
 		if e.complexity.IntelligenceConfig.Targets == nil {
 			break
@@ -30728,30 +30728,30 @@ func (ec *executionContext) fieldContext_IntelligenceConfig_enabled(_ context.Co
 	return fc, nil
 }
 
-func (ec *executionContext) _IntelligenceConfig_intervalMinutes(ctx context.Context, field graphql.CollectedField, obj *IntelligenceConfig) (ret graphql.Marshaler) {
+func (ec *executionContext) _IntelligenceConfig_cronExpression(ctx context.Context, field graphql.CollectedField, obj *IntelligenceConfig) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_IntelligenceConfig_intervalMinutes,
+		ec.fieldContext_IntelligenceConfig_cronExpression,
 		func(ctx context.Context) (any, error) {
-			return obj.IntervalMinutes, nil
+			return obj.CronExpression, nil
 		},
 		nil,
-		ec.marshalNInt2int,
+		ec.marshalNString2string,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_IntelligenceConfig_intervalMinutes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_IntelligenceConfig_cronExpression(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "IntelligenceConfig",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -36265,8 +36265,8 @@ func (ec *executionContext) fieldContext_Mutation_setIntelligenceConfig(ctx cont
 			switch field.Name {
 			case "enabled":
 				return ec.fieldContext_IntelligenceConfig_enabled(ctx, field)
-			case "intervalMinutes":
-				return ec.fieldContext_IntelligenceConfig_intervalMinutes(ctx, field)
+			case "cronExpression":
+				return ec.fieldContext_IntelligenceConfig_cronExpression(ctx, field)
 			case "disableDegradedKeys":
 				return ec.fieldContext_IntelligenceConfig_disableDegradedKeys(ctx, field)
 			case "targets":
@@ -48285,8 +48285,8 @@ func (ec *executionContext) fieldContext_Query_intelligenceConfig(_ context.Cont
 			switch field.Name {
 			case "enabled":
 				return ec.fieldContext_IntelligenceConfig_enabled(ctx, field)
-			case "intervalMinutes":
-				return ec.fieldContext_IntelligenceConfig_intervalMinutes(ctx, field)
+			case "cronExpression":
+				return ec.fieldContext_IntelligenceConfig_cronExpression(ctx, field)
 			case "disableDegradedKeys":
 				return ec.fieldContext_IntelligenceConfig_disableDegradedKeys(ctx, field)
 			case "targets":
@@ -76746,7 +76746,7 @@ func (ec *executionContext) unmarshalInputIntelligenceConfigInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"enabled", "intervalMinutes", "disableDegradedKeys", "targets"}
+	fieldsInOrder := [...]string{"enabled", "cronExpression", "disableDegradedKeys", "targets"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -76760,13 +76760,13 @@ func (ec *executionContext) unmarshalInputIntelligenceConfigInput(ctx context.Co
 				return it, err
 			}
 			it.Enabled = data
-		case "intervalMinutes":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("intervalMinutes"))
-			data, err := ec.unmarshalNInt2int(ctx, v)
+		case "cronExpression":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cronExpression"))
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.IntervalMinutes = data
+			it.CronExpression = data
 		case "disableDegradedKeys":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("disableDegradedKeys"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -102666,8 +102666,8 @@ func (ec *executionContext) _IntelligenceConfig(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "intervalMinutes":
-			out.Values[i] = ec._IntelligenceConfig_intervalMinutes(ctx, field, obj)
+		case "cronExpression":
+			out.Values[i] = ec._IntelligenceConfig_cronExpression(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

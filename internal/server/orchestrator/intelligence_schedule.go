@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"entgo.io/contrib/entgql"
+	"github.com/aptible/supercronic/cronexpr"
 	"github.com/samber/lo"
 	"go.uber.org/fx"
 	"golang.org/x/sync/errgroup"
@@ -87,8 +88,55 @@ func maskIntelligenceTargetKey(key string) string {
 	return key[:4] + "****" + key[len(key)-4:]
 }
 
-// allowedIntelligenceIntervals are the intervals the configuration accepts.
-var allowedIntelligenceIntervals = []int{10, 30, 60, 300, 1440}
+const (
+	// intelligenceScheduleTimezone keeps cron wall-clock times aligned with
+	// the timezone operators use for the admin console.
+	intelligenceScheduleTimezone = "Asia/Shanghai"
+	defaultIntelligenceCron      = "0 * * * *"
+)
+
+// legacyIntervalCron converts configurations saved by the interval-based UI
+// into equivalent wall-clock cron expressions.
+func legacyIntervalCron(minutes int) string {
+	switch minutes {
+	case 10:
+		return "*/10 * * * *"
+	case 30:
+		return "*/30 * * * *"
+	case 60:
+		return "0 * * * *"
+	case 300:
+		return "0 */5 * * *"
+	case 1440:
+		return "0 0 * * *"
+	default:
+		return defaultIntelligenceCron
+	}
+}
+
+func validateIntelligenceCron(expression string) error {
+	expression = strings.TrimSpace(expression)
+	if len(strings.Fields(expression)) != 5 {
+		return fmt.Errorf("cron expression must use five fields: minute hour day-of-month month day-of-week")
+	}
+	if _, err := cronexpr.ParseStrict(expression); err != nil {
+		return fmt.Errorf("invalid cron expression %q: %w", expression, err)
+	}
+	return nil
+}
+
+func normalizeIntelligenceConfig(config *objects.IntelligenceConfig) {
+	if config == nil {
+		return
+	}
+	if strings.TrimSpace(config.CronExpression) == "" {
+		config.CronExpression = legacyIntervalCron(config.IntervalMinutes)
+	}
+	config.CronExpression = strings.Join(strings.Fields(config.CronExpression), " ")
+	// Do not carry the legacy field into newly persisted JSON after the first
+	// read; the cron expression is now the single source of truth.
+	config.IntervalMinutes = 0
+}
 
 // allowedReasoningEfforts are the thinking levels a target may request. These
 // mirror llm/reasoning.go; an empty value means "use the provider default" and
@@ -147,9 +195,9 @@ func isAllowedReasoningEffort(effort string) bool {
 // defaultIntelligenceConfig is used until the admin saves a configuration.
 func defaultIntelligenceConfig() *objects.IntelligenceConfig {
 	return &objects.IntelligenceConfig{
-		Enabled:         false,
-		IntervalMinutes: 60,
-		Targets:         []objects.IntelligenceTarget{},
+		Enabled:        false,
+		CronExpression: defaultIntelligenceCron,
+		Targets:        []objects.IntelligenceTarget{},
 	}
 }
 
@@ -183,17 +231,16 @@ func NewIntelligenceService(params IntelligenceServiceParams) *IntelligenceServi
 	}
 }
 
-// intelligenceTaskSpec builds the scheduler spec for the configured interval, so
-// the tick itself follows the setting instead of a fixed rate.
-func intelligenceTaskSpec(intervalMinutes int) scheduler.TaskSpec {
-	if !isAllowedInterval(intervalMinutes) {
-		intervalMinutes = defaultIntelligenceConfig().IntervalMinutes
+// intelligenceTaskSpec builds the scheduler spec for the configured cron.
+func intelligenceTaskSpec(cronExpression string) scheduler.TaskSpec {
+	if validateIntelligenceCron(cronExpression) != nil {
+		cronExpression = defaultIntelligenceCron
 	}
-
 	return scheduler.TaskSpec{
 		Name:        intelligenceSchedulerTask,
 		Description: "Run the configured intelligence checks",
-		FixRate:     time.Duration(intervalMinutes) * time.Minute,
+		CronExpr:    cronExpression,
+		Timezone:    intelligenceScheduleTimezone,
 	}
 }
 
@@ -215,11 +262,12 @@ func (s *IntelligenceService) RegisterScheduledTasks(ctx context.Context, sched 
 
 	config, err := s.IntelligenceConfig(ctx)
 	if err != nil {
-		log.Warn(ctx, "intelligence check: falling back to the default interval", log.Cause(err))
+		log.Warn(ctx, "intelligence check: falling back to the default cron", log.Cause(err))
 		config = defaultIntelligenceConfig()
 	}
+	normalizeIntelligenceConfig(config)
 
-	return sched.Register(ctx, intelligenceTaskSpec(config.IntervalMinutes), s.runScheduled)
+	return sched.Register(ctx, intelligenceTaskSpec(config.CronExpression), s.runScheduled)
 }
 
 // reapInterruptedRuns marks any leftover running rows as failed. Nothing else
@@ -312,24 +360,26 @@ func (s *IntelligenceService) IntelligenceConfig(ctx context.Context) (*objects.
 		return defaultIntelligenceConfig(), nil
 	}
 
-	config := defaultIntelligenceConfig()
+	config := &objects.IntelligenceConfig{}
 	if err := json.Unmarshal([]byte(value), config); err != nil {
 		log.Warn(ctx, "failed to decode intelligence config, using defaults", log.Cause(err))
 		return defaultIntelligenceConfig(), nil
 	}
+	normalizeIntelligenceConfig(config)
 
 	return config, nil
 }
 
 // SetIntelligenceConfig validates and persists the configuration, then aligns
-// the scheduler with the new interval.
+// the scheduler with the new cron expression.
 func (s *IntelligenceService) SetIntelligenceConfig(ctx context.Context, config *objects.IntelligenceConfig) error {
 	if config == nil {
 		return fmt.Errorf("configuration is required")
 	}
 
-	if !isAllowedInterval(config.IntervalMinutes) {
-		return fmt.Errorf("interval must be one of %v minutes", allowedIntelligenceIntervals)
+	normalizeIntelligenceConfig(config)
+	if err := validateIntelligenceCron(config.CronExpression); err != nil {
+		return err
 	}
 
 	if err := validateIntelligenceTargets(config.Targets); err != nil {
@@ -345,22 +395,22 @@ func (s *IntelligenceService) SetIntelligenceConfig(ctx context.Context, config 
 		return err
 	}
 
-	// The interval drives the scheduler tick, so a change has to be applied to
-	// the live task rather than waiting for the next restart to pick it up.
-	s.reschedule(ctx, config.IntervalMinutes)
+	// A cron change has to be applied to the live task rather than waiting for
+	// the next restart to pick it up.
+	s.reschedule(ctx, config.CronExpression)
 
 	return nil
 }
 
-// reschedule aligns the live task with the configured interval. The task is
+// reschedule aligns the live task with the configured cron. The task is
 // registered during startup, so a missing scheduler or an unregistered task is
 // not an error worth failing the save over.
-func (s *IntelligenceService) reschedule(ctx context.Context, intervalMinutes int) {
+func (s *IntelligenceService) reschedule(ctx context.Context, cronExpression string) {
 	if s.scheduler == nil {
 		return
 	}
 
-	if err := s.scheduler.Reschedule(ctx, intelligenceSchedulerTask, intelligenceTaskSpec(intervalMinutes)); err != nil {
+	if err := s.scheduler.Reschedule(ctx, intelligenceSchedulerTask, intelligenceTaskSpec(cronExpression)); err != nil {
 		log.Warn(ctx, "intelligence check: failed to reschedule task", log.Cause(err))
 	}
 }
@@ -381,8 +431,7 @@ func (s *IntelligenceService) runScheduled(ctx context.Context) {
 		return
 	}
 
-	// The scheduler tick already carries the configured interval, so reaching
-	// here means the run is due.
+	// The scheduler has already matched the configured wall-clock expression.
 	s.runConfiguredTargets(runCtx, config, intelligenceScheduledTrigger)
 }
 
@@ -454,9 +503,9 @@ func narrowIntelligenceConfig(config *objects.IntelligenceConfig, channelID int,
 	}
 
 	return &objects.IntelligenceConfig{
-		Enabled:         config.Enabled,
-		IntervalMinutes: config.IntervalMinutes,
-		Targets:         selected,
+		Enabled:        config.Enabled,
+		CronExpression: config.CronExpression,
+		Targets:        selected,
 	}, nil
 }
 
@@ -1010,9 +1059,4 @@ func keyVerdict(result objects.IntelligenceKeyResult) string {
 	default:
 		return objects.IntelligenceManualVerdictDegraded
 	}
-}
-
-// isAllowedInterval reports whether the configuration accepts the interval.
-func isAllowedInterval(minutes int) bool {
-	return slices.Contains(allowedIntelligenceIntervals, minutes)
 }
