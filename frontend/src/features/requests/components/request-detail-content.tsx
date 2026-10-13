@@ -422,6 +422,9 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
           const cacheHitRate = hasReadCache ? ((cachedTokens / promptTokens) * 100).toFixed(1) : '0.0';
           const writeCacheRate = hasWriteCache ? ((writeCachedTokens / promptTokens) * 100).toFixed(1) : '0.0';
           const cost = usage.totalCost ?? 0;
+          // Cost resolved from the model library price because the channel had no
+          // explicit price for this model (see computeUsageCost fallback).
+          const isModelLibraryPrice = (usage.costPriceReferenceID ?? '').startsWith('model_library:');
 
           const promptCost = usage.costItems?.find((i: any) => i.itemCode === 'prompt_tokens')?.subtotal;
           const completionCost = usage.costItems?.find((i: any) => i.itemCode === 'completion_tokens')?.subtotal;
@@ -452,9 +455,20 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                     </div>
                     <span className='text-base'>{t('requests.detail.tabs.usage')}</span>
                   </div>
-                  <Badge className='bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' variant='secondary'>
-                    {t(`usageLogs.source.${usage.source}`)}
-                  </Badge>
+                  <div className='flex items-center gap-2'>
+                    {isModelLibraryPrice && (
+                      <Badge
+                        variant='outline'
+                        className='border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                        title={t('usageLogs.modelLibraryPriceHint')}
+                      >
+                        {t('usageLogs.modelLibraryPrice')}
+                      </Badge>
+                    )}
+                    <Badge className='bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' variant='secondary'>
+                      {t(`usageLogs.source.${usage.source}`)}
+                    </Badge>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>

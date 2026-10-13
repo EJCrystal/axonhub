@@ -600,11 +600,22 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       enableSorting: false,
       enableHiding: true,
       cell: ({ row }) => {
-        const cost = row.original.usageLogs?.edges?.[0]?.node?.totalCost;
+        const usageLog = row.original.usageLogs?.edges?.[0]?.node;
+        const cost = usageLog?.totalCost;
         if (cost == null) return <span className='font-mono text-xs'>-</span>;
+
+        const isModelLibraryPrice = (usageLog?.costPriceReferenceID ?? '').startsWith('model_library:');
 
         return (
           <span className='font-mono text-xs font-medium'>
+            {isModelLibraryPrice && (
+              <span
+                className='mr-1 align-middle text-[10px] text-amber-600 dark:text-amber-400'
+                title={t('usageLogs.modelLibraryPriceHint')}
+              >
+                {t('usageLogs.modelLibraryPrice')}
+              </span>
+            )}
             {t('currencies.format', {
               val: cost,
               currency: settings?.currencyCode ?? 'USD',
