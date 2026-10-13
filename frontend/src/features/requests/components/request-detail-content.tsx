@@ -461,7 +461,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span
-                            className='text-muted-foreground/60 inline-flex h-4 w-4 items-center justify-center'
+                            className='inline-flex h-4 w-4 items-center justify-center text-amber-600 dark:text-amber-400'
                             tabIndex={0}
                             role='img'
                             aria-label={t('usageLogs.modelLibraryPriceHint')}
