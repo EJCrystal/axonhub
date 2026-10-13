@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"entgo.io/contrib/entgql"
@@ -209,6 +210,11 @@ type IntelligenceService struct {
 	channelSvc    *biz.ChannelService
 	testSvc       *TestChannelOrchestrator
 	scheduler     *scheduler.Scheduler
+
+	// watcher guards the configuration watcher's lifetime so a second start does
+	// not spawn a second loop, which would reschedule the task twice per tick.
+	watcherMu     sync.Mutex
+	watcherCancel context.CancelFunc
 }
 
 type IntelligenceServiceParams struct {
@@ -299,7 +305,164 @@ func (s *IntelligenceService) RegisterScheduledTasks(ctx context.Context, sched 
 	}
 	normalizeIntelligenceConfig(config)
 
-	return sched.Register(ctx, intelligenceTaskSpec(config.CronExpression), s.runScheduled)
+	if err := sched.Register(ctx, intelligenceTaskSpec(config.CronExpression), s.runScheduled); err != nil {
+		return err
+	}
+
+	// Saving from the console reschedules the task directly; this keeps the task
+	// aligned with the stored value when it changes by any other route, so a
+	// configuration edit never needs a restart to take effect. The first tick only
+	// compares, so the registration above is left as it is.
+	s.startConfigWatcher(ctx)
+
+	return nil
+}
+
+
+
+// startConfigWatcher runs syncIntelligenceCron on a ticker until the service
+// stops. Starting twice replaces nothing: the previous loop is left alone and
+// the duplicate is dropped, so a repeated hook cannot double the polling.
+func (s *IntelligenceService) startConfigWatcher(ctx context.Context) {
+	s.watcherMu.Lock()
+	defer s.watcherMu.Unlock()
+
+	if s.watcherCancel != nil {
+		return
+	}
+
+	watchCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	s.watcherCancel = cancel
+
+	go s.watchIntelligenceConfig(watchCtx)
+}
+
+// stopConfigWatcher ends the polling loop, if one is running.
+func (s *IntelligenceService) stopConfigWatcher() {
+	s.watcherMu.Lock()
+	defer s.watcherMu.Unlock()
+
+	if s.watcherCancel == nil {
+		return
+	}
+
+	s.watcherCancel()
+	s.watcherCancel = nil
+}
+
+// intelligenceConfigPollInterval is how often the running scheduler compares its
+// registered cron against the stored configuration.
+//
+// Saving from the admin console already reschedules the live task, so this is
+// the belt to that pair of braces: a configuration written by anything else — a
+// migration, a restore, another replica, or an operator editing the row — would
+// otherwise sit in the database until the next restart, which is exactly the
+// surprise this removes. The interval is short enough that a change lands well
+// inside a human's attention span and long enough to be a single indexed read.
+const intelligenceConfigPollInterval = 30 * time.Second
+
+// watchIntelligenceConfig keeps the registered task aligned with the stored
+// cron while the process runs.
+//
+// It runs until the context is cancelled. A read failure is logged and retried
+// on the next tick rather than stopping the loop: a database blip must not
+// silently freeze the schedule for the rest of the process's life.
+func (s *IntelligenceService) watchIntelligenceConfig(ctx context.Context) {
+	ticker := time.NewTicker(intelligenceConfigPollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.syncIntelligenceCron(ctx)
+		}
+	}
+}
+
+
+// intelligenceConfigExact reads the stored configuration without substituting a
+// default. It answers (nil, nil) when nothing is stored or the stored value does
+// not decode, which is what lets the watcher tell "the operator changed the
+// cron" apart from "there is nothing readable to apply".
+func (s *IntelligenceService) intelligenceConfigExact(ctx context.Context) (*objects.IntelligenceConfig, error) {
+	value, err := s.systemService.SystemValue(ctx, IntelligenceConfigKey)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	if strings.TrimSpace(value) == "" {
+		return nil, nil
+	}
+
+	config := &objects.IntelligenceConfig{}
+	if err := json.Unmarshal([]byte(value), config); err != nil {
+		log.Warn(ctx, "intelligence check: stored configuration is not readable, keeping the running schedule", log.Cause(err))
+
+		return nil, nil
+	}
+
+	normalizeIntelligenceConfig(config)
+
+	return config, nil
+}
+
+// syncIntelligenceCron reschedules the task when the stored cron no longer
+// matches the one the scheduler is running.
+func (s *IntelligenceService) syncIntelligenceCron(ctx context.Context) {
+	if s.scheduler == nil {
+		return
+	}
+
+	// The polling goroutine carries no principal, so the read needs the same
+	// system bypass the registration and the runs use.
+	readCtx := authz.WithSystemBypass(context.WithoutCancel(ctx), "intelligence-check-watch")
+
+	config, err := s.intelligenceConfigExact(readCtx)
+	if err != nil {
+		log.Warn(readCtx, "intelligence check: failed to read configuration for rescheduling", log.Cause(err))
+		return
+	}
+
+	// A missing or malformed row is not an instruction to go back to the default
+	// cron: the running task already reflects the last value the operator chose,
+	// and silently moving a live schedule is worse than leaving a wrong-but-known
+	// one in place for another tick.
+	if config == nil {
+		return
+	}
+
+	wanted := intelligenceTaskSpec(config.CronExpression)
+	if strings.TrimSpace(wanted.CronExpr) == "" {
+		return
+	}
+
+	if s.registeredCron() == wanted.CronExpr {
+		return
+	}
+
+	log.Info(readCtx, "intelligence check: applying the stored cron",
+		log.String("cron", wanted.CronExpr),
+		log.String("previous", s.registeredCron()))
+
+	s.reschedule(readCtx, wanted.CronExpr)
+}
+
+// registeredCron reports the cron the scheduler currently holds for this task.
+// An unknown task answers empty so the caller reschedules.
+func (s *IntelligenceService) registeredCron() string {
+	for _, info := range s.scheduler.List() {
+		if info.Spec.Name == intelligenceSchedulerTask {
+			return info.Spec.CronExpr
+		}
+	}
+
+	return ""
 }
 
 // reapInterruptedRuns marks any leftover running rows as failed. Nothing else

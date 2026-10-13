@@ -21,6 +21,13 @@ var Module = fx.Module("orchestrator",
 			OnStart: func(ctx context.Context) error {
 				return svc.RegisterScheduledTasks(ctx, s)
 			},
+			OnStop: func(context.Context) error {
+				// The configuration watcher polls for the life of the process; stop it
+				// with the scheduler rather than leaving it to tick against a closed client.
+				svc.stopConfigWatcher()
+
+				return nil
+			},
 		})
 	}),
 )
