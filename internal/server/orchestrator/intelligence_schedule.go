@@ -447,6 +447,24 @@ func (s *IntelligenceService) reschedule(ctx context.Context, cronExpression str
 	}
 }
 
+
+// intelligenceChannel loads the channel a run evaluates, forcing the given key
+// when one was configured for the target.
+//
+// A configured key may be one the channel has disabled: the intelligence check
+// is what disables a degraded key, and disabling a credential does not make the
+// channel uninteresting — it makes it the one credential whose recovery matters
+// most. Building the channel with the key rather than with the channel's stored
+// set is what keeps that key checkable, so a run can come back later and
+// re-enable it once it answers correctly again.
+func (s *IntelligenceService) intelligenceChannel(ctx context.Context, channelID int, apiKey string) (*biz.Channel, error) {
+	if key := strings.TrimSpace(apiKey); key != "" {
+		return s.channelSvc.GetChannelWithKey(ctx, channelID, key)
+	}
+
+	return s.channelSvc.GetChannel(ctx, channelID)
+}
+
 // runScheduled executes a configured run when the schedule is due.
 func (s *IntelligenceService) runScheduled(ctx context.Context) {
 	// The scheduler runs with a background context, which carries no principal,
@@ -626,16 +644,16 @@ func (s *IntelligenceService) attachEntClient(ctx context.Context) context.Conte
 func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.IntelligenceTarget, trigger string) error {
 	startedAt := time.Now()
 
-	channel, err := s.channelSvc.GetChannel(ctx, target.ChannelID)
-	if err != nil {
-		return fmt.Errorf("failed to load channel %d: %w", target.ChannelID, err)
-	}
-
 	// A configured key narrows the run to that key; leaving it empty keeps the
 	// original behaviour of evaluating every enabled key of the channel.
 	var keys []string
 	if strings.TrimSpace(target.APIKey) != "" {
 		keys = []string{target.APIKey}
+	}
+
+	channel, err := s.intelligenceChannel(ctx, target.ChannelID, target.APIKey)
+	if err != nil {
+		return fmt.Errorf("failed to load channel %d: %w", target.ChannelID, err)
 	}
 
 	// The row is created before the check so the history can show it as running
@@ -721,6 +739,23 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 	return nil
 }
 
+
+// firstEvaluatedKey names the credential a result set was produced with. The key
+// is only used to build the channel, so the first one is enough and an empty
+// answer simply means "no way to force a key".
+func firstEvaluatedKey(results []*IntelligenceKeyResult) string {
+	for _, result := range results {
+		if result == nil {
+			continue
+		}
+		if key := strings.TrimSpace(result.APIKey); key != "" {
+			return key
+		}
+	}
+
+	return ""
+}
+
 // applyDegradedKeyPolicy disables a key a scheduled run found degraded, and
 // re-enables one that recovered.
 //
@@ -740,7 +775,12 @@ func (s *IntelligenceService) applyDegradedKeyPolicy(
 
 	// Recovery runs even when the switch is off: a key disabled while it was on
 	// must not stay disabled forever once the operator turns it off.
-	channel, err := s.channelSvc.GetChannel(ctx, channelID)
+	//
+	// The channel is loaded through one of the keys just evaluated rather than
+	// through its stored set: when every stored key is disabled the plain load
+	// refuses to build the channel, and recovery is exactly the case that has to
+	// work then.
+	channel, err := s.intelligenceChannel(ctx, channelID, firstEvaluatedKey(results))
 	if err != nil {
 		return fmt.Errorf("failed to load channel %d: %w", channelID, err)
 	}
