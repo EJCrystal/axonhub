@@ -160,6 +160,17 @@ test('the compact timestamp keeps the minute and drops the locale noise', () => 
   assert.match(fn, /Number\.isNaN/, 'an unparsable value falls back to the raw string');
 });
 
+// The key filter lists masked keys, and the remark lives on the channel. Every
+// option in the open dropdown has to reveal it on hover, not just the trigger
+// that shows the current selection.
+test('every key filter option reveals its channel remark on hover', () => {
+  const picker = page.slice(page.indexOf('const remarkOfMaskedKey'), page.indexOf('Both benchmarks are always offered'));
+  assert.ok(picker, 'the key filter picker must be present');
+  assert.match(picker, /apiKeyRemark\(selectedChannel\?\.credentials, key\)/, 'the remark is read from the selected channel');
+  assert.match(picker, /<KeyRemarkTooltip content=\{remarkOfMaskedKey\(masked\)\}>/, 'each option carries its own tooltip');
+  assert.match(picker, /<SelectValue placeholder=/, 'the trigger names its own value so items are not mirrored into it');
+});
+
 // The history toolbar keeps filters in a popover so opening them never changes
 // the height of the records area.
 test('the history filters live behind a popover', () => {

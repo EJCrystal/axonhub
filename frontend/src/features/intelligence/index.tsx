@@ -157,6 +157,14 @@ export default function IntelligenceManagement() {
     return keyOptions.map(maskAPIKey);
   }, [selectedChannel, keyOptions, sourceRuns]);
 
+  // The picker lists masked keys, and the channel is the only place that knows
+  // which remark belongs to each. A merged view has no single channel, so every
+  // entry answers empty there and the dropdown shows no tooltips at all.
+  const remarkOfMaskedKey = (masked: string) => {
+    const key = keyOptions.find((candidate) => maskAPIKey(candidate) === masked);
+    return key ? apiKeyRemark(selectedChannel?.credentials, key) : '';
+  };
+
   const filter: HistoryFilter = useMemo(
     () => ({
       verdict,
@@ -286,14 +294,22 @@ export default function IntelligenceManagement() {
               >
                 <KeyRemarkTooltip className='block min-w-0' content={apiKey ? apiKeyRemark(selectedChannel?.credentials, apiKey) : undefined}>
                   <SelectTrigger className='w-full' aria-label={t('intelligence.history.keyPlaceholder')}>
-                    <SelectValue placeholder={t('intelligence.history.keyPlaceholder')} />
+                    {/* Naming the value here stops Radix from mirroring the
+                        items into the trigger: each option carries its own
+                        tooltip, and mirrored children would stack two on the
+                        selected one. */}
+                    <SelectValue placeholder={t('intelligence.history.keyPlaceholder')}>
+                      <span className='font-mono text-xs'>{apiKey ? maskAPIKey(apiKey) : t('intelligence.history.allKeys')}</span>
+                    </SelectValue>
                   </SelectTrigger>
                 </KeyRemarkTooltip>
                 <SelectContent>
                   <SelectItem value={ALL_KEYS}>{t('intelligence.history.allKeys')}</SelectItem>
                   {keySelectOptions.map((masked) => (
                     <SelectItem key={masked} value={masked}>
-                      {masked}
+                      <KeyRemarkTooltip content={remarkOfMaskedKey(masked)}>
+                        <span className='font-mono text-xs'>{masked}</span>
+                      </KeyRemarkTooltip>
                     </SelectItem>
                   ))}
                 </SelectContent>
