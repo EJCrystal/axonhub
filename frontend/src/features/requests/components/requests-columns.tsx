@@ -618,7 +618,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
-                    className='text-muted-foreground/60 inline-flex h-3.5 w-3.5 items-center justify-center'
+                    className='inline-flex h-3.5 w-3.5 items-center justify-center text-amber-600 dark:text-amber-400'
                     tabIndex={0}
                     role='img'
                     aria-label={t('usageLogs.modelLibraryPriceHint')}
