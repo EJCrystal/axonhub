@@ -2,7 +2,7 @@
 
 import { format } from 'date-fns';
 import { ColumnDef } from '@tanstack/react-table';
-import { IconAlertTriangle, IconArrowsExchange, IconArrowsJoin2, IconCheck, IconQuestionMark, IconRoute } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowsExchange, IconArrowsJoin2, IconCheck, IconQuestionMark, IconRobot, IconRoute } from '@tabler/icons-react';
 import { Ban, FileText } from 'lucide-react';
 import { zhCN, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
@@ -607,21 +607,28 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         const isModelLibraryPrice = (usageLog?.costPriceReferenceID ?? '').startsWith('model_library:');
 
         return (
-          <span className='font-mono text-xs font-medium'>
-            {isModelLibraryPrice && (
-              <span
-                className='mr-1 align-middle text-[10px] text-amber-600 dark:text-amber-400'
-                title={t('usageLogs.modelLibraryPriceHint')}
-              >
-                {t('usageLogs.modelLibraryPrice')}
-              </span>
-            )}
+          <span className='inline-flex items-center gap-1 font-mono text-xs font-medium'>
             {t('currencies.format', {
               val: cost,
               currency: settings?.currencyCode ?? 'USD',
               locale: i18n.language === 'zh' ? 'zh-CN' : 'en-US',
               minimumFractionDigits: 6,
             })}
+            {isModelLibraryPrice && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className='text-muted-foreground/60 inline-flex h-3.5 w-3.5 items-center justify-center'
+                    tabIndex={0}
+                    role='img'
+                    aria-label={t('usageLogs.modelLibraryPriceHint')}
+                  >
+                    <IconRobot className='h-3.5 w-3.5' />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{t('usageLogs.modelLibraryPriceHint')}</TooltipContent>
+              </Tooltip>
+            )}
           </span>
         );
       },
