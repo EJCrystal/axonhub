@@ -675,7 +675,10 @@ func (svc *ChannelService) buildChannelWithTransformer(c *ent.Channel, apiKeyOve
 	//nolint:exhaustive // Checked.
 	switch c.Type {
 	case channel.TypeCodex, channel.TypeClaudecode:
-		if !c.Credentials.IsOAuth() && len(enabledKeys) == 0 {
+		// An explicit key is a key the caller handed to this build, so it stands in
+		// for a stored one: the channel key test flow probes a key that is not (or no
+		// longer) enabled, and the intelligence check re-probes the key it disabled.
+		if !c.Credentials.IsOAuth() && len(enabledKeys) == 0 && overrideAPIKey == "" {
 			return nil, fmt.Errorf("missing credentials: oauth or api key required for channel %s", c.Name)
 		}
 	case channel.TypeGithubCopilot, channel.TypeXaiSubscription:
@@ -702,7 +705,12 @@ func (svc *ChannelService) buildChannelWithTransformer(c *ent.Channel, apiKeyOve
 			return nil, fmt.Errorf("missing api key for channel %s", c.Name)
 		}
 	default:
-		if len(enabledKeys) == 0 {
+		// Only the stored keys are checked here. An explicit override is already a
+		// key to authenticate with, and it is what lets the key test flow and the
+		// intelligence check reach a channel whose every stored key is disabled —
+		// the check disables a degraded key, so it has to be able to run again and
+		// see whether that key recovered.
+		if len(enabledKeys) == 0 && overrideAPIKey == "" {
 			return nil, fmt.Errorf("missing api key for channel %s", c.Name)
 		}
 	}

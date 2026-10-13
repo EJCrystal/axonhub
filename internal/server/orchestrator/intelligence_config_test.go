@@ -272,6 +272,23 @@ func TestFailedRunResults(t *testing.T) {
 	require.NotNil(t, anonymous[0].Error)
 }
 
+// TestFirstEvaluatedKey pins how the recovery pass names a channel to load: the
+// key a result was produced with, which is what lets the pass reach a channel
+// whose every stored key is disabled.
+func TestFirstEvaluatedKey(t *testing.T) {
+	require.Empty(t, firstEvaluatedKey(nil), "no results means no key to force")
+	require.Empty(t, firstEvaluatedKey([]*IntelligenceKeyResult{nil}), "a nil result is skipped")
+	require.Empty(t, firstEvaluatedKey([]*IntelligenceKeyResult{{APIKey: "   "}}), "a blank key is not a key")
+
+	results := []*IntelligenceKeyResult{
+		nil,
+		{APIKey: ""},
+		{APIKey: " sk-recovered "},
+		{APIKey: "sk-other"},
+	}
+	require.Equal(t, "sk-recovered", firstEvaluatedKey(results), "the first real key is used, trimmed")
+}
+
 // TestDegradedKeyPolicyDefaultsOff pins the safe default: the automatic disable
 // takes a credential out of the channel's live rotation, so it only happens when
 // the operator turns it on.

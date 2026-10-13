@@ -345,6 +345,23 @@ func (c *intelligenceEvaluator) poll(ctx context.Context, taskID string) (*Intel
 	}
 }
 
+
+// intelligenceChannel loads the channel an evaluation targets, forcing one of the
+// requested keys when the caller named one.
+//
+// The channel key test flow probes a single key, and the intelligence check
+// re-probes the key it previously disabled; neither can rely on the channel's
+// own enabled set, which may be empty exactly because this key was disabled.
+func (processor *TestChannelOrchestrator) intelligenceChannel(ctx context.Context, channelID int, keys []string) (*biz.Channel, error) {
+	for _, key := range keys {
+		if trimmed := strings.TrimSpace(key); trimmed != "" {
+			return processor.channelService.GetChannelWithKey(ctx, channelID, trimmed)
+		}
+	}
+
+	return processor.channelService.GetChannel(ctx, channelID)
+}
+
 // EvaluateChannelIntelligence runs the pelican HTML evaluation for every
 // targeted API key of a channel. Each key first asks the tested model to
 // generate the HTML, then submits that source to the detection service.
@@ -359,7 +376,12 @@ func (processor *TestChannelOrchestrator) EvaluateChannelIntelligence(
 	timeoutMinutes *int,
 	benchmark string,
 ) (*IntelligenceEvaluateResult, error) {
-	channel, err := processor.channelService.GetChannel(ctx, channelID.ID)
+	// A requested key is authoritative: it may be one the channel has disabled,
+	// and the whole point of re-running the check is to find out whether that key
+	// recovered. Building the channel with the key is what keeps it reachable,
+	// since a channel whose every stored key is disabled cannot be built from its
+	// own credential set alone.
+	channel, err := processor.intelligenceChannel(ctx, channelID.ID, keys)
 	if err != nil {
 		return nil, err
 	}
