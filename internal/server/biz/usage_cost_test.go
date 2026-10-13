@@ -968,3 +968,131 @@ func TestUsageCost_FallbackSkipsUnpriceableModelLibraryEntries(t *testing.T) {
 		require.Empty(t, ul.CostPriceReferenceID)
 	}
 }
+
+// TestUsageCost_FallbackStripsEffortSuffix verifies that when the model library
+// has no exact entry for a suffixed model id, the fallback strips the known
+// effort/tier suffix and bills with the base model price.
+func TestUsageCost_FallbackStripsEffortSuffix(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:ent?mode=memory&_fk=0")
+	defer client.Close()
+
+	ctx := context.Background()
+	ctx = ent.NewContext(ctx, client)
+	ctx = authz.WithTestBypass(ctx)
+
+	// Only the base model "m-suffix" exists in the library; the channel serves
+	// "m-suffix-high".
+	createModelLibraryPriceEntry(t, ctx, client, "m-suffix", model.StatusEnabled, objects.ModelCardCost{
+		Input:  1,
+		Output: 2,
+	})
+
+	ch, err := client.Channel.Create().
+		SetType(channel.TypeOpenaiFake).
+		SetName("suffix-channel").
+		SetSupportedModels([]string{"m-suffix-high"}).
+		SetDefaultTestModel("m-suffix-high").
+		SetStatus(channel.StatusEnabled).
+		SetCredentials(objects.ChannelCredentials{}).
+		Save(ctx)
+	require.NoError(t, err)
+
+	systemService := NewSystemService(SystemServiceParams{Ent: client})
+	channelService := NewChannelServiceForTest(client)
+	built, err := channelService.GetChannel(ctx, ch.ID)
+	require.NoError(t, err)
+	channelService.SetEnabledChannelsForTest([]*Channel{built})
+
+	usageLogService := NewUsageLogService(client, systemService, channelService)
+
+	usage := &llm.Usage{PromptTokens: 100, CompletionTokens: 200, TotalTokens: 300}
+
+	ul, err := usageLogService.CreateUsageLog(ctx, CreateUsageLogParams{
+		RequestID:     1,
+		ProjectID:     1,
+		ChannelID:     ch.ID,
+		ActualModelID: "m-suffix-high",
+		Usage:         usage,
+		Source:        "api",
+		Format:        "openai/chat_completions",
+		APIKeyID:      nil,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, ul)
+
+	// expected total: (100/1e6)*1 + (200/1e6)*2 = 0.0005
+	require.NotNil(t, ul.TotalCost)
+	require.InDelta(t, 0.0005, *ul.TotalCost, 1e-12)
+	// Reference id keeps the requested (suffixed) model id for traceability.
+	require.Equal(t, modelLibraryPriceReferenceID("m-suffix-high"), ul.CostPriceReferenceID)
+}
+
+// TestUsageCost_FallbackPrefersExactModelBeforeSuffix verifies that an exact
+// model library entry for the suffixed id wins over the stripped base model.
+func TestUsageCost_FallbackPrefersExactModelBeforeSuffix(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:ent?mode=memory&_fk=0")
+	defer client.Close()
+
+	ctx := context.Background()
+	ctx = ent.NewContext(ctx, client)
+	ctx = authz.WithTestBypass(ctx)
+
+	createModelLibraryPriceEntry(t, ctx, client, "m-exact", model.StatusEnabled, objects.ModelCardCost{Input: 10})
+	createModelLibraryPriceEntry(t, ctx, client, "m-exact-high", model.StatusEnabled, objects.ModelCardCost{Input: 1})
+	{
+		n, qerr := client.Model.Query().Count(ctx)
+		require.NoError(t, qerr)
+		require.Equal(t, 2, n, "both library entries must exist")
+		m, merr := client.Model.Query().Where(model.ModelID("m-exact-high")).Only(ctx)
+		require.NoError(t, merr, "exact entry must be queryable")
+		require.Equal(t, float64(1), m.ModelCard.Cost.Input)
+	}
+
+	ch, err := client.Channel.Create().
+		SetType(channel.TypeOpenaiFake).
+		SetName("exact-channel").
+		SetSupportedModels([]string{"m-exact-high"}).
+		SetDefaultTestModel("m-exact-high").
+		SetStatus(channel.StatusEnabled).
+		SetCredentials(objects.ChannelCredentials{}).
+		Save(ctx)
+	require.NoError(t, err)
+
+	systemService := NewSystemService(SystemServiceParams{Ent: client})
+	channelService := NewChannelServiceForTest(client)
+	built, err := channelService.GetChannel(ctx, ch.ID)
+	require.NoError(t, err)
+	channelService.SetEnabledChannelsForTest([]*Channel{built})
+
+	usageLogService := NewUsageLogService(client, systemService, channelService)
+
+	usage := &llm.Usage{PromptTokens: 100, CompletionTokens: 0, TotalTokens: 100}
+
+	ul, err := usageLogService.CreateUsageLog(ctx, CreateUsageLogParams{
+		RequestID:     1,
+		ProjectID:     1,
+		ChannelID:     ch.ID,
+		ActualModelID: "m-exact-high",
+		Usage:         usage,
+		Source:        "api",
+		Format:        "openai/chat_completions",
+		APIKeyID:      nil,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, ul)
+
+	// Exact "m-exact-high" price (1/1M) must win over base "m-exact" (10/1M).
+	// (100 / 1e6) * 1 = 0.0001; the base price would yield 0.001.
+	require.NotNil(t, ul.TotalCost)
+	require.InDelta(t, 0.0001, *ul.TotalCost, 1e-12)
+}
+
+// TestModelLibraryPriceModelIDCandidates covers candidate ordering and de-dup.
+func TestModelLibraryPriceModelIDCandidates(t *testing.T) {
+	require.Equal(t, []string{"m"}, modelLibraryPriceModelIDCandidates("m"))
+	require.Equal(t, []string{"m-high", "m"}, modelLibraryPriceModelIDCandidates("m-high"))
+	require.Equal(t, []string{"m-low", "m"}, modelLibraryPriceModelIDCandidates("m-low"))
+	require.Equal(t, []string{"m-medium", "m"}, modelLibraryPriceModelIDCandidates("m-medium"))
+	// A trailing dash is not a known suffix; nothing is stripped.
+	require.Equal(t, []string{"m-high-"}, modelLibraryPriceModelIDCandidates("m-high-"))
+}
