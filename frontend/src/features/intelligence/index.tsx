@@ -11,7 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Main } from '@/components/layout/main';
 import { PageHeader } from '@/components/layout/page-header';
 import { useQueryChannels } from '@/features/channels/data/channels';
+import { ChannelCredentials } from '@/features/channels/data/schema';
 import { IntelligenceHistoryList } from './components/intelligence-history-list';
+import { KeyRemarkTooltip } from './components/key-remark-tooltip';
 import { IntelligenceSettings } from './components/intelligence-settings';
 import { channelIdKey } from './data/channel-id';
 import {
@@ -25,6 +27,7 @@ import {
   pickActiveChannel,
 } from './data/history-filter';
 import { useAllIntelligenceRuns, useIntelligenceConfig, useIntelligenceHistory, useRunIntelligenceCheckNow } from './data/intelligence';
+import { apiKeyRemark, maskedKeyRemarks } from './data/key-remarks';
 import { maskAPIKey } from './data/mask-key';
 import { IntelligenceRun, IntelligenceRunConnection } from './data/schema';
 
@@ -75,13 +78,27 @@ export default function IntelligenceManagement() {
   // channel there also removes it from the history. The full channel query stays
   // because the key picker needs each channel's credentials.
   const { data: channels } = useQueryChannels({ first: 200, full: true });
+  // The credentials ride along so a key shown anywhere on the page can be joined
+  // back to the remark stored for it on the channel.
   const channelByID = useMemo(() => {
-    const byID = new Map<string, { id: string; name: string }>();
+    const byID = new Map<string, { id: string; name: string; credentials: ChannelCredentials | null }>();
     for (const edge of channels?.edges ?? []) {
-      byID.set(channelIdKey(edge.node.id), { id: edge.node.id, name: edge.node.name });
+      byID.set(channelIdKey(edge.node.id), {
+        id: edge.node.id,
+        name: edge.node.name,
+        credentials: edge.node.credentials ?? null,
+      });
     }
     return byID;
   }, [channels]);
+
+  // History records carry only the masked prefix of the key they exercised, so
+  // the lookup that turns a record's prefix back into a remark is keyed the same
+  // way.
+  const maskedRemarksFor = (id?: string) => {
+    if (!id) return new Map<string, string>();
+    return maskedKeyRemarks(channelByID.get(channelIdKey(id))?.credentials);
+  };
 
   const configuredChannelIDs = useMemo(() => {
     const ids: string[] = [];
@@ -267,9 +284,11 @@ export default function IntelligenceManagement() {
                   setApiKey(keyOptions.find((key) => maskAPIKey(key) === value));
                 }}
               >
-                <SelectTrigger className='w-full' aria-label={t('intelligence.history.keyPlaceholder')}>
-                  <SelectValue placeholder={t('intelligence.history.keyPlaceholder')} />
-                </SelectTrigger>
+                <KeyRemarkTooltip className='block min-w-0' content={apiKey ? apiKeyRemark(selectedChannel?.credentials, apiKey) : undefined}>
+                  <SelectTrigger className='w-full' aria-label={t('intelligence.history.keyPlaceholder')}>
+                    <SelectValue placeholder={t('intelligence.history.keyPlaceholder')} />
+                  </SelectTrigger>
+                </KeyRemarkTooltip>
                 <SelectContent>
                   <SelectItem value={ALL_KEYS}>{t('intelligence.history.allKeys')}</SelectItem>
                   {keySelectOptions.map((masked) => (
@@ -410,6 +429,7 @@ export default function IntelligenceManagement() {
                     history={toConnection(selectedGroup.edges.map((edge) => edge.node))}
                     loading={false}
                     configured={configured}
+                    keyRemarks={maskedRemarksFor(String(selectedGroup.channelID))}
                   />
                 </TabsContent>
               </Tabs>
@@ -417,7 +437,12 @@ export default function IntelligenceManagement() {
               <IntelligenceHistoryList history={undefined} loading={loading} configured={configured} />
             )
           ) : (
-            <IntelligenceHistoryList history={toConnection(filteredRuns)} loading={loading} configured={configured} />
+            <IntelligenceHistoryList
+              history={toConnection(filteredRuns)}
+              loading={loading}
+              configured={configured}
+              keyRemarks={maskedRemarksFor(channelID)}
+            />
           )}
         </TabsContent>
 

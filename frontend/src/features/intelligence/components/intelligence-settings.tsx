@@ -16,13 +16,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQueryChannels } from '@/features/channels/data/channels';
+import { ChannelCredentials } from '@/features/channels/data/schema';
 import { modelsForAPIKey } from '../data/api-key-models';
+import { apiKeyRemark } from '../data/key-remarks';
 import { INTELLIGENCE_BENCHMARKS, REASONING_EFFORT_OPTIONS, benchmarkLabelKey } from '../data/benchmarks';
 import { channelIdKey, sameChannelId } from '../data/channel-id';
 import { useRunIntelligenceCheckNow, useSetIntelligenceConfig } from '../data/intelligence';
 import { maskAPIKey } from '../data/mask-key';
 import { IntelligenceConfig } from '../data/schema';
 import { IntelligenceAddTargetDialog } from './intelligence-add-target-dialog';
+import { KeyRemarkTooltip } from './key-remark-tooltip';
 
 // Radix Select reserves the empty string, so "provider default" needs its own value.
 const NO_EFFORT = '__default__';
@@ -180,6 +183,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
         name: channel.name,
         keys: keysFor(channel.id),
         modelsFor: (apiKey: string) => modelsFor(channel.id, apiKey),
+        remarkFor: (apiKey: string) => apiKeyRemark(channel.credentials, apiKey),
       })),
     // keysFor and modelsFor read the same channel options, so the list is rebuilt
     // whenever they change.
@@ -421,6 +425,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
                       group={group}
                       targets={targets}
                       channelName={channelNameOf(channelOfGroup(group))}
+                      credentials={channelByID(channelOfGroup(group))?.credentials}
                       readOnly={readOnly}
                       canRun={canRun}
                       runPending={runNow.isPending}
@@ -472,6 +477,9 @@ interface ChannelCardProps {
   group: TargetGroup;
   targets: DraftTarget[];
   channelName: string;
+  // The channel's credentials, so each row can name the remark of the key it
+  // holds while the pointer rests on it.
+  credentials?: ChannelCredentials | null;
   readOnly: boolean;
   canRun: boolean;
   runPending: boolean;
@@ -521,6 +529,7 @@ function ChannelTargetCard({
   group,
   targets,
   channelName,
+  credentials,
   readOnly,
   canRun,
   runPending,
@@ -607,6 +616,7 @@ function ChannelTargetCard({
                       position={position}
                       target={target}
                       index={index}
+                      credentials={credentials}
                       dragging={activeID === String(index)}
                       readOnly={readOnly}
                       canRun={canRun}
@@ -642,6 +652,7 @@ interface SortableRowProps {
   position: number;
   index: number;
   target: DraftTarget;
+  credentials?: ChannelCredentials | null;
   dragging: boolean;
   readOnly: boolean;
   canRun: boolean;
@@ -663,6 +674,7 @@ function SortableTargetRow({
   position,
   index,
   target,
+  credentials,
   dragging,
   readOnly,
   canRun,
@@ -706,9 +718,11 @@ function SortableTargetRow({
         onValueChange={(value) => onUpdate(index, { apiKey: value, modelID: modelsFor(target.channelID, value)[0] ?? '' })}
         disabled={readOnly || keys.length === 0}
       >
-        <SelectTrigger className='h-8 w-full' data-testid='intelligence-target-key'>
-          <SelectValue placeholder={t('intelligence.settings.keyPlaceholder')} />
-        </SelectTrigger>
+        <KeyRemarkTooltip className='block min-w-0' content={apiKeyRemark(credentials, target.apiKey)}>
+          <SelectTrigger className='h-8 w-full' data-testid='intelligence-target-key'>
+            <SelectValue placeholder={t('intelligence.settings.keyPlaceholder')} />
+          </SelectTrigger>
+        </KeyRemarkTooltip>
         <SelectContent>
           {keys.map((key) => (
             <SelectItem key={key} value={key}>

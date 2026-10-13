@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ErrorDisplay } from '@/features/channels/utils/error-formatter';
 import { IntelligenceHTMLPreview } from './intelligence-html-preview';
+import { KeyRemarkTooltip } from './key-remark-tooltip';
 import { CandyAnswer } from './intelligence-candy-answer';
 import { formatDuration } from '../data/format-duration';
 import {
@@ -25,10 +26,8 @@ import { useSetIntelligenceRunVerdict } from '../data/intelligence';
 // The API key a run exercised, rendered the way the rest of the page masks
 // secrets. A run normally targets one key; when it covers several, joining the
 // prefixes keeps every one of them visible rather than showing only the first.
-function runKeyLabel(run: IntelligenceRun): string {
-  const prefixes = run.results.map((result) => result.keyPrefix).filter((prefix) => prefix.trim() !== '');
-
-  return prefixes.length > 0 ? prefixes.join(', ') : '—';
+function runKeyPrefixes(run: IntelligenceRun): string[] {
+  return run.results.map((result) => result.keyPrefix).filter((prefix) => prefix.trim() !== '');
 }
 
 // runBenchmark names the check a run used. Runs recorded before the field
@@ -66,9 +65,13 @@ interface Props {
   history?: IntelligenceRunConnection;
   loading: boolean;
   configured: boolean;
+  // Remarks stored on the channel, keyed by the masked prefix a run records.
+  // A run whose channel is unknown simply carries no remarks, and then no key
+  // gets a tooltip.
+  keyRemarks?: Map<string, string>;
 }
 
-export function IntelligenceHistoryList({ history, loading, configured }: Props) {
+export function IntelligenceHistoryList({ history, loading, configured, keyRemarks }: Props) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const setVerdict = useSetIntelligenceRunVerdict();
@@ -166,7 +169,17 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                   <TableCell className='font-mono text-xs'>
                     {/* A run targets one key, so the row shows it directly; a run
                         covering several keys lists them instead of guessing. */}
-                    {runKeyLabel(run)}
+                    {runKeyPrefixes(run).length > 0 ? (
+                      <span className='flex flex-col gap-0.5'>
+                        {runKeyPrefixes(run).map((prefix) => (
+                          <KeyRemarkTooltip key={prefix} content={keyRemarks?.get(prefix)}>
+                            <span className='cursor-default'>{prefix}</span>
+                          </KeyRemarkTooltip>
+                        ))}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
                   </TableCell>
                   <TableCell className='text-xs'>{t(`intelligence.trigger.${run.trigger}`)}</TableCell>
                   <TableCell>
@@ -201,7 +214,9 @@ export function IntelligenceHistoryList({ history, loading, configured }: Props)
                         {run.results.map((key) => (
                           <div key={key.keyPrefix} className='rounded-md border p-3 text-xs'>
                             <div className='flex flex-wrap items-center gap-2'>
-                              <span className='font-mono'>{key.keyPrefix}</span>
+                              <KeyRemarkTooltip content={keyRemarks?.get(key.keyPrefix)}>
+                                <span className='font-mono'>{key.keyPrefix}</span>
+                              </KeyRemarkTooltip>
                               {/* A run in flight has no outcome yet. Its seeded
                                   key entry would otherwise read as a plain
                                   failure, claiming a verdict that has not

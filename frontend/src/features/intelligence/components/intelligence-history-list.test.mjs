@@ -62,14 +62,23 @@ test('a running run shows a spinner badge instead of a verdict', () => {
 // to expand a run to find out which credential produced the verdict.
 test('the run row shows the api key column', () => {
   assert.match(source, /intelligence\.history\.columns\.apiKey/, 'the header names the column');
-  assert.match(row, /runKeyLabel\(run\)/, 'the row renders the key label');
+  assert.match(row, /runKeyPrefixes\(run\)/, 'the row renders the key prefixes');
 });
 
 test('a run covering several keys lists every prefix', () => {
-  const fn = source.slice(source.indexOf('function runKeyLabel'), source.indexOf('interface Props'));
+  const fn = source.slice(source.indexOf('function runKeyPrefixes'), source.indexOf('interface Props'));
   assert.match(fn, /run\.results\.map/, 'it reads the per-key results');
-  assert.match(fn, /join\(', '\)/, 'several keys are all shown');
-  assert.match(fn, /'—'/, 'a run with no key still renders a placeholder');
+  assert.ok(row.includes('runKeyPrefixes(run).map'), 'every prefix is listed');
+  assert.match(source, /'—'/, 'a run with no key still renders a placeholder');
+});
+
+// The channel stores a remark per key. Hovering a key must reveal its remark,
+// and a key with none must show no tooltip at all rather than an empty one.
+test('a recorded key reveals its channel remark on hover', () => {
+  const keyColumn = row.slice(row.indexOf("<TableCell className='font-mono text-xs'>"));
+  assert.match(keyColumn, /<KeyRemarkTooltip/, 'the key cell wraps the prefix in the tooltip');
+  assert.match(keyColumn, /keyRemarks\?\.get\(prefix\)/, 'the remark is looked up by the recorded prefix');
+  assert.match(source, /keyRemarks\?\.get\(key\.keyPrefix\)/, 'the expanded detail looks it up too');
 });
 
 // The history view follows the test configuration: a channel removed there must

@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { IconChevronDown } from '@tabler/icons-react';
 import { sameChannelId } from '../data/channel-id';
 import { maskAPIKey } from '../data/mask-key';
+import { KeyRemarkTooltip } from './key-remark-tooltip';
 import { INTELLIGENCE_BENCHMARKS, REASONING_EFFORT_OPTIONS } from '../data/benchmarks';
 
 // NO_EFFORT mirrors the settings table: Radix Select reserves the empty string,
@@ -29,6 +30,9 @@ interface ChannelOption {
   name: string;
   keys: string[];
   modelsFor: (apiKey: string) => string[];
+  // The remark stored for a key, so the picker can show it on hover. Empty for
+  // a key that has none.
+  remarkFor: (apiKey: string) => string;
 }
 
 interface Props {
@@ -175,9 +179,11 @@ export function IntelligenceAddTargetDialog({ open, onOpenChange, channels, isPa
               }}
               disabled={keys.length === 0}
             >
-              <SelectTrigger data-testid='add-target-key'>
-                <SelectValue placeholder={t('intelligence.settings.keyPlaceholder')} />
-              </SelectTrigger>
+              <KeyRemarkTooltip className='block min-w-0' content={apiKey ? channel?.remarkFor(apiKey) : undefined}>
+                <SelectTrigger data-testid='add-target-key'>
+                  <SelectValue placeholder={t('intelligence.settings.keyPlaceholder')} />
+                </SelectTrigger>
+              </KeyRemarkTooltip>
               <SelectContent>
                 {keys.map((key) => (
                   <SelectItem key={key} value={key}>
