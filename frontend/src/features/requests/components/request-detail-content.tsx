@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { DashboardIcon } from '@radix-ui/react-icons';
 import { zhCN, enUS } from 'date-fns/locale';
-import { Copy, Clock, Key, Database, FileText, Layers, Download, Terminal, Bot } from 'lucide-react';
+import { Copy, Clock, Key, Database, FileText, Layers, Download, Terminal, CircleDollarSign } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { copyTextToClipboard } from '@/lib/clipboard';
@@ -466,7 +466,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                             role='img'
                             aria-label={t('usageLogs.modelLibraryPriceHint')}
                           >
-                            <Bot className='h-4 w-4' />
+                            <CircleDollarSign className='h-4 w-4' />
                           </span>
                         </TooltipTrigger>
                         <TooltipContent>{t('usageLogs.modelLibraryPriceHint')}</TooltipContent>

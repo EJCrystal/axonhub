@@ -2,7 +2,7 @@
 
 import { format } from 'date-fns';
 import { ColumnDef } from '@tanstack/react-table';
-import { IconAlertTriangle, IconArrowsExchange, IconArrowsJoin2, IconCheck, IconQuestionMark, IconRobot, IconRoute } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowsExchange, IconArrowsJoin2, IconCheck, IconCoin, IconQuestionMark, IconRoute } from '@tabler/icons-react';
 import { Ban, FileText } from 'lucide-react';
 import { zhCN, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
@@ -623,7 +623,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                     role='img'
                     aria-label={t('usageLogs.modelLibraryPriceHint')}
                   >
-                    <IconRobot className='h-3.5 w-3.5' />
+                    <IconCoin className='h-3.5 w-3.5' />
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>{t('usageLogs.modelLibraryPriceHint')}</TooltipContent>
