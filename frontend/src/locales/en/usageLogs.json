@@ -5,6 +5,8 @@
   "usageLogs.columns.promptCachedTokens": "Input Cached Tokens",
   "usageLogs.columns.writeCacheTokens": "Write Cache Tokens",
   "usageLogs.columns.totalCost": "Total Cost",
+  "usageLogs.modelLibraryPrice": "Model library price",
+  "usageLogs.modelLibraryPriceHint": "Cost computed from the model library price (this channel has no explicit model price)",
   "usageLogs.source.api": "API",
   "usageLogs.source.playground": "Playground",
   "usageLogs.source.test": "Test"

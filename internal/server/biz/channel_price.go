@@ -87,6 +87,50 @@ func modelCardToChannelModelPrice(card *objects.ModelCard) (objects.ModelPrice, 
 	return objects.ModelPrice{Items: items}, true
 }
 
+// modelLibraryPriceReferencePrefix marks usage-log cost that fell back to the
+// model library price because the channel had no explicit price for the model.
+const modelLibraryPriceReferencePrefix = "model_library:"
+
+// modelLibraryPriceReferenceID builds the synthetic reference id recorded on
+// usage logs whose cost was resolved from the model library fallback.
+func modelLibraryPriceReferenceID(modelID string) string {
+	return modelLibraryPriceReferencePrefix + modelID
+}
+
+// resolveModelLibraryPrice resolves a price from the model library by model id.
+// It is used as a billing-time fallback when a channel has no explicit price
+// for the model. Only enabled and disabled models are considered, mirroring the
+// auto-configuration eligibility rules. It returns false when no priceable
+// model library entry exists.
+func (svc *ChannelService) resolveModelLibraryPrice(ctx context.Context, modelID string) (*objects.ModelPrice, bool) {
+	if modelID == "" {
+		return nil, false
+	}
+
+	catalogModel, err := svc.entFromContext(ctx).Model.Query().
+		Where(
+			model.ModelID(modelID),
+			model.StatusIn(model.StatusEnabled, model.StatusDisabled),
+		).
+		First(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			log.Warn(ctx, "failed to resolve model library price",
+				log.String("model_id", modelID),
+				log.Cause(err))
+		}
+
+		return nil, false
+	}
+
+	price, ok := modelCardToChannelModelPrice(catalogModel.ModelCard)
+	if !ok {
+		return nil, false
+	}
+
+	return &price, true
+}
+
 // createChannelModelPriceIfMissing atomically creates a current price when the
 // live (channel, model) pair is absent. The candidate reference ID identifies
 // whether this transaction won the upsert race, so only the winner creates the
