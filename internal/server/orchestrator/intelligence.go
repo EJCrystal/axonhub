@@ -662,8 +662,13 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 
 	var lastErr error
 	for attempt := 1; attempt <= intelligenceGenerateAttempts; attempt++ {
-		llmRequest := buildChannelTestRequest(model, useStream, "", prompt, responsesWebSocket, apiFormat)
-		if !responsesWebSocket {
+		// Do not pass responsesWebSocket=true to buildChannelTestRequest here.
+		// That flag is intended for simple channel connectivity tests to ping/pong,
+		// whereas intelligence evaluation requires sending the actual test prompt.
+		llmRequest := buildChannelTestRequest(model, useStream, "", prompt, false, apiFormat)
+		if responsesWebSocket {
+			llmRequest.Stream = lo.ToPtr(true)
+		} else {
 			llmRequest.MaxCompletionTokens = lo.ToPtr(int64(intelligenceGenerateMaxTokens))
 		}
 

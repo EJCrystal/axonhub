@@ -11,8 +11,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 )
 
@@ -217,3 +220,24 @@ func TestIntelligenceSubmitDoesNotRetryClientErrors(t *testing.T) {
 	require.Error(t, err)
 	require.EqualValues(t, 1, attempts.Load())
 }
+
+func TestIntelligenceCheckDoesNotOverridePromptForResponsesWebSocket(t *testing.T) {
+	ch := &biz.Channel{
+		Channel: &ent.Channel{
+			Endpoints: []objects.ChannelEndpoint{
+				{APIFormat: llm.APIFormatOpenAIResponseWebSocket.String()},
+			},
+		},
+	}
+	require.True(t, usesResponsesWebSocket(ch))
+
+	prompt := "Count candies"
+	model := "gpt-6.1-sol"
+	apiFormat := channelTestAPIFormat(ch, model)
+
+	req := buildChannelTestRequest(model, true, "", prompt, false, apiFormat)
+	require.Len(t, req.Messages, 2)
+	require.Equal(t, prompt, *req.Messages[1].Content.Content)
+	require.NotEqual(t, responsesWebSocketTestPrompt, *req.Messages[1].Content.Content)
+}
+
