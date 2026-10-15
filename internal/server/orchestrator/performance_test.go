@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -15,7 +14,6 @@ import (
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
-	"github.com/looplj/axonhub/llm/transformer/antigravity"
 )
 
 func TestExtractErrorMessageForMatchingCapsResponseBody(t *testing.T) {
@@ -47,14 +45,6 @@ func TestExtractErrorCode(t *testing.T) {
 			name:     "wrapped llm response error",
 			err:      &llm.ResponseError{StatusCode: 502, Cause: llm.ErrEmptyResponse},
 			expected: 502,
-		},
-		{
-			name: "local antigravity cooldown is rate limited rather than server error",
-			err: &llm.ResponseError{
-				StatusCode: http.StatusTooManyRequests,
-				Cause:      &antigravity.CooldownError{Model: "gemini-3.8-flash-high"},
-			},
-			expected: http.StatusTooManyRequests,
 		},
 		{
 			name:     "generic error defaults to 500",

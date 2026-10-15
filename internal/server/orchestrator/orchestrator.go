@@ -17,7 +17,6 @@ import (
 	"github.com/looplj/axonhub/llm/pipeline/stream"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer"
-	"github.com/looplj/axonhub/llm/transformer/antigravity"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
@@ -408,12 +407,6 @@ func maybeEvaluateChannelAPIKeyRulesOnFailure(
 	rawErr error,
 ) {
 	if outbound == nil || outbound.state == nil || outbound.state.ChannelService == nil {
-		return
-	}
-	// The executor has already admitted this request to the local cooldown
-	// state. It did not receive another provider response, so counting it as a
-	// consecutive API-key failure would incorrectly disable the credential.
-	if antigravity.IsCooldownError(rawErr) {
 		return
 	}
 	if outbound.state.Perf != nil && outbound.state.Perf.RequestCompleted {

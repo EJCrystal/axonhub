@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +36,6 @@ func TestExecutor_RetryOnNilResponseWithError(t *testing.T) {
 	}
 
 	executor := NewExecutor(mockClient)
-	executor.retryWait = func(context.Context, time.Duration) error { return nil }
 
 	request := &httpclient.Request{
 		Method: http.MethodPost,
@@ -52,9 +50,9 @@ func TestExecutor_RetryOnNilResponseWithError(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, 2, mockClient.callCount)
-	// A 429 retry stays on the same Daily endpoint.
+	// Should have tried Daily (failed) then Autopush (succeeded)
 	assert.Equal(t, EndpointDaily, mockClient.endpoints[0])
-	assert.Equal(t, EndpointDaily, mockClient.endpoints[1])
+	assert.Equal(t, EndpointAutopush, mockClient.endpoints[1])
 }
 
 func TestExecutor_NoRetryOnNonRetryableNilResponseWithError(t *testing.T) {

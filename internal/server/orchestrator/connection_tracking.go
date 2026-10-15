@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -66,17 +65,6 @@ func (m *channelLimiterMiddleware) OnOutboundRawRequest(ctx context.Context, req
 	channel := m.outbound.GetCurrentChannel()
 	if channel == nil {
 		return request, nil
-	}
-
-	// Keep the selected channel identity on the provider request so executors
-	// in the independent llm module can attach channel-scoped metrics. The
-	// metadata is overwritten on every retry/channel switch.
-	if request != nil {
-		if request.Metadata == nil {
-			request.Metadata = make(map[string]string)
-		}
-		request.Metadata[httpclient.ChannelIDMetadataKey] = strconv.Itoa(channel.ID)
-		request.Metadata[httpclient.ChannelNameMetadataKey] = channel.Name
 	}
 
 	lim := m.manager.GetOrCreate(channel)

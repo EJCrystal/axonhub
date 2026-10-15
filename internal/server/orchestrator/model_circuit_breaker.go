@@ -10,7 +10,6 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
-	"github.com/looplj/axonhub/llm/transformer/antigravity"
 )
 
 func withModelCircuitBreaker(outbound *PersistentOutboundTransformer, modelCircuitBreaker *biz.ModelCircuitBreaker) pipeline.Middleware {
@@ -101,7 +100,7 @@ func (m *modelCircuitBreakerTracker) OnOutboundRawError(ctx context.Context, err
 	}
 
 	// Local skips never reached upstream — must not count as model errors.
-	if errors.Is(err, errSkipCandidateByCircuitBreaker) || isChannelQueueError(err) || antigravity.IsCooldownError(err) {
+	if errors.Is(err, errSkipCandidateByCircuitBreaker) || isChannelQueueError(err) {
 		return
 	}
 

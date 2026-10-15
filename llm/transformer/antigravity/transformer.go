@@ -7,10 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
-
-	"golang.org/x/sync/singleflight"
 
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -61,13 +58,6 @@ type Transformer struct {
 	tokenProvider     *oauth.TokenProvider
 	httpClient        *httpclient.HttpClient
 	onTokenRefreshed  func(ctx context.Context, refreshed *oauth.OAuthCredentials) error
-	healthTrackerMu   sync.Mutex
-	healthTracker     *AntigravityHealthTracker
-	projectMu         sync.RWMutex
-	projectResolver   projectDiscoveryFunc
-	projectSF         singleflight.Group
-	projectResolved   bool
-	projectResolvedAt time.Time
 }
 
 // NewTransformer creates a new Antigravity Transformer.
@@ -81,8 +71,6 @@ func NewTransformer(config Config, opts ...Option) (*Transformer, error) {
 	t := &Transformer{
 		config:            config,
 		geminiTransformer: gt,
-		healthTracker:     NewAntigravityHealthTracker(),
-		projectResolver:   discoverProjectID,
 	}
 
 	for _, opt := range opts {
@@ -121,7 +109,6 @@ func (t *Transformer) initTokenProvider(apiKey string) {
 			},
 		})
 	}
-	t.httpClient = httpClient
 
 	t.tokenProvider = NewTokenProvider(oauth.TokenProviderParams{
 		Credentials: &oauth.OAuthCredentials{
@@ -154,10 +141,26 @@ func (t *Transformer) TransformRequest(ctx context.Context, llmReq *llm.Request)
 		return nil, fmt.Errorf("request is nil")
 	}
 
-	// The pipeline merges the inbound request back into the provider request
-	// after this method returns. Keep a sanitized copy there so provider
-	// identity headers cannot overwrite the Antigravity client identity.
-	llmReq.RawRequest = sanitizedInboundRequest(llmReq.RawRequest)
+	// Aggressively strip client headers that shouldn't leak or be merged back by the pipeline
+	if llmReq.RawRequest != nil && llmReq.RawRequest.Headers != nil {
+		headersToStrip := []string{
+			"User-Agent",
+			"Authorization",
+			"Content-Type",
+			"Accept",
+			"Content-Length",
+			"Host",
+			"Connection",
+			"Pragma",
+			"Cache-Control",
+			"Client-Metadata",
+			"X-Goog-Api-Client",
+			"X-Goog-Api-Key",
+		}
+		for _, h := range headersToStrip {
+			llmReq.RawRequest.Headers.Del(h)
+		}
+	}
 
 	// 1. Use Gemini transformer to get the base request body (serialized)
 	// We pass the llmReq to geminiTransformer.TransformRequest.
@@ -178,27 +181,13 @@ func (t *Transformer) TransformRequest(ctx context.Context, llmReq *llm.Request)
 		return nil, err
 	}
 
-	// OAuth credentials are also used for the real client's loadCodeAssist
-	// project negotiation. Reuse the same token for the inference envelope.
-	if t.tokenProvider == nil {
-		return nil, fmt.Errorf("no OAuth token provider configured")
-	}
-	creds, err := t.tokenProvider.Get(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OAuth token: %w", err)
-	}
-	project, err := t.resolveProject(ctx, creds.AccessToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve Antigravity project: %w", err)
-	}
-
 	// 4. Transform model name for Antigravity API compatibility
 	// Antigravity API requires tier suffixes for gemini-3-pro (e.g., gemini-3-pro-low)
 	// Store the original model name in metadata for the executor to use for routing
 	transformedModel := transformModelForAntigravity(llmReq.Model)
 
 	// 5. Wrap in Antigravity Envelope
-	envelope := NewAntigravityEnvelope(project, transformedModel, geminiReq)
+	envelope := NewAntigravityEnvelope(t.config.Project, transformedModel, geminiReq)
 
 	body, err := json.Marshal(envelope)
 	if err != nil {
@@ -209,6 +198,7 @@ func (t *Transformer) TransformRequest(ctx context.Context, llmReq *llm.Request)
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/json")
 	SetClientHeaders(headers)
+	headers.Set("X-Opencode-Tools-Debug", "1")
 	// DO NOT set X-Goog-Api-Key header when using OAuth - it must be absent entirely
 	// Setting it to empty string triggers license error #3501
 
@@ -219,9 +209,20 @@ func (t *Transformer) TransformRequest(ctx context.Context, llmReq *llm.Request)
 	}
 
 	// Auth - OAuth only, no API key fallback
-	authConfig := &httpclient.AuthConfig{
-		Type:   httpclient.AuthTypeBearer,
-		APIKey: creds.AccessToken,
+	var authConfig *httpclient.AuthConfig
+
+	if t.tokenProvider != nil {
+		creds, err := t.tokenProvider.Get(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get OAuth token: %w", err)
+		}
+
+		authConfig = &httpclient.AuthConfig{
+			Type:   httpclient.AuthTypeBearer,
+			APIKey: creds.AccessToken,
+		}
+	} else {
+		return nil, fmt.Errorf("no OAuth token provider configured")
 	}
 
 	// URL
@@ -455,12 +456,6 @@ func (t *Transformer) TransformError(ctx context.Context, rawErr *httpclient.Err
 func (t *Transformer) SetAPIKey(apiKey string) {
 	t.config.APIKey = apiKey
 	t.initTokenProvider(apiKey)
-	_, projectID := parseCredentials(apiKey)
-	t.projectMu.Lock()
-	t.config.Project = projectID
-	t.projectResolved = false
-	t.projectResolvedAt = time.Time{}
-	t.projectMu.Unlock()
 
 	// Also update internal gemini transformer?
 	// geminiTransformer interface doesn't expose SetAPIKey directly unless we assert it.
@@ -472,10 +467,6 @@ func (t *Transformer) SetAPIKey(apiKey string) {
 // SetBaseURL updates the base URL.
 func (t *Transformer) SetBaseURL(baseURL string) {
 	t.config.BaseURL = baseURL
-	t.projectMu.Lock()
-	t.projectResolved = false
-	t.projectResolvedAt = time.Time{}
-	t.projectMu.Unlock()
 	if gt, ok := t.geminiTransformer.(*gemini.OutboundTransformer); ok {
 		gt.SetBaseURL(baseURL)
 	}
@@ -554,16 +545,5 @@ func (t *Transformer) TransformStream(ctx context.Context, req *httpclient.Reque
 // CustomizeExecutor implements pipeline.ChannelCustomizedExecutor.
 // It wraps the standard executor with Antigravity-specific endpoint fallback logic.
 func (t *Transformer) CustomizeExecutor(executor pipeline.Executor) pipeline.Executor {
-	return newExecutor(executor, t.getHealthTracker())
-}
-
-func (t *Transformer) getHealthTracker() *AntigravityHealthTracker {
-	t.healthTrackerMu.Lock()
-	defer t.healthTrackerMu.Unlock()
-
-	if t.healthTracker == nil {
-		t.healthTracker = NewAntigravityHealthTracker()
-	}
-
-	return t.healthTracker
+	return NewExecutor(executor)
 }

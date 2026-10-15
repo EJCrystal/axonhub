@@ -121,15 +121,14 @@ func NormalizeModelName(modelName string) string {
 }
 
 // ShouldRetryWithDifferentEndpoint determines if an HTTP status code indicates
-// we should try a different endpoint. A 429 is intentionally excluded: the
-// Antigravity endpoints share the same OAuth quota, so callers must retry the
-// same endpoint before applying a shared cooldown.
+// we should try a different endpoint.
 func ShouldRetryWithDifferentEndpoint(statusCode int) bool {
 	// Retry on:
+	// - 429 Rate Limit (quota exhausted on this endpoint)
 	// - 403 Forbidden (permissions/config issues)
 	// - 404 Not Found (model not available on this endpoint)
 	// - 5xx Server errors
-	return statusCode == 403 || statusCode == 404 || (statusCode >= 500 && statusCode < 600)
+	return statusCode == 429 || statusCode == 403 || statusCode == 404 || (statusCode >= 500 && statusCode < 600)
 }
 
 // transformModelForAntigravity transforms model names to match Antigravity API requirements.

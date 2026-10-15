@@ -295,7 +295,7 @@ func TestShouldRetryWithDifferentEndpoint(t *testing.T) {
 		statusCode int
 		expected   bool
 	}{
-		{name: "429 rate limit should stay on the same endpoint", statusCode: 429, expected: false},
+		{name: "429 rate limit should retry", statusCode: 429, expected: true},
 		{name: "403 forbidden should retry", statusCode: 403, expected: true},
 		{name: "404 not found should retry", statusCode: 404, expected: true},
 		{name: "500 server error should retry", statusCode: 500, expected: true},

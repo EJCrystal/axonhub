@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -403,20 +402,23 @@ func TestExecutor_GetEndpointsInOrder(t *testing.T) {
 	})
 }
 
-func TestExecutor_DoWithCooldown_429CoolsAllEndpoints(t *testing.T) {
+func TestExecutor_DoWithCooldown_SkipsFailedEndpoint(t *testing.T) {
 	callCount := 0
+
+	var lastEndpoint string
 
 	mockClient := &mockHTTPClient{
 		doFunc: func(ctx context.Context, request *httpclient.Request) (*httpclient.Response, error) {
 			callCount++
 			endpoint := extractEndpoint(request.URL)
+			lastEndpoint = endpoint
 
 			// Daily always fails with 429
 			if endpoint == EndpointDaily {
-				return nil, &httpclient.Error{
+				return &httpclient.Response{
 					StatusCode: 429,
 					Body:       []byte(`{"error": "rate limit exceeded"}`),
-				}
+				}, nil
 			}
 
 			// Other endpoints succeed
@@ -428,7 +430,6 @@ func TestExecutor_DoWithCooldown_429CoolsAllEndpoints(t *testing.T) {
 	}
 
 	executor := NewExecutor(mockClient)
-	executor.retryWait = func(context.Context, time.Duration) error { return nil }
 
 	request := &httpclient.Request{
 		Method: http.MethodPost,
@@ -438,24 +439,20 @@ func TestExecutor_DoWithCooldown_429CoolsAllEndpoints(t *testing.T) {
 		},
 	}
 
-	// A shared 429 is retried on Daily only, then all endpoints enter cooldown.
+	// First request - tries Daily (fails 429), then Autopush (succeeds)
 	resp1, err1 := executor.Do(context.Background(), request)
-	require.Error(t, err1)
-	assert.Nil(t, resp1)
-	assert.Equal(t, max429Attempts, callCount)
-	assert.Equal(t, []string{EndpointDaily, EndpointDaily, EndpointDaily}, mockClient.endpoints)
-	assert.True(t, executor.healthTracker.ShouldSkip("claude-sonnet-4-5", EndpointDaily))
-	assert.True(t, executor.healthTracker.ShouldSkip("claude-sonnet-4-5", EndpointAutopush))
-	assert.True(t, executor.healthTracker.ShouldSkip("claude-sonnet-4-5", EndpointProd))
+	require.NoError(t, err1)
+	assert.Equal(t, 200, resp1.StatusCode) // Succeeded on fallback
+	assert.Equal(t, 2, callCount)          // Tried Daily + Autopush
+	assert.Equal(t, EndpointAutopush, lastEndpoint)
 
-	// A subsequent request fails locally without reaching any endpoint.
+	// Second request - should skip Daily (in cooldown) and go straight to Autopush
 	callCount = 0
-	mockClient.endpoints = nil
 	resp2, err2 := executor.Do(context.Background(), request)
-	require.Error(t, err2)
-	assert.Nil(t, resp2)
-	assert.Equal(t, 0, callCount)
-	assert.Empty(t, mockClient.endpoints)
+	require.NoError(t, err2)
+	assert.Equal(t, 200, resp2.StatusCode)
+	assert.Equal(t, 1, callCount) // Only tried Autopush (skipped Daily)
+	assert.Equal(t, EndpointAutopush, lastEndpoint)
 }
 
 func TestExecutor_DoWithCooldown_FailsFastWhenAllInCooldown(t *testing.T) {
@@ -501,10 +498,10 @@ func TestExecutor_DoWithCooldown_PerModelIsolation(t *testing.T) {
 
 			if model == "claude-sonnet-4-5" && endpoint == EndpointDaily {
 				// Claude fails on Daily
-				return nil, &httpclient.Error{
+				return &httpclient.Response{
 					StatusCode: 429,
 					Body:       []byte(`{"error": "rate limit"}`),
-				}
+				}, nil
 			}
 
 			// Everything else succeeds
@@ -533,14 +530,13 @@ func TestExecutor_DoWithCooldown_PerModelIsolation(t *testing.T) {
 		},
 	}
 
-	// Claude request exhausts Daily retries and cools only Claude's endpoints.
-	executor.retryWait = func(context.Context, time.Duration) error { return nil }
+	// Claude request fails on Daily (429), succeeds on Autopush (fallback)
 	resp1, err1 := executor.Do(context.Background(), claudeRequest)
-	require.Error(t, err1)
-	assert.Nil(t, resp1)
+	require.NoError(t, err1)
+	assert.Equal(t, 200, resp1.StatusCode) // Succeeded on fallback
 
-	// Claude should have retried the same endpoint three times.
-	assert.Equal(t, max429Attempts, callsByModel["claude-sonnet-4-5"])
+	// Claude should have called Daily (failed) + Autopush (succeeded)
+	assert.Equal(t, 2, callsByModel["claude-sonnet-4-5"])
 
 	// Gemini request should try Daily (all models start with Daily)
 	// and Daily is a different model so isolation works
@@ -600,43 +596,6 @@ func TestExecutor_DoWithCooldown_RecoveryAfterSuccess(t *testing.T) {
 	resp3, err3 := executor.Do(context.Background(), request)
 	require.NoError(t, err3)
 	assert.Equal(t, 200, resp3.StatusCode)
-}
-
-func TestExecutor_DoStream_429RetriesSameEndpointAndCoolsAllEndpoints(t *testing.T) {
-	mockClient := &mockHTTPClient{
-		doStreamFunc: func(ctx context.Context, request *httpclient.Request) (streams.Stream[*httpclient.StreamEvent], error) {
-			return nil, &httpclient.Error{
-				StatusCode: http.StatusTooManyRequests,
-				Status:     "429 Too Many Requests",
-			}
-		},
-	}
-
-	executor := NewExecutor(mockClient)
-	executor.retryWait = func(context.Context, time.Duration) error { return nil }
-
-	request := &httpclient.Request{
-		Method: http.MethodPost,
-		URL:    EndpointDaily + "/v1internal:streamGenerateContent?alt=sse",
-		Metadata: map[string]string{
-			"antigravity_model": "claude-sonnet-4-5",
-		},
-	}
-
-	stream, err := executor.DoStream(context.Background(), request)
-	require.Error(t, err)
-	assert.Nil(t, stream)
-	assert.Equal(t, max429Attempts, mockClient.callCount)
-	assert.Equal(t, []string{EndpointDaily, EndpointDaily, EndpointDaily}, mockClient.endpoints)
-	assert.True(t, executor.healthTracker.ShouldSkip("claude-sonnet-4-5", EndpointDaily))
-	assert.True(t, executor.healthTracker.ShouldSkip("claude-sonnet-4-5", EndpointAutopush))
-	assert.True(t, executor.healthTracker.ShouldSkip("claude-sonnet-4-5", EndpointProd))
-
-	// The stream owns the global queue only after it is successfully created.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	require.NoError(t, defaultAntigravityGlobalQueue.acquire(ctx, antigravityQueueLabel{}))
-	defaultAntigravityGlobalQueue.release()
 }
 
 func TestExecutor_DoStreamWithCooldown_SkipsFailedEndpoint(t *testing.T) {

@@ -525,7 +525,7 @@ func (svc *ChannelService) RecordPerformance(ctx context.Context, perf *Performa
 
 	if perf.Success {
 		svc.clearAutoDisableCountsOnSuccess(perf)
-	} else if !perf.Canceled && !perf.SkipAutoDisable {
+	} else if !perf.Canceled {
 		svc.evaluateAutoDisableForFailure(ctx, perf)
 	}
 
@@ -678,12 +678,6 @@ type PerformanceRecord struct {
 	Success            bool
 	Canceled           bool
 	RequestCompleted   bool
-	// SkipAutoDisable marks a local/transient failure that should be visible in
-	// channel metrics but must not contribute to API-key or channel disable
-	// counters. It is intentionally separate from ResponseStatusCode because a
-	// local cooldown is represented as 429 to clients without being an upstream
-	// 429 response.
-	SkipAutoDisable bool
 
 	// If response status code is 0, it means the request is successful.
 	ResponseStatusCode int
