@@ -83,6 +83,13 @@ const (
 	AuthTypeBearer = "bearer"
 	AuthTypeAPIKey = "api_key"
 
+	// ChannelIDMetadataKey and ChannelNameMetadataKey carry the selected
+	// AxonHub channel identity across the outbound pipeline. Provider-specific
+	// executors use them for request-scoped observability without importing the
+	// server module.
+	ChannelIDMetadataKey   = "axonhub_channel_id"
+	ChannelNameMetadataKey = "axonhub_channel_name"
+
 	// BinaryStreamDoneEventType marks EOF for non-SSE streaming responses.
 	BinaryStreamDoneEventType = "binary.done"
 )
