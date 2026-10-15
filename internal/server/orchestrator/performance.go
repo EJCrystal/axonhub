@@ -261,6 +261,11 @@ func ExtractErrorCode(err error) int {
 		return code
 	}
 
+	var llmErr *llm.ResponseError
+	if errors.As(err, &llmErr) && llmErr.StatusCode > 0 {
+		return llmErr.StatusCode
+	}
+
 	// Default to 500
 	return 500
 }
