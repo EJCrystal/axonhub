@@ -25,6 +25,46 @@ func TestExtractErrorMessageForMatchingCapsResponseBody(t *testing.T) {
 	require.Equal(t, expected, message)
 }
 
+func TestExtractErrorCode(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected int
+	}{
+		{
+			name:     "httpclient error",
+			err:      &httpclient.Error{StatusCode: 429},
+			expected: 429,
+		},
+		{
+			name:     "llm response error",
+			err:      &llm.ResponseError{StatusCode: 401},
+			expected: 401,
+		},
+		{
+			name:     "wrapped llm response error",
+			err:      &llm.ResponseError{StatusCode: 502, Cause: llm.ErrEmptyResponse},
+			expected: 502,
+		},
+		{
+			name:     "generic error defaults to 500",
+			err:      assert.AnError,
+			expected: 500,
+		},
+		{
+			name:     "llm response error without status defaults to 500",
+			err:      &llm.ResponseError{StatusCode: 0},
+			expected: 500,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, ExtractErrorCode(tt.err))
+		})
+	}
+}
+
 // mockChannelService is a mock implementation of ChannelService for testing
 type mockChannelService struct{}
 
