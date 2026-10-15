@@ -56,9 +56,12 @@ func TestChannelLimiterMiddleware_AcquireAndReleaseOnResponse(t *testing.T) {
 	m := withChannelLimiter(out, mgr, nil).(*channelLimiterMiddleware)
 	lim := mgr.GetOrCreate(ch)
 
-	_, err := m.OnOutboundRawRequest(t.Context(), &httpclient.Request{})
+	request := &httpclient.Request{}
+	_, err := m.OnOutboundRawRequest(t.Context(), request)
 	require.NoError(t, err)
 	require.NotNil(t, m.current.Load())
+	assert.Equal(t, "1", request.Metadata[httpclient.ChannelIDMetadataKey])
+	assert.Equal(t, "k", request.Metadata[httpclient.ChannelNameMetadataKey])
 
 	inFlight, _ := lim.Stats()
 	assert.Equal(t, 1, inFlight)

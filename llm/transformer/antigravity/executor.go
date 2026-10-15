@@ -48,6 +48,23 @@ func newExecutor(inner pipeline.Executor, healthTracker *AntigravityHealthTracke
 	}
 }
 
+func (e *Executor) acquireGlobalQueue(ctx context.Context, request *httpclient.Request) (*antigravityQueueSlot, *antigravityMetrics, error) {
+	if e.globalQueue == nil {
+		e.globalQueue = defaultAntigravityGlobalQueue
+	}
+
+	label := antigravityQueueLabelFromRequest(request)
+	metrics := antigravityMetricsForQueue(e.globalQueue)
+	started := time.Now()
+	if err := e.globalQueue.acquire(ctx, label); err != nil {
+		return nil, metrics, err
+	}
+
+	metrics.observeQueueWait(ctx, label, time.Since(started))
+
+	return &antigravityQueueSlot{queue: e.globalQueue, label: label}, metrics, nil
+}
+
 // extractModelName extracts the model name from the request metadata.
 func (e *Executor) extractModelName(request *httpclient.Request) string {
 	modelName := e.modelName
@@ -70,10 +87,12 @@ func (e *Executor) SetModelName(modelName string) {
 // Do executes an HTTP request with endpoint fallback logic.
 // It tries multiple endpoints in sequence based on quota preference and retryable errors.
 func (e *Executor) Do(ctx context.Context, request *httpclient.Request) (*httpclient.Response, error) {
-	if err := e.globalQueue.acquire(ctx); err != nil {
+	slot, metrics, err := e.acquireGlobalQueue(ctx, request)
+	if err != nil {
 		return nil, fmt.Errorf("antigravity global queue: %w", err)
 	}
-	defer e.globalQueue.release()
+	defer slot.release()
+	label := slot.label
 
 	// Extract model name from request metadata
 	modelName := e.extractModelName(request)
@@ -153,10 +172,13 @@ func (e *Executor) Do(ctx context.Context, request *httpclient.Request) (*httpcl
 				statusCode = httpErr.StatusCode
 			}
 		}
+		if statusCode == http.StatusTooManyRequests {
+			metrics.record429(ctx, label, modelName, endpoint)
+		}
 
 		if statusCode > 0 && ShouldRetryWithDifferentEndpoint(statusCode) {
 			e.healthTracker.RecordFailure(modelName, endpoint, statusCode)
-			if err := e.waitBeforeRetry(ctx, i, statusCode, resp, lastErr); err != nil {
+			if err := e.waitBeforeRetry(ctx, i, statusCode, resp, lastErr, metrics, label, modelName, endpoint); err != nil {
 				return lastResp, err
 			}
 			slog.WarnContext(ctx, "antigravity request failed, trying next endpoint",
@@ -202,17 +224,18 @@ func (e *Executor) Do(ctx context.Context, request *httpclient.Request) (*httpcl
 
 // DoStream executes a streaming HTTP request with endpoint fallback logic.
 func (e *Executor) DoStream(ctx context.Context, request *httpclient.Request) (streams.Stream[*httpclient.StreamEvent], error) {
-	if err := e.globalQueue.acquire(ctx); err != nil {
+	slot, metrics, err := e.acquireGlobalQueue(ctx, request)
+	if err != nil {
 		return nil, fmt.Errorf("antigravity global queue: %w", err)
 	}
 
-	slot := &antigravityQueueSlot{queue: e.globalQueue}
 	transferred := false
 	defer func() {
 		if !transferred {
 			slot.release()
 		}
 	}()
+	label := slot.label
 
 	// Extract model name from request metadata
 	modelName := e.extractModelName(request)
@@ -291,6 +314,9 @@ func (e *Executor) DoStream(ctx context.Context, request *httpclient.Request) (s
 				statusCode = httpErr.StatusCode
 			}
 		}
+		if statusCode == http.StatusTooManyRequests {
+			metrics.record429(ctx, label, modelName, endpoint)
+		}
 
 		// For streaming, we record failure if we have an error or bad status
 		// If we have a specific status code, check if it's retryable
@@ -299,7 +325,7 @@ func (e *Executor) DoStream(ctx context.Context, request *httpclient.Request) (s
 		e.healthTracker.RecordFailure(modelName, endpoint, statusCode)
 
 		if statusCode > 0 && ShouldRetryWithDifferentEndpoint(statusCode) {
-			if err := e.waitBeforeRetry(ctx, i, statusCode, nil, lastErr); err != nil {
+			if err := e.waitBeforeRetry(ctx, i, statusCode, nil, lastErr, metrics, label, modelName, endpoint); err != nil {
 				return nil, err
 			}
 			slog.WarnContext(ctx, "antigravity stream request failed with retryable status, trying next endpoint",
@@ -341,13 +367,23 @@ const (
 	max429Backoff     = 8 * time.Second
 )
 
-func (e *Executor) waitBeforeRetry(ctx context.Context, attempt, statusCode int, response *httpclient.Response, err error) error {
+func (e *Executor) waitBeforeRetry(
+	ctx context.Context,
+	attempt, statusCode int,
+	response *httpclient.Response,
+	err error,
+	metrics *antigravityMetrics,
+	label antigravityQueueLabel,
+	model, endpoint string,
+) error {
 	if statusCode != http.StatusTooManyRequests {
 		return nil
 	}
 
 	delay, hasRetryAfter := retryAfterDuration(response, err)
+	backoffSource := "retry_after"
 	if !hasRetryAfter {
+		backoffSource = "exponential"
 		delay = default429Backoff
 		for range attempt {
 			if delay >= max429Backoff/2 {
@@ -358,10 +394,16 @@ func (e *Executor) waitBeforeRetry(ctx context.Context, attempt, statusCode int,
 			delay *= 2
 		}
 	}
+	metrics.recordBackoff(ctx, label, model, endpoint, backoffSource, delay)
 
 	slog.WarnContext(ctx, "antigravity request rate limited, backing off before endpoint retry",
 		slog.Duration("backoff", delay),
 		slog.Int("attempt", attempt+1),
+		slog.String("channel_id", label.channelID),
+		slog.String("channel_name", label.channelName),
+		slog.String("model", model),
+		slog.String("endpoint", endpoint),
+		slog.String("backoff_source", backoffSource),
 	)
 
 	return e.retryWait(ctx, delay)
