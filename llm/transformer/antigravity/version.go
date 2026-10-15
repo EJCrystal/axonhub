@@ -14,7 +14,7 @@ import (
 
 const (
 	// UserAgentVersionFallback is the hardcoded fallback version used when remote fetch fails.
-	UserAgentVersionFallback = "2.5.5"
+	UserAgentVersionFallback = "2.23.1"
 
 	// defaultVersionURL is the auto-updater endpoint that returns the latest Antigravity version as plain text.
 	defaultVersionURL = "https://antigravity-auto-updater-974169037036.us-central1.run.app"
