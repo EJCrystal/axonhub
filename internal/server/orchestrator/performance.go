@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"net/http"
 	"time"
 
 	"github.com/looplj/axonhub/internal/contexts"
@@ -13,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer/antigravity"
 )
 
 const errorMatchBodyLimit = 8 * 1024
@@ -137,6 +139,7 @@ func (m *performanceRecording) OnOutboundRawError(ctx context.Context, err error
 	if errors.Is(err, context.Canceled) {
 		perf.MarkCanceled()
 	} else {
+		perf.SkipAutoDisable = antigravity.IsCooldownError(err)
 		errorCode := ExtractErrorCode(err)
 		perf.MarkFailedWithMessage(errorCode, extractErrorMessageForMatching(err))
 	}
@@ -254,6 +257,12 @@ func (s *recordPerformanceStream) Err() error {
 
 // ExtractErrorCode extracts HTTP error code from error.
 func ExtractErrorCode(err error) int {
+	// A local Antigravity cooldown is rate-limit-like, but it is not an
+	// upstream response and must never fall through to the generic 500 code.
+	if antigravity.IsCooldownError(err) {
+		return http.StatusTooManyRequests
+	}
+
 	// Check if error is an HTTP error
 	httpErr := &httpclient.Error{}
 	if errors.As(err, &httpErr) {
