@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/looplj/axonhub/llm"
@@ -58,6 +59,8 @@ type Transformer struct {
 	tokenProvider     *oauth.TokenProvider
 	httpClient        *httpclient.HttpClient
 	onTokenRefreshed  func(ctx context.Context, refreshed *oauth.OAuthCredentials) error
+	healthTrackerMu   sync.Mutex
+	healthTracker     *AntigravityHealthTracker
 }
 
 // NewTransformer creates a new Antigravity Transformer.
@@ -71,6 +74,7 @@ func NewTransformer(config Config, opts ...Option) (*Transformer, error) {
 	t := &Transformer{
 		config:            config,
 		geminiTransformer: gt,
+		healthTracker:     NewAntigravityHealthTracker(),
 	}
 
 	for _, opt := range opts {
@@ -545,5 +549,16 @@ func (t *Transformer) TransformStream(ctx context.Context, req *httpclient.Reque
 // CustomizeExecutor implements pipeline.ChannelCustomizedExecutor.
 // It wraps the standard executor with Antigravity-specific endpoint fallback logic.
 func (t *Transformer) CustomizeExecutor(executor pipeline.Executor) pipeline.Executor {
-	return NewExecutor(executor)
+	return newExecutor(executor, t.getHealthTracker())
+}
+
+func (t *Transformer) getHealthTracker() *AntigravityHealthTracker {
+	t.healthTrackerMu.Lock()
+	defer t.healthTrackerMu.Unlock()
+
+	if t.healthTracker == nil {
+		t.healthTracker = NewAntigravityHealthTracker()
+	}
+
+	return t.healthTracker
 }
