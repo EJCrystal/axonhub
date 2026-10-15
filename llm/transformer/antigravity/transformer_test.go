@@ -447,6 +447,7 @@ func TestOAuthOnlyHeaders(t *testing.T) {
 
 	// Verify X-Goog-Api-Key header is NOT present
 	assert.Empty(t, httpReq.Headers.Get("X-Goog-Api-Key"), "X-Goog-Api-Key header should not be set when using OAuth")
+	assert.Empty(t, httpReq.Headers.Get("X-Opencode-Tools-Debug"), "cross-protocol OpenCode headers must not be sent")
 
 	// Verify other required headers are present
 	assert.Equal(t, "application/json", httpReq.Headers.Get("Content-Type"))

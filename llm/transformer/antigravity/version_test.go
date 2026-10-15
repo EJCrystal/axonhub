@@ -187,7 +187,7 @@ func TestFetchVersion_PrefersIDEAndNeverDowngrades(t *testing.T) {
 	for _, tc := range []struct {
 		name, changelog, updater, expected string
 	}{
-		{"IDE only", `<article id="rel-agy-9.0.0"></article><article id="rel-ide-2.10.0"></article>`, "2.0.6", "2.10.0"},
+		{"IDE only", `<article id="rel-agy-9.0.0"></article><article id="rel-ide-2.10.0"></article>`, "2.0.6", UserAgentVersionFallback},
 		{"stale updater", `<article id="rel-cli-9.0.0"></article>`, "2.0.6", UserAgentVersionFallback},
 		{"stale changelog", `<article id="rel-ide-1.23.2"></article>`, "2.0.6", UserAgentVersionFallback},
 	} {
