@@ -136,79 +136,90 @@ func (e *Executor) Do(ctx context.Context, request *httpclient.Request) (*httpcl
 	)
 
 	for i, endpoint := range availableEndpoints {
-		// Clone the request and update the URL for this endpoint
-		reqCopy := e.cloneRequestForEndpoint(request, endpoint)
+		var statusCode int
 
-		slog.DebugContext(ctx, "attempting antigravity request",
-			slog.String("endpoint", endpoint),
-			slog.Int("attempt", i+1),
-			slog.Int("available_endpoints", len(availableEndpoints)),
-			slog.String("model", modelName),
-		)
+		for endpointAttempt := 0; endpointAttempt < max429Attempts; endpointAttempt++ {
+			// Clone the request and update the URL for this endpoint. A 429 is
+			// retried against this same URL so a shared OAuth quota is not
+			// amplified by falling through to another hostname.
+			reqCopy := e.cloneRequestForEndpoint(request, endpoint)
 
-		resp, err := e.inner.Do(ctx, reqCopy)
+			slog.DebugContext(ctx, "attempting antigravity request",
+				slog.String("endpoint", endpoint),
+				slog.Int("endpoint_attempt", endpointAttempt+1),
+				slog.Int("endpoint_index", i+1),
+				slog.Int("available_endpoints", len(availableEndpoints)),
+				slog.String("model", modelName),
+			)
 
-		// If successful (2xx), return immediately
-		if err == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			e.healthTracker.RecordSuccess(modelName, endpoint)
+			resp, err := e.inner.Do(ctx, reqCopy)
 
-			if i > 0 {
-				slog.InfoContext(ctx, "antigravity request succeeded with fallback endpoint",
-					slog.String("endpoint", endpoint),
-					slog.Int("attempt", i+1),
-				)
+			// If successful (2xx), return immediately.
+			if err == nil && resp != nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				e.healthTracker.RecordSuccess(modelName, endpoint)
+
+				if i > 0 {
+					slog.InfoContext(ctx, "antigravity request succeeded with fallback endpoint",
+						slog.String("endpoint", endpoint),
+						slog.Int("endpoint_index", i+1),
+					)
+				}
+
+				return resp, nil
 			}
 
-			return resp, nil
-		}
+			// Store the error/response for potential return.
+			lastErr = err
+			lastResp = resp
+			statusCode = responseStatusCode(resp, err)
 
-		// Store the error/response for potential return
-		lastErr = err
-		lastResp = resp
-
-		// Check if we should try the next endpoint
-		statusCode := 0
-		if resp != nil {
-			statusCode = resp.StatusCode
-		} else if err != nil {
-			var httpErr *httpclient.Error
-			if errors.As(err, &httpErr) {
-				statusCode = httpErr.StatusCode
+			if statusCode != http.StatusTooManyRequests {
+				break
 			}
-		}
-		if statusCode == http.StatusTooManyRequests {
+
 			metrics.record429(ctx, label, modelName, endpoint)
+			if endpointAttempt+1 == max429Attempts {
+				e.recordRateLimitCooldown(modelName, allEndpoints)
+				slog.WarnContext(ctx, "antigravity request exhausted same-endpoint rate-limit retries",
+					slog.String("endpoint", endpoint),
+					slog.Int("attempts", max429Attempts),
+					slog.String("model", modelName),
+				)
+
+				return lastResp, lastErr
+			}
+
+			if err := e.waitBeforeRetry(ctx, endpointAttempt, statusCode, resp, err, metrics, label, modelName, endpoint); err != nil {
+				return lastResp, err
+			}
 		}
 
 		if statusCode > 0 && ShouldRetryWithDifferentEndpoint(statusCode) {
 			e.healthTracker.RecordFailure(modelName, endpoint, statusCode)
-			if err := e.waitBeforeRetry(ctx, i, statusCode, resp, lastErr, metrics, label, modelName, endpoint); err != nil {
-				return lastResp, err
-			}
 			slog.WarnContext(ctx, "antigravity request failed, trying next endpoint",
 				slog.String("current_endpoint", endpoint),
 				slog.Int("status_code", statusCode),
-				slog.Int("attempt", i+1),
+				slog.Int("endpoint_index", i+1),
 			)
 
 			continue
 		}
 
-		// Non-retryable error or network error - stop trying
-		if err != nil {
+		// Non-retryable error or network error - stop trying.
+		if lastErr != nil {
 			slog.WarnContext(ctx, "antigravity request failed with network error",
 				slog.String("endpoint", endpoint),
-				slog.Any("error", err),
+				slog.Any("error", lastErr),
 			)
 		} else {
 			slog.DebugContext(ctx, "antigravity request failed with non-retryable status",
 				slog.String("endpoint", endpoint),
-				slog.Int("status_code", resp.StatusCode),
+				slog.Int("status_code", statusCode),
 			)
 		}
 
-		// Return the error/response as-is for non-retryable cases
-		return resp, err
+		// Return the error/response as-is for non-retryable cases.
+		return lastResp, lastErr
 	}
 
 	// All available endpoints exhausted
@@ -280,83 +291,88 @@ func (e *Executor) DoStream(ctx context.Context, request *httpclient.Request) (s
 	var lastErr error
 
 	for i, endpoint := range availableEndpoints {
-		reqCopy := e.cloneRequestForEndpoint(request, endpoint)
+		var statusCode int
 
-		slog.DebugContext(ctx, "attempting antigravity stream request",
-			slog.String("endpoint", endpoint),
-			slog.Int("attempt", i+1),
-			slog.Int("available_endpoints", len(availableEndpoints)),
-			slog.String("model", modelName),
-		)
+		for endpointAttempt := 0; endpointAttempt < max429Attempts; endpointAttempt++ {
+			reqCopy := e.cloneRequestForEndpoint(request, endpoint)
 
-		stream, err := e.inner.DoStream(ctx, reqCopy)
+			slog.DebugContext(ctx, "attempting antigravity stream request",
+				slog.String("endpoint", endpoint),
+				slog.Int("endpoint_attempt", endpointAttempt+1),
+				slog.Int("endpoint_index", i+1),
+				slog.Int("available_endpoints", len(availableEndpoints)),
+				slog.String("model", modelName),
+			)
 
-		// If successful, return immediately
-		if err == nil {
-			e.healthTracker.RecordSuccess(modelName, endpoint)
-			if stream == nil {
-				return nil, nil
+			stream, err := e.inner.DoStream(ctx, reqCopy)
+
+			// If successful, return immediately.
+			if err == nil {
+				e.healthTracker.RecordSuccess(modelName, endpoint)
+				if stream == nil {
+					return nil, nil
+				}
+
+				transferred = true
+
+				if i > 0 {
+					slog.InfoContext(ctx, "antigravity stream request succeeded with fallback endpoint",
+						slog.String("endpoint", endpoint),
+						slog.Int("endpoint_index", i+1),
+					)
+				}
+
+				return &antigravityQueuedStream{stream: stream, slot: slot}, nil
 			}
 
-			transferred = true
+			lastErr = err
+			statusCode = responseStatusCode(nil, err)
 
-			if i > 0 {
-				slog.InfoContext(ctx, "antigravity stream request succeeded with fallback endpoint",
-					slog.String("endpoint", endpoint),
-					slog.Int("attempt", i+1),
-				)
+			if statusCode != http.StatusTooManyRequests {
+				break
 			}
 
-			return &antigravityQueuedStream{stream: stream, slot: slot}, nil
-		}
-
-		lastErr = err
-
-		// Check if we should try the next endpoint for streaming
-		// httpclient.DoStream returns nil stream and error for status >= 400
-		statusCode := 0
-
-		if err != nil {
-			var httpErr *httpclient.Error
-			if errors.As(err, &httpErr) {
-				statusCode = httpErr.StatusCode
-			}
-		}
-		if statusCode == http.StatusTooManyRequests {
 			metrics.record429(ctx, label, modelName, endpoint)
+			if endpointAttempt+1 == max429Attempts {
+				e.recordRateLimitCooldown(modelName, allEndpoints)
+				slog.WarnContext(ctx, "antigravity stream request exhausted same-endpoint rate-limit retries",
+					slog.String("endpoint", endpoint),
+					slog.Int("attempts", max429Attempts),
+					slog.String("model", modelName),
+				)
+
+				return nil, lastErr
+			}
+
+			if err := e.waitBeforeRetry(ctx, endpointAttempt, statusCode, nil, lastErr, metrics, label, modelName, endpoint); err != nil {
+				return nil, err
+			}
 		}
 
-		// For streaming, we record failure if we have an error or bad status
-		// If we have a specific status code, check if it's retryable
-		// If we just have a generic error, we might want to retry (network errors)
-		// but for now let's stick to status codes if available, or just record failure
+		// For streaming, record every failed endpoint, including network
+		// failures without an HTTP status. Known retryable statuses use a
+		// different endpoint; a later request can then skip this endpoint.
 		e.healthTracker.RecordFailure(modelName, endpoint, statusCode)
 
 		if statusCode > 0 && ShouldRetryWithDifferentEndpoint(statusCode) {
-			if err := e.waitBeforeRetry(ctx, i, statusCode, nil, lastErr, metrics, label, modelName, endpoint); err != nil {
-				return nil, err
-			}
 			slog.WarnContext(ctx, "antigravity stream request failed with retryable status, trying next endpoint",
 				slog.String("current_endpoint", endpoint),
 				slog.Int("status_code", statusCode),
-				slog.Int("attempt", i+1),
+				slog.Int("endpoint_index", i+1),
 			)
 
 			continue
 		}
 
-		// For other errors (network errors without status code), preserve aggressive retry for streaming
-		// unless we KNOW it's non-retryable (e.g. 400 Bad Request).
-
-		if statusCode > 0 && !ShouldRetryWithDifferentEndpoint(statusCode) {
-			// Non-retryable status code (e.g. 400), return error immediately
-			return nil, err
+		if statusCode > 0 {
+			// Non-retryable status code (e.g. 400), return error immediately.
+			return nil, lastErr
 		}
 
 		slog.WarnContext(ctx, "antigravity stream request failed, trying next endpoint",
 			slog.String("current_endpoint", endpoint),
-			slog.Int("attempt", i+1),
-			slog.Any("error", err),
+			slog.Int("endpoint_index", i+1),
+			slog.Any("error", lastErr),
 		)
 	}
 
@@ -370,10 +386,36 @@ func (e *Executor) DoStream(ctx context.Context, request *httpclient.Request) (s
 	return nil, fmt.Errorf("all antigravity stream endpoints failed: %w", lastErr)
 }
 
+func responseStatusCode(response *httpclient.Response, err error) int {
+	if response != nil {
+		return response.StatusCode
+	}
+
+	if err != nil {
+		var httpErr *httpclient.Error
+		if errors.As(err, &httpErr) {
+			return httpErr.StatusCode
+		}
+	}
+
+	return 0
+}
+
 const (
 	default429Backoff = time.Second
 	max429Backoff     = 8 * time.Second
+	max429Attempts    = 3
 )
+
+// recordRateLimitCooldown treats a provider 429 as a shared quota signal.
+// Antigravity's Daily, Autopush, and Prod hostnames are not independent
+// credentials for the same OAuth account, so falling through to another
+// hostname after exhausting same-endpoint retries only amplifies the load.
+func (e *Executor) recordRateLimitCooldown(model string, endpoints []string) {
+	for _, endpoint := range endpoints {
+		e.healthTracker.RecordFailure(model, endpoint, http.StatusTooManyRequests)
+	}
+}
 
 func (e *Executor) waitBeforeRetry(
 	ctx context.Context,
