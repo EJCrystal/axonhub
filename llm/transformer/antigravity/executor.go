@@ -123,7 +123,11 @@ func (e *Executor) Do(ctx context.Context, request *httpclient.Request) (*httpcl
 			slog.String("model", modelName),
 			slog.Any("skipped_endpoints", skippedEndpoints))
 
-		return nil, fmt.Errorf("all antigravity endpoints in cooldown for model %s", modelName)
+		return nil, newCooldownResponseError(
+			modelName,
+			skippedEndpoints,
+			cooldownRetryAt(e.healthTracker, modelName, skippedEndpoints),
+		)
 	}
 
 	var (
@@ -266,7 +270,11 @@ func (e *Executor) DoStream(ctx context.Context, request *httpclient.Request) (s
 			slog.String("model", modelName),
 			slog.Any("skipped_endpoints", skippedEndpoints))
 
-		return nil, fmt.Errorf("all antigravity endpoints in cooldown for model %s", modelName)
+		return nil, newCooldownResponseError(
+			modelName,
+			skippedEndpoints,
+			cooldownRetryAt(e.healthTracker, modelName, skippedEndpoints),
+		)
 	}
 
 	var lastErr error

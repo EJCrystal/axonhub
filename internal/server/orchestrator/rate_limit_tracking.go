@@ -9,6 +9,7 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer/antigravity"
 )
 
 // withRateLimitTracking creates a middleware that tracks token usage and
@@ -78,7 +79,7 @@ func (m *rateLimitTracking) OnOutboundRawError(ctx context.Context, err error) {
 	}
 
 	// Local admission rejections never reached upstream — they must not trigger cooldown.
-	if isChannelQueueError(err) || isLocalRPMExhaustedError(err) {
+	if isChannelQueueError(err) || isLocalRPMExhaustedError(err) || antigravity.IsCooldownError(err) {
 		return
 	}
 
