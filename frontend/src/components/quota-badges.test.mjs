@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import test from 'node:test';
 import ts from 'typescript';
 
 const componentsDir = import.meta.dirname;
@@ -29,36 +29,12 @@ test('Codex usage windows render as combined usage and time bars', () => {
 
   // Each window has one shared bar whose fill reflects usage and whose marker
   // reflects the reset-window elapsed time.
-  assert.equal(
-    (codexBlock.match(/<UsageTimeBar\s/g) || []).length,
-    1,
-    'Codex normalized limits should use one combined bar'
-  );
-  assert.match(
-    codexBlock,
-    /quota\.limits\s*\.filter\([\s\S]*?\.map\(\(limit,\s*index\)/,
-    'Codex bars should render normalized limits'
-  );
-  assert.match(
-    codexBlock,
-    /limit\.window === '5h'/,
-    'Codex five-hour label should be selected from the normalized window'
-  );
-  assert.match(
-    codexBlock,
-    /limit\.window === '7d'/,
-    'Codex seven-day label should be selected from the normalized window'
-  );
-  assert.match(
-    codexBlock,
-    /WINDOW_LABEL_KEYS\[limit\.window\]/,
-    'Codex labels should resolve through the shared translation map'
-  );
-  assert.match(
-    codexBlock,
-    /t\('quota\.label\.token_usage'\)/,
-    'Codex unknown windows should use the neutral quota label'
-  );
+  assert.equal((codexBlock.match(/<UsageTimeBar\s/g) || []).length, 1, 'Codex normalized limits should use one combined bar');
+  assert.match(codexBlock, /quota\.limits\s*\.filter\([\s\S]*?\.map\(\(limit,\s*index\)/, 'Codex bars should render normalized limits');
+  assert.match(codexBlock, /limit\.window === '5h'/, 'Codex five-hour label should be selected from the normalized window');
+  assert.match(codexBlock, /limit\.window === '7d'/, 'Codex seven-day label should be selected from the normalized window');
+  assert.match(codexBlock, /WINDOW_LABEL_KEYS\[limit\.window\]/, 'Codex labels should resolve through the shared translation map');
+  assert.match(codexBlock, /t\('quota\.label\.token_usage'\)/, 'Codex unknown windows should use the neutral quota label');
   assert.doesNotMatch(codexBlock, /quota\.label\.primary_window/);
   assert.doesNotMatch(codexBlock, /quota\.label\.secondary_window/);
 });
@@ -71,7 +47,10 @@ test('quota popover has no standalone progress-bar renders', () => {
 
 test('Command Code monthly hover matches the other windows', () => {
   const source = read('components/quota-badges.tsx');
-  const commandCodeBlock = source.slice(source.indexOf("{isCommandCodeType(channel.type) &&"), source.indexOf("{channel.type === 'moonshot_coding' &&"));
+  const commandCodeBlock = source.slice(
+    source.indexOf('{isCommandCodeType(channel.type) &&'),
+    source.indexOf("{channel.type === 'moonshot_coding' &&")
+  );
 
   assert.match(commandCodeBlock, /monthlyDurationPct[\s\S]*quota\.label\.time_elapsed/);
   assert.doesNotMatch(commandCodeBlock, /quota\.label\.commandcode\.monthly_remaining/);
@@ -109,8 +88,8 @@ test('Ollama badge derives percentage from the heavier of the 5h/weekly windows'
 
 test('Ollama badge renders both the 5h and weekly windows with a reset countdown', () => {
   const source = read('components/quota-badges.tsx');
-  const start = source.indexOf("{isOllamaType(channel.type) &&");
-  const end = source.indexOf("{isCommandCodeType(channel.type) &&", start);
+  const start = source.indexOf('{isOllamaType(channel.type) &&');
+  const end = source.indexOf('{isCommandCodeType(channel.type) &&', start);
   const ollamaBlock = source.slice(start, end);
 
   assert.match(ollamaBlock, /QuotaWindow5h|'5h'/);
@@ -161,13 +140,49 @@ test('NeuralWatt kWh bar shares the elapsed-window marker and label', () => {
   assert.match(quotaBadges, /kwh:\s*'quota\.label\.kwh_remaining'/);
 });
 
+// Antigravity renders its normalized limit windows (Gemini/Claude/GPT 5h/7d)
+test('Antigravity renders normalized limit windows with reset times and labels', () => {
+  const quotaBadges = read('components/quota-badges.tsx');
+  const start = quotaBadges.indexOf("{channel.type === 'antigravity' &&");
+  const end = quotaBadges.indexOf("{channel.type === 'codex' &&", start);
+
+  assert.ok(start !== -1, 'Antigravity popover branch should exist in quota-badges source');
+  assert.ok(end !== -1 && end > start, 'the Codex branch should follow the Antigravity branch');
+
+  const antigravityBlock = quotaBadges.slice(start, end);
+
+  // Must render normalized token limits
+  assert.match(antigravityBlock, /quota\.limits/, 'Antigravity should render normalized limits');
+  assert.match(antigravityBlock, /limit\.type === 'token'/, 'Antigravity should filter token limits');
+  assert.match(antigravityBlock, /<UsageTimeBar\s/, 'Antigravity should use UsageTimeBar');
+  assert.match(antigravityBlock, /WINDOW_LABEL_KEYS\[limit\.window\]/, 'Antigravity labels should resolve through WINDOW_LABEL_KEYS');
+  assert.match(antigravityBlock, /formatTimeToReset\(limit\.nextResetAt\)/, 'Antigravity should display reset countdown');
+
+  // Percentage derivation
+  const percentStart = quotaBadges.indexOf("} else if (channel.type === 'antigravity') {");
+  assert.ok(percentStart !== -1, 'Antigravity percentage calculation should exist in getChannelPercentage');
+  const percentEnd = quotaBadges.indexOf('} else if (', percentStart + 5);
+  const percentBlock = quotaBadges.slice(percentStart, percentEnd);
+  assert.match(percentBlock, /channel\.quotaStatus\.limits\.map\(\(limit\) => limit\.usageRatio \* 100\)/);
+
+  // Verify pool window keys in WINDOW_LABEL_KEYS and localization
+  const enSystem = JSON.parse(read('locales/en/system.json'));
+  const zhSystem = JSON.parse(read('locales/zh-CN/system.json'));
+  const poolWindows = ['gemini_5h', 'gemini_7d', 'claude_gpt_5h', 'claude_gpt_7d'];
+  for (const win of poolWindows) {
+    assert.match(quotaBadges, new RegExp(`${win}:\\s*'quota\\.window\\.${win}'`));
+    assert.ok(enSystem[`quota.window.${win}`], `en/system.json should contain quota.window.${win}`);
+    assert.ok(zhSystem[`quota.window.${win}`], `zh-CN/system.json should contain quota.window.${win}`);
+  }
+});
+
 // Regression: the quota-display refactor dropped the OpenCode Go popover
 // without adding the shared-limits replacement, so the channels showed a
 // battery percentage in the trigger but an empty detail popover.
 test('OpenCode Go renders its normalized limit windows', () => {
   const quotaBadges = read('components/quota-badges.tsx');
   const start = quotaBadges.indexOf("{(channel.type === 'opencode_go' || channel.type === 'opencode_go_anthropic') &&");
-  const end = quotaBadges.indexOf("{isOllamaType(channel.type) &&", start);
+  const end = quotaBadges.indexOf('{isOllamaType(channel.type) &&', start);
 
   assert.ok(start !== -1, 'OpenCode Go popover branch should exist in quota-badges source');
   assert.ok(end !== -1 && end > start, 'the Ollama branch should follow the OpenCode Go branch');
@@ -192,7 +207,6 @@ test('OpenCode Go renders its normalized limit windows', () => {
     'OpenCode Go should not depend on the removed provider-specific quota data'
   );
 });
-
 
 // --- Mode-aware quota badges (quota routing) ---
 
@@ -248,9 +262,15 @@ test('account-grouped label uses the most restrictive member mode', () => {
 test('grouped representatives render the group mode, standalone channels their own', () => {
   // The row list must stay a real .map over groupedChannels (guards against
   // the opener being eaten by an edit while tsc-visible JSX text survives).
-  assert.match(badgesSource, /groupedChannels\.map\(\(channel: ProviderQuotaChannel\) => \(\n\s*<QuotaRow key=\{channel\.id\} channel=\{channel\} effectiveMode=\{effectiveModeFor\(channel\)\}/);
+  assert.match(
+    badgesSource,
+    /groupedChannels\.map\(\(channel: ProviderQuotaChannel\) => \(\n\s*<QuotaRow key=\{channel\.id\} channel=\{channel\} effectiveMode=\{effectiveModeFor\(channel\)\}/
+  );
   assert.match(badgesSource, /effectiveMode=\{effectiveModeFor\(channel\)\}/);
-  assert.match(badgesSource, /if \(!channel\.sharedAccountNames\) return resolveEffectiveRoutingMode\(channel\.quotaRoutingMode, routingSettings\?\.defaultMode\)/);
+  assert.match(
+    badgesSource,
+    /if \(!channel\.sharedAccountNames\) return resolveEffectiveRoutingMode\(channel\.quotaRoutingMode, routingSettings\?\.defaultMode\)/
+  );
   assert.match(badgesSource, /\.filter\(\(c\) => c\.accountKey === channel\.accountKey\)/);
   assert.match(badgesSource, /mostRestrictiveRoutingMode\(groupModes\)/);
 });
@@ -265,9 +285,13 @@ test('mode badge labels are locale-complete and legacy enforcement keys are gone
   assert.equal(zhSystem['quota.status.ignore_quota'], '忽略限额');
   assert.equal(zhSystem['quota.status.remove_on_exhausted'], '已摘除');
   assert.equal(zhSystem['quota.status.backpressure'], '限流调度');
-  for (const [name, obj] of [['en', enSystem], ['zh-CN', zhSystem]]) {
+  for (const [name, obj] of [
+    ['en', enSystem],
+    ['zh-CN', zhSystem],
+  ]) {
     const legacy = Object.keys(obj).filter(
-      (key) => key.startsWith('quota.status.blocked') || key.startsWith('quota.status.deprioritized') || key.startsWith('quota.status.bypassed')
+      (key) =>
+        key.startsWith('quota.status.blocked') || key.startsWith('quota.status.deprioritized') || key.startsWith('quota.status.bypassed')
     );
     assert.deepEqual(legacy, [], `${name}/system.json still has legacy quota status keys`);
   }
