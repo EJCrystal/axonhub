@@ -262,7 +262,6 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
       // handled by hook
     }
   };
-  };
 
   const handleDeleteSingle = async (key: string) => {
     try {
