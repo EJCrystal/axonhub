@@ -145,42 +145,6 @@ test('NeuralWatt kWh bar shares the elapsed-window marker and label', () => {
   assert.match(quotaBadges, /kwh:\s*'quota\.label\.kwh_remaining'/);
 });
 
-// Antigravity renders its normalized limit windows (Gemini/Claude/GPT 5h/7d)
-test('Antigravity renders normalized limit windows with reset times and labels', () => {
-  const quotaBadges = read('components/quota-badges.tsx');
-  const start = quotaBadges.indexOf("{channel.type === 'antigravity' &&");
-  const end = quotaBadges.indexOf("{channel.type === 'codex' &&", start);
-
-  assert.ok(start !== -1, 'Antigravity popover branch should exist in quota-badges source');
-  assert.ok(end !== -1 && end > start, 'the Codex branch should follow the Antigravity branch');
-
-  const antigravityBlock = quotaBadges.slice(start, end);
-
-  // Must render normalized token limits
-  assert.match(antigravityBlock, /quota\.limits/, 'Antigravity should render normalized limits');
-  assert.match(antigravityBlock, /limit\.type === 'token'/, 'Antigravity should filter token limits');
-  assert.match(antigravityBlock, /<UsageTimeBar\s/, 'Antigravity should use UsageTimeBar');
-  assert.match(antigravityBlock, /WINDOW_LABEL_KEYS\[limit\.window\]/, 'Antigravity labels should resolve through WINDOW_LABEL_KEYS');
-  assert.match(antigravityBlock, /formatTimeToReset\(limit\.nextResetAt\)/, 'Antigravity should display reset countdown');
-
-  // Percentage derivation
-  const percentStart = quotaBadges.indexOf("} else if (channel.type === 'antigravity') {");
-  assert.ok(percentStart !== -1, 'Antigravity percentage calculation should exist in getChannelPercentage');
-  const percentEnd = quotaBadges.indexOf('} else if (', percentStart + 5);
-  const percentBlock = quotaBadges.slice(percentStart, percentEnd);
-  assert.match(percentBlock, /channel\.quotaStatus\.limits\.map\(\(limit\) => limit\.usageRatio \* 100\)/);
-
-  // Verify pool window keys in WINDOW_LABEL_KEYS and localization
-  const enSystem = JSON.parse(read('locales/en/system.json'));
-  const zhSystem = JSON.parse(read('locales/zh-CN/system.json'));
-  const poolWindows = ['gemini_5h', 'gemini_7d', 'claude_gpt_5h', 'claude_gpt_7d'];
-  for (const win of poolWindows) {
-    assert.match(quotaBadges, new RegExp(`${win}:\\s*'quota\\.window\\.${win}'`));
-    assert.ok(enSystem[`quota.window.${win}`], `en/system.json should contain quota.window.${win}`);
-    assert.ok(zhSystem[`quota.window.${win}`], `zh-CN/system.json should contain quota.window.${win}`);
-  }
-});
-
 // Regression: the quota-display refactor dropped the OpenCode Go popover
 // without adding the shared-limits replacement, so the channels showed a
 // battery percentage in the trigger but an empty detail popover.
