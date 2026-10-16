@@ -1066,7 +1066,6 @@ const CHANNEL_QUERY_FULL_NODE_SELECTION = `
               apiKey
               region
             }
-            }
             gcp {
               region
               projectID
