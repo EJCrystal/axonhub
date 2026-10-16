@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, Fragment, type ReactNode } from 'react';
 import { format } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, RefreshCw, Zap, Battery, BatteryLow, BatteryMedium, BatteryFull, BatteryWarning } from 'lucide-react';
@@ -2533,10 +2533,67 @@ function QuotaBadgeTrigger({ channels, isLoading, isError }: { channels: Provide
   return <BatteryIcon className={`h-5 w-5 ${textColor} transition-colors`} />;
 }
 
+interface QuotaCategory {
+  key: string;
+  label: string;
+  order: number;
+}
+
+function getChannelCategory(channel: ProviderQuotaChannel, t: ReturnType<typeof useTranslation>['t']): QuotaCategory {
+  if (channel.type === 'antigravity') {
+    return { key: 'antigravity', label: t('channels.types.antigravity') || 'Antigravity', order: 1 };
+  }
+  if (channel.type === 'codex') {
+    return { key: 'codex', label: t('channels.types.codex') || 'Codex', order: 2 };
+  }
+  if (channel.type === 'claudecode') {
+    return { key: 'claudecode', label: t('channels.types.claudecode') || 'Claude Code', order: 3 };
+  }
+  if (channel.type === 'github_copilot') {
+    return { key: 'github_copilot', label: t('channels.types.github_copilot') || 'GitHub Copilot', order: 4 };
+  }
+  if (channel.type === 'cline') {
+    return { key: 'cline', label: t('channels.types.cline') || 'Cline', order: 5 };
+  }
+  if (channel.type === 'xai_subscription') {
+    return { key: 'xai_subscription', label: t('channels.types.xai_subscription') || 'xAI', order: 6 };
+  }
+  if (channel.type === 'nanogpt' || channel.type === 'nanogpt_responses') {
+    return { key: 'nanogpt', label: 'NanoGPT', order: 7 };
+  }
+  if (isOllamaType(channel.type)) {
+    return { key: 'ollama', label: t('channels.types.ollama') || 'Ollama', order: 8 };
+  }
+  if (isCommandCodeType(channel.type)) {
+    return { key: 'commandcode', label: t('channels.types.commandcode') || 'Command Code', order: 9 };
+  }
+  if (channel.type === 'moonshot_coding') {
+    return { key: 'moonshot_coding', label: t('channels.types.moonshot_coding') || 'Kimi Coding', order: 10 };
+  }
+  if (isMinimaxType(channel.type)) {
+    return { key: 'minimax', label: t('channels.types.minimax') || 'Minimax', order: 11 };
+  }
+  if (channel.type === 'zhipu' || channel.type === 'zhipu_anthropic' || channel.type === 'zai' || channel.type === 'zai_anthropic') {
+    return { key: 'zhipu', label: t('channels.types.zhipu') || '智谱', order: 12 };
+  }
+  if (isZenmuxType(channel.type)) {
+    return { key: 'zenmux', label: 'ZenMux', order: 13 };
+  }
+  if (isOpenaiType(channel.type) && channel.providerType) {
+    const p = channel.providerType;
+    return { key: p, label: p.charAt(0).toUpperCase() + p.slice(1), order: 14 };
+  }
+  const typeKey = `channels.types.${channel.type}`;
+  const translated = t(typeKey);
+  const label = translated !== typeKey ? translated : channel.type;
+  return { key: channel.type, label, order: 99 };
+}
+
 export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean; onRefresh: () => void }) {
   const { t } = useTranslation();
   const { channels, isLoading, isError, error } = useProviderQuotaStatuses();
   const { data: routingSettings } = useQuotaRoutingSettings();
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   // Grouped representatives advertise the most restrictive effective mode
   // across every channel sharing the account; standalone channels use their
@@ -2551,7 +2608,7 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
 
   if (!isLoading && !isError && channels.length === 0) return null;
 
-  const groupedChannels = channels.reduce((acc: ProviderQuotaChannel[], channel: ProviderQuotaChannel) => {
+  const dedupedChannels = channels.reduce((acc: ProviderQuotaChannel[], channel: ProviderQuotaChannel) => {
     if (channel.type === 'nanogpt_responses') {
       const existing = acc.find((c) => c.type === 'nanogpt');
       if (!existing) {
@@ -2579,6 +2636,40 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
     return acc;
   }, [] as ProviderQuotaChannel[]);
 
+  // Sort channels stably by category order, then category label, then channel name alphabetically
+  const sortedChannels = [...dedupedChannels].sort((a, b) => {
+    const catA = getChannelCategory(a, t);
+    const catB = getChannelCategory(b, t);
+    if (catA.order !== catB.order) {
+      return catA.order - catB.order;
+    }
+    if (catA.key !== catB.key) {
+      return catA.label.localeCompare(catB.label);
+    }
+    return a.name.localeCompare(b.name);
+  });
+
+  const categoryCounts = sortedChannels.reduce(
+    (acc, ch) => {
+      const cat = getChannelCategory(ch, t);
+      acc[cat.key] = (acc[cat.key] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+  const categories = Array.from(
+    new Map(
+      sortedChannels.map((ch) => {
+        const cat = getChannelCategory(ch, t);
+        return [cat.key, { key: cat.key, label: cat.label, count: categoryCounts[cat.key] }];
+      })
+    ).values()
+  );
+
+  const groupedChannels =
+    selectedCategory === 'all' ? sortedChannels : sortedChannels.filter((ch) => getChannelCategory(ch, t).key === selectedCategory);
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -2602,9 +2693,28 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
       <div
         className={`max-h-[60vh] overflow-y-auto pr-1 pl-1 ${groupedChannels.length > 4 ? 'grid grid-cols-1 gap-x-4 sm:grid-cols-2' : ''}`}
       >
-        {groupedChannels.map((channel: ProviderQuotaChannel) => (
-          <QuotaRow key={channel.id} channel={channel} effectiveMode={effectiveModeFor(channel)} />
-        ))}
+        {groupedChannels.map((channel: ProviderQuotaChannel, index: number) => {
+          const cat = getChannelCategory(channel, t);
+          const showSectionHeader =
+            selectedCategory === 'all' &&
+            categories.length > 1 &&
+            (index === 0 || getChannelCategory(groupedChannels[index - 1], t).key !== cat.key);
+
+          return (
+            <Fragment key={channel.id}>
+              {showSectionHeader && (
+                <div className='col-span-full flex items-center gap-2 pt-3 pb-1 first:pt-1'>
+                  <span className='text-muted-foreground/80 text-[11px] font-semibold tracking-wider uppercase'>{cat.label}</span>
+                  <span className='bg-muted/70 py-0.2 text-muted-foreground/70 rounded-full px-1.5 text-[10px] font-medium'>
+                    {cat.count}
+                  </span>
+                  <div className='bg-border/40 h-[1px] flex-1' />
+                </div>
+              )}
+              <QuotaRow channel={channel} effectiveMode={effectiveModeFor(channel)} />
+            </Fragment>
+          );
+        })}
       </div>
     );
   };
@@ -2613,17 +2723,17 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
     <Popover>
       <PopoverTrigger asChild>
         <button type='button' className='hover:bg-muted relative rounded-md p-2 transition-colors'>
-          <QuotaBadgeTrigger channels={groupedChannels} isLoading={isLoading} isError={isError} />
+          <QuotaBadgeTrigger channels={sortedChannels} isLoading={isLoading} isError={isError} />
         </button>
       </PopoverTrigger>
       <PopoverContent
         className={
-          !isLoading && !isError && groupedChannels.length > 4 ? 'w-[640px] max-w-[calc(100vw-2rem)]' : 'w-80 max-w-[calc(100vw-2rem)]'
+          !isLoading && !isError && sortedChannels.length > 4 ? 'w-[640px] max-w-[calc(100vw-2rem)]' : 'w-80 max-w-[calc(100vw-2rem)]'
         }
         align='end'
       >
-        <div className='space-y-1'>
-          <div className='mb-2 flex items-center justify-between'>
+        <div className='space-y-1.5'>
+          <div className='flex items-center justify-between'>
             <div className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>{t('system.providerQuota.title')}</div>
             <button
               onClick={onRefresh}
@@ -2634,6 +2744,37 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
               {isRefreshing ? <Loader2 className='h-4 w-4 animate-spin' /> : <RefreshCw className='h-4 w-4' />}
             </button>
           </div>
+
+          {!isLoading && !isError && categories.length > 1 && (
+            <div className='flex flex-wrap items-center gap-1 border-b pt-0.5 pb-2'>
+              <button
+                type='button'
+                onClick={() => setSelectedCategory('all')}
+                className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+                  selectedCategory === 'all'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                {t('common.all') || '全部'} ({sortedChannels.length})
+              </button>
+              {categories.map((cat) => (
+                <button
+                  key={cat.key}
+                  type='button'
+                  onClick={() => setSelectedCategory(cat.key)}
+                  className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+                    selectedCategory === cat.key
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  {cat.label} ({cat.count})
+                </button>
+              ))}
+            </div>
+          )}
+
           {renderContent()}
         </div>
       </PopoverContent>
