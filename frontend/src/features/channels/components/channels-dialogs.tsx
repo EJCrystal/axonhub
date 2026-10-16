@@ -38,6 +38,15 @@ export function ChannelsDialogs() {
     enabled: Boolean(partialCurrentRow && open),
   });
 
+  console.log('[DEBUG_CHANNELS_DIALOGS]', {
+    open,
+    partialCurrentRowId: partialCurrentRow?.id,
+    detailsQueryDataId: detailsQuery.data?.id,
+    isEqual: detailsQuery.data === partialCurrentRow,
+    isError: detailsQuery.isError,
+    status: detailsQuery.status,
+  });
+
   useEffect(() => {
     if (detailsQuery.data && partialCurrentRow?.id === detailsQuery.data.id && partialCurrentRow !== detailsQuery.data) {
       setCurrentRow(detailsQuery.data);
