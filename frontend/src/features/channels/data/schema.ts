@@ -229,14 +229,14 @@ export type OverrideMatch = z.infer<typeof overrideMatchSchema>;
 
 export const overrideOperationSchema = z.object({
   op: z.enum(['set', 'set_if_absent', 'delete', 'rename', 'copy', 'array_append', 'array_prepend', 'array_insert', 'array_remove']),
-  path: z.string().optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
-  value: z.any().optional(),
-  condition: z.string().optional(),
-  match: overrideMatchSchema.nullish(),
-  index: z.number().int().nullish(),
-  splat: z.boolean().nullish(),
+  path: z.string().nullish().transform((v) => v ?? undefined),
+  from: z.string().nullish().transform((v) => v ?? undefined),
+  to: z.string().nullish().transform((v) => v ?? undefined),
+  value: z.any().nullish().transform((v) => v ?? undefined),
+  condition: z.string().nullish().transform((v) => v ?? undefined),
+  match: overrideMatchSchema.nullish().transform((v) => v ?? undefined),
+  index: z.number().int().nullish().transform((v) => v ?? undefined),
+  splat: z.boolean().nullish().transform((v) => v ?? undefined),
 });
 export type OverrideOperation = z.infer<typeof overrideOperationSchema>;
 
@@ -352,8 +352,8 @@ export const channelSettingsSchema = z.object({
   hideOriginalModels: z.boolean().optional(),
   hideMappedModels: z.boolean().optional(),
   lowercaseModelId: z.boolean().optional(),
-  bodyOverrideOperations: z.array(overrideOperationSchema).optional(),
-  headerOverrideOperations: z.array(overrideOperationSchema).optional(),
+  bodyOverrideOperations: z.array(overrideOperationSchema).nullish().transform((v) => v ?? undefined),
+  headerOverrideOperations: z.array(overrideOperationSchema).nullish().transform((v) => v ?? undefined),
   proxy: proxyConfigSchema.optional().nullable(),
   transformOptions: transformOptionsSchema.optional(),
   passThroughUserAgent: z.boolean().optional().nullable(),
