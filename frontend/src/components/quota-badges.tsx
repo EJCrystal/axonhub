@@ -257,8 +257,6 @@ function getChannelPercentage(channel: ProviderQuotaChannel): number {
     if (typeof balance === 'number') {
       percentage = Math.max(0, Math.min(100, (1.0 - balance / 100) * 100));
     }
-  } else if (channel.type === 'antigravity') {
-    percentage = Math.max(0, ...channel.quotaStatus.limits.map((limit) => limit.usageRatio * 100));
   } else if (isZenmuxType(channel.type)) {
     percentage = getZenmuxUsagePercentage(channel.quotaStatus.limits);
   }
@@ -810,56 +808,6 @@ function QuotaRow({ channel, effectiveMode }: { channel: ProviderQuotaChannel; e
 
             return items;
           })()}
-        </div>
-      )}
-
-      {channel.type === 'antigravity' && (
-        <div className='mt-3 space-y-3'>
-          {quota.limits
-            .filter((limit) => limit.type === 'token')
-            .map((limit, index) => {
-              const labelKey = limit.window ? WINDOW_LABEL_KEYS[limit.window] : undefined;
-              const label = labelKey ? t(labelKey) : limit.window || t('quota.label.token_usage');
-              const usedPercent = limit.status === 'exhausted' ? 100 : limit.usageRatio * 100;
-              const durationPercent = getLimitDurationPercent(limit);
-              const resetText = limit.nextResetAt ? formatTimeToReset(limit.nextResetAt) : '';
-
-              return (
-                <div
-                  key={`${limit.window}-${index}`}
-                  className={index > 0 ? 'border-border/60 space-y-1.5 border-t border-dashed pt-3' : 'space-y-1.5'}
-                >
-                  <div className='space-y-1'>
-                    <div className='flex items-center justify-between text-xs'>
-                      <span className='text-muted-foreground font-medium'>{label}</span>
-                      <span className='text-foreground font-medium'>
-                        {t('quota.label.percent_used', { percent: Math.round(usedPercent) })}
-                      </span>
-                    </div>
-                    <UsageTimeBar
-                      usagePercent={usedPercent}
-                      durationPercent={durationPercent}
-                      tooltip={
-                        <div className='space-y-0.5'>
-                          <div className='font-medium'>{label}</div>
-                          <div>{t('quota.label.percent_used', { percent: Math.round(usedPercent) })}</div>
-                          {durationPercent !== undefined && (
-                            <div>
-                              {t('quota.label.time_elapsed')}: {Math.round(durationPercent)}%
-                            </div>
-                          )}
-                          {resetText && (
-                            <div>
-                              {resetText} ({formatDate(new Date(limit.nextResetAt!).getTime() / 1000)})
-                            </div>
-                          )}
-                        </div>
-                      }
-                    />
-                  </div>
-                </div>
-              );
-            })}
         </div>
       )}
 
