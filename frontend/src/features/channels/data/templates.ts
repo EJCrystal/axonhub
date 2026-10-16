@@ -21,8 +21,8 @@ export const channelOverrideTemplateSchema = z.object({
   }).nullable().optional(),
   name: z.string(),
   description: z.string().optional().nullable(),
-  headerOverrideOperations: z.array(overrideOperationSchema),
-  bodyOverrideOperations: z.array(overrideOperationSchema),
+  headerOverrideOperations: z.array(overrideOperationSchema).nullish().transform((v) => v ?? []),
+  bodyOverrideOperations: z.array(overrideOperationSchema).nullish().transform((v) => v ?? []),
 });
 export type ChannelOverrideTemplate = z.infer<typeof channelOverrideTemplateSchema>;
 
@@ -364,6 +364,7 @@ export function useApplyChannelOverrideTemplate() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      queryClient.invalidateQueries({ queryKey: ['channel'] });
       toast.success(t('channels.templates.messages.applySuccess', { count: data.updated }));
     },
   });
@@ -389,6 +390,7 @@ export function useClearChannelOverrideTemplates() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      queryClient.invalidateQueries({ queryKey: ['channel'] });
       toast.success(t('channels.templates.messages.clearSuccess', { count: data.updated }));
     },
   });
