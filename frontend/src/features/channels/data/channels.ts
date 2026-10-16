@@ -1061,6 +1061,12 @@ const CHANNEL_QUERY_FULL_NODE_SELECTION = `
               apiKey
               models
             }
+            vertexApiKeys {
+              projectID
+              apiKey
+              region
+            }
+            }
             gcp {
               region
               projectID
@@ -2249,6 +2255,8 @@ export function useFetchModels() {
       channelType: string;
       baseURL: string;
       apiKey?: string;
+      projectID?: string;
+      region?: string;
       channelID?: string;
       // When true the caller aggregates its own summary (e.g. a multi-key fetch
       // that reports a single union count), so this hook stays silent.

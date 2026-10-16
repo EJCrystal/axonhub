@@ -22,7 +22,6 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
-	"github.com/looplj/axonhub/internal/ent/intelligencerun"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/prompt"
@@ -77,7 +76,6 @@ type ResolverRoot interface {
 	ChannelProbeData() ChannelProbeDataResolver
 	ChannelSettings() ChannelSettingsResolver
 	DataStorage() DataStorageResolver
-	IntelligenceRun() IntelligenceRunResolver
 	Model() ModelResolver
 	Mutation() MutationResolver
 	OIDCIdentity() OIDCIdentityResolver
@@ -387,11 +385,6 @@ type ComplexityRoot struct {
 		UsageLogs               func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UsageLogOrder, where *ent.UsageLogWhereInput) int
 	}
 
-	ChannelAPIKeyModels struct {
-		APIKey func(childComplexity int) int
-		Models func(childComplexity int) int
-	}
-
 	ChannelConnection struct {
 		Edges      func(childComplexity int) int
 		PageInfo   func(childComplexity int) int
@@ -399,13 +392,11 @@ type ComplexityRoot struct {
 	}
 
 	ChannelCredentials struct {
-		APIKey              func(childComplexity int) int
-		APIKeyFetchedModels func(childComplexity int) int
-		APIKeyModels        func(childComplexity int) int
-		APIKeyRemarks       func(childComplexity int) int
-		APIKeys             func(childComplexity int) int
-		GCP                 func(childComplexity int) int
-		OAuth               func(childComplexity int) int
+		APIKey        func(childComplexity int) int
+		APIKeys       func(childComplexity int) int
+		GCP           func(childComplexity int) int
+		OAuth         func(childComplexity int) int
+		VertexAPIKeys func(childComplexity int) int
 	}
 
 	ChannelEdge struct {
@@ -855,77 +846,6 @@ type ComplexityRoot struct {
 		User    func(childComplexity int) int
 	}
 
-	IntelligenceConfig struct {
-		CronExpression      func(childComplexity int) int
-		DisableDegradedKeys func(childComplexity int) int
-		Enabled             func(childComplexity int) int
-		NextExecutionAt     func(childComplexity int) int
-		Targets             func(childComplexity int) int
-	}
-
-	IntelligenceEvaluatePayload struct {
-		ChannelID    func(childComplexity int) int
-		FailedCount  func(childComplexity int) int
-		Model        func(childComplexity int) int
-		Results      func(childComplexity int) int
-		SuccessCount func(childComplexity int) int
-		Total        func(childComplexity int) int
-	}
-
-	IntelligenceKeyResult struct {
-		Answer        func(childComplexity int) int
-		DurationMs    func(childComplexity int) int
-		Error         func(childComplexity int) int
-		GenerationMs  func(childComplexity int) int
-		HTML          func(childComplexity int) int
-		KeyPrefix     func(childComplexity int) int
-		Label         func(childComplexity int) int
-		ManualVerdict func(childComplexity int) int
-		Quality       func(childComplexity int) int
-		Reason        func(childComplexity int) int
-		Success       func(childComplexity int) int
-		TaskID        func(childComplexity int) int
-	}
-
-	IntelligenceRun struct {
-		Benchmark       func(childComplexity int) int
-		ChannelID       func(childComplexity int) int
-		ChannelName     func(childComplexity int) int
-		CreatedAt       func(childComplexity int) int
-		DurationMs      func(childComplexity int) int
-		FailedKeys      func(childComplexity int) int
-		ID              func(childComplexity int) int
-		ModelID         func(childComplexity int) int
-		ReasoningEffort func(childComplexity int) int
-		Results         func(childComplexity int) int
-		Status          func(childComplexity int) int
-		SuccessKeys     func(childComplexity int) int
-		TotalKeys       func(childComplexity int) int
-		Trigger         func(childComplexity int) int
-		UpdatedAt       func(childComplexity int) int
-	}
-
-	IntelligenceRunConnection struct {
-		Edges      func(childComplexity int) int
-		PageInfo   func(childComplexity int) int
-		TotalCount func(childComplexity int) int
-	}
-
-	IntelligenceRunEdge struct {
-		Cursor func(childComplexity int) int
-		Node   func(childComplexity int) int
-	}
-
-	IntelligenceTarget struct {
-		APIKey          func(childComplexity int) int
-		Benchmark       func(childComplexity int) int
-		ChannelID       func(childComplexity int) int
-		ChannelName     func(childComplexity int) int
-		ModelID         func(childComplexity int) int
-		ReasoningEffort func(childComplexity int) int
-		TimeoutMinutes  func(childComplexity int) int
-	}
-
 	Model struct {
 		AssociatedChannelCount func(childComplexity int) int
 		CreatedAt              func(childComplexity int) int
@@ -1140,7 +1060,6 @@ type ComplexityRoot struct {
 		EnableAllChannelAPIKeys               func(childComplexity int, channelID objects.GUID) int
 		EnableChannelAPIKey                   func(childComplexity int, channelID objects.GUID, key string) int
 		EnableSelectedChannelAPIKeys          func(childComplexity int, channelID objects.GUID, keys []string) int
-		EvaluateChannelIntelligence           func(childComplexity int, input IntelligenceEvaluateInput) int
 		LoadAPIKeyProfileTemplate             func(childComplexity int, input LoadAPIKeyProfileTemplateInput) int
 		PreviewPromptProtectionRule           func(childComplexity int, input PromptProtectionRulePreviewInput) int
 		RefreshProvidersCatalog               func(childComplexity int) int
@@ -1150,12 +1069,9 @@ type ComplexityRoot struct {
 		RetainThread                          func(childComplexity int, id objects.GUID) int
 		RetainTrace                           func(childComplexity int, id objects.GUID) int
 		RotateAPIKey                          func(childComplexity int, id objects.GUID) int
-		RunIntelligenceCheckNow               func(childComplexity int, channelID *objects.GUID, apiKey *string) int
 		SaveChannelEndpoints                  func(childComplexity int, input biz.SaveChannelEndpointsInput) int
 		SaveChannelModelPrices                func(childComplexity int, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput) int
 		SaveProxyPreset                       func(childComplexity int, input biz.ProxyPreset) int
-		SetIntelligenceConfig                 func(childComplexity int, input IntelligenceConfigInput) int
-		SetIntelligenceRunVerdict             func(childComplexity int, input SetIntelligenceRunVerdictInput) int
 		SyncChannelModels                     func(childComplexity int, channelID objects.GUID, pattern *string) int
 		TestChannel                           func(childComplexity int, input TestChannelInput) int
 		TestChannelAPIKey                     func(childComplexity int, channelID objects.GUID, key string, modelID *string) int
@@ -1531,9 +1447,6 @@ type ComplexityRoot struct {
 		FastestModels                   func(childComplexity int, input FastestChannelsInput) int
 		FetchModels                     func(childComplexity int, input biz.FetchModelsInput) int
 		GetCacheDiagnostics             func(childComplexity int, input *GetCacheDiagnosticsInput) int
-		IntelligenceConfig              func(childComplexity int) int
-		IntelligenceHistory             func(childComplexity int, channelID objects.GUID, first *int, after *entgql.Cursor[int]) int
-		IntelligenceRuns                func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.IntelligenceRunOrder, where *ent.IntelligenceRunWhereInput) int
 		Me                              func(childComplexity int) int
 		ModelPerformanceStats           func(childComplexity int) int
 		Models                          func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.ModelOrder, where *ent.ModelWhereInput) int
@@ -1878,11 +1791,9 @@ type ComplexityRoot struct {
 	}
 
 	SyncChannelModelsPayload struct {
-		APIKeyFetchedModels func(childComplexity int) int
-		APIKeyModels        func(childComplexity int) int
-		ChannelID           func(childComplexity int) int
-		ManualModels        func(childComplexity int) int
-		SupportedModels     func(childComplexity int) int
+		ChannelID       func(childComplexity int) int
+		ManualModels    func(childComplexity int) int
+		SupportedModels func(childComplexity int) int
 	}
 
 	System struct {
@@ -2256,6 +2167,12 @@ type ComplexityRoot struct {
 		ReleaseURL     func(childComplexity int) int
 	}
 
+	VertexAPIKey struct {
+		APIKey    func(childComplexity int) int
+		ProjectID func(childComplexity int) int
+		Region    func(childComplexity int) int
+	}
+
 	VideoStorageSettings struct {
 		DataStorageID       func(childComplexity int) int
 		Enabled             func(childComplexity int) int
@@ -2355,11 +2272,6 @@ type ChannelSettingsResolver interface {
 type DataStorageResolver interface {
 	ID(ctx context.Context, obj *ent.DataStorage) (*objects.GUID, error)
 }
-type IntelligenceRunResolver interface {
-	ID(ctx context.Context, obj *ent.IntelligenceRun) (*objects.GUID, error)
-
-	Results(ctx context.Context, obj *ent.IntelligenceRun) ([]*IntelligenceKeyResult, error)
-}
 type ModelResolver interface {
 	ID(ctx context.Context, obj *ent.Model) (*objects.GUID, error)
 
@@ -2385,10 +2297,6 @@ type MutationResolver interface {
 	TestChannel(ctx context.Context, input TestChannelInput) (*TestChannelPayload, error)
 	TestChannelAPIKeys(ctx context.Context, channelID objects.GUID, modelID *string) (*TestChannelAPIKeysPayload, error)
 	TestChannelAPIKey(ctx context.Context, channelID objects.GUID, key string, modelID *string) (*TestAPIKeyResult, error)
-	EvaluateChannelIntelligence(ctx context.Context, input IntelligenceEvaluateInput) (*IntelligenceEvaluatePayload, error)
-	SetIntelligenceConfig(ctx context.Context, input IntelligenceConfigInput) (*IntelligenceConfig, error)
-	RunIntelligenceCheckNow(ctx context.Context, channelID *objects.GUID, apiKey *string) (int, error)
-	SetIntelligenceRunVerdict(ctx context.Context, input SetIntelligenceRunVerdictInput) (*ent.IntelligenceRun, error)
 	BulkImportChannels(ctx context.Context, input BulkImportChannelsInput) (*biz.BulkImportChannelsResult, error)
 	BulkUpdateChannelOrdering(ctx context.Context, input BulkUpdateChannelOrderingInput) (*BulkUpdateChannelOrderingResult, error)
 	BulkUpdateChannelAutoDisable(ctx context.Context, input biz.BulkUpdateChannelAutoDisableInput) (*BulkUpdateChannelAutoDisablePayload, error)
@@ -2536,7 +2444,6 @@ type QueryResolver interface {
 	Channels(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.ChannelOrder, where *ent.ChannelWhereInput) (*ent.ChannelConnection, error)
 	ChannelOverrideTemplates(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.ChannelOverrideTemplateOrder, where *ent.ChannelOverrideTemplateWhereInput) (*ent.ChannelOverrideTemplateConnection, error)
 	DataStorages(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.DataStorageOrder, where *ent.DataStorageWhereInput) (*ent.DataStorageConnection, error)
-	IntelligenceRuns(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.IntelligenceRunOrder, where *ent.IntelligenceRunWhereInput) (*ent.IntelligenceRunConnection, error)
 	Models(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.ModelOrder, where *ent.ModelWhereInput) (*ent.ModelConnection, error)
 	OidcIdentities(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.OIDCIdentityOrder, where *ent.OIDCIdentityWhereInput) (*ent.OIDCIdentityConnection, error)
 	Projects(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.ProjectOrder, where *ent.ProjectWhereInput) (*ent.ProjectConnection, error)
@@ -2549,8 +2456,6 @@ type QueryResolver interface {
 	Traces(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.TraceOrder, where *ent.TraceWhereInput) (*ent.TraceConnection, error)
 	UsageLogs(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UsageLogOrder, where *ent.UsageLogWhereInput) (*ent.UsageLogConnection, error)
 	Users(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UserOrder, where *ent.UserWhereInput) (*ent.UserConnection, error)
-	IntelligenceConfig(ctx context.Context) (*IntelligenceConfig, error)
-	IntelligenceHistory(ctx context.Context, channelID objects.GUID, first *int, after *entgql.Cursor[int]) (*ent.IntelligenceRunConnection, error)
 	AllChannelSummarys(ctx context.Context, includeArchived *bool) ([]*ent.Channel, error)
 	AllChannelTags(ctx context.Context) ([]string, error)
 	CountChannelsByType(ctx context.Context, input CountChannelsByTypeInput) ([]*ChannelTypeCount, error)
@@ -3870,19 +3775,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Channel.UsageLogs(childComplexity, args["after"].(*entgql.Cursor[int]), args["first"].(*int), args["before"].(*entgql.Cursor[int]), args["last"].(*int), args["orderBy"].(*ent.UsageLogOrder), args["where"].(*ent.UsageLogWhereInput)), true
 
-	case "ChannelAPIKeyModels.apiKey":
-		if e.complexity.ChannelAPIKeyModels.APIKey == nil {
-			break
-		}
-
-		return e.complexity.ChannelAPIKeyModels.APIKey(childComplexity), true
-	case "ChannelAPIKeyModels.models":
-		if e.complexity.ChannelAPIKeyModels.Models == nil {
-			break
-		}
-
-		return e.complexity.ChannelAPIKeyModels.Models(childComplexity), true
-
 	case "ChannelConnection.edges":
 		if e.complexity.ChannelConnection.Edges == nil {
 			break
@@ -3908,24 +3800,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelCredentials.APIKey(childComplexity), true
-	case "ChannelCredentials.apiKeyFetchedModels":
-		if e.complexity.ChannelCredentials.APIKeyFetchedModels == nil {
-			break
-		}
-
-		return e.complexity.ChannelCredentials.APIKeyFetchedModels(childComplexity), true
-	case "ChannelCredentials.apiKeyModels":
-		if e.complexity.ChannelCredentials.APIKeyModels == nil {
-			break
-		}
-
-		return e.complexity.ChannelCredentials.APIKeyModels(childComplexity), true
-	case "ChannelCredentials.apiKeyRemarks":
-		if e.complexity.ChannelCredentials.APIKeyRemarks == nil {
-			break
-		}
-
-		return e.complexity.ChannelCredentials.APIKeyRemarks(childComplexity), true
 	case "ChannelCredentials.apiKeys":
 		if e.complexity.ChannelCredentials.APIKeys == nil {
 			break
@@ -3944,6 +3818,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelCredentials.OAuth(childComplexity), true
+	case "ChannelCredentials.vertexApiKeys":
+		if e.complexity.ChannelCredentials.VertexAPIKeys == nil {
+			break
+		}
+
+		return e.complexity.ChannelCredentials.VertexAPIKeys(childComplexity), true
 
 	case "ChannelEdge.cursor":
 		if e.complexity.ChannelEdge.Cursor == nil {
@@ -5532,313 +5412,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.InitializeSystemPayload.User(childComplexity), true
 
-	case "IntelligenceConfig.cronExpression":
-		if e.complexity.IntelligenceConfig.CronExpression == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceConfig.CronExpression(childComplexity), true
-	case "IntelligenceConfig.disableDegradedKeys":
-		if e.complexity.IntelligenceConfig.DisableDegradedKeys == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceConfig.DisableDegradedKeys(childComplexity), true
-	case "IntelligenceConfig.enabled":
-		if e.complexity.IntelligenceConfig.Enabled == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceConfig.Enabled(childComplexity), true
-	case "IntelligenceConfig.nextExecutionAt":
-		if e.complexity.IntelligenceConfig.NextExecutionAt == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceConfig.NextExecutionAt(childComplexity), true
-	case "IntelligenceConfig.targets":
-		if e.complexity.IntelligenceConfig.Targets == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceConfig.Targets(childComplexity), true
-
-	case "IntelligenceEvaluatePayload.channelID":
-		if e.complexity.IntelligenceEvaluatePayload.ChannelID == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceEvaluatePayload.ChannelID(childComplexity), true
-	case "IntelligenceEvaluatePayload.failedCount":
-		if e.complexity.IntelligenceEvaluatePayload.FailedCount == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceEvaluatePayload.FailedCount(childComplexity), true
-	case "IntelligenceEvaluatePayload.model":
-		if e.complexity.IntelligenceEvaluatePayload.Model == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceEvaluatePayload.Model(childComplexity), true
-	case "IntelligenceEvaluatePayload.results":
-		if e.complexity.IntelligenceEvaluatePayload.Results == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceEvaluatePayload.Results(childComplexity), true
-	case "IntelligenceEvaluatePayload.successCount":
-		if e.complexity.IntelligenceEvaluatePayload.SuccessCount == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceEvaluatePayload.SuccessCount(childComplexity), true
-	case "IntelligenceEvaluatePayload.total":
-		if e.complexity.IntelligenceEvaluatePayload.Total == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceEvaluatePayload.Total(childComplexity), true
-
-	case "IntelligenceKeyResult.answer":
-		if e.complexity.IntelligenceKeyResult.Answer == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.Answer(childComplexity), true
-	case "IntelligenceKeyResult.durationMs":
-		if e.complexity.IntelligenceKeyResult.DurationMs == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.DurationMs(childComplexity), true
-	case "IntelligenceKeyResult.error":
-		if e.complexity.IntelligenceKeyResult.Error == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.Error(childComplexity), true
-	case "IntelligenceKeyResult.generationMs":
-		if e.complexity.IntelligenceKeyResult.GenerationMs == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.GenerationMs(childComplexity), true
-	case "IntelligenceKeyResult.html":
-		if e.complexity.IntelligenceKeyResult.HTML == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.HTML(childComplexity), true
-	case "IntelligenceKeyResult.keyPrefix":
-		if e.complexity.IntelligenceKeyResult.KeyPrefix == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.KeyPrefix(childComplexity), true
-	case "IntelligenceKeyResult.label":
-		if e.complexity.IntelligenceKeyResult.Label == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.Label(childComplexity), true
-	case "IntelligenceKeyResult.manualVerdict":
-		if e.complexity.IntelligenceKeyResult.ManualVerdict == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.ManualVerdict(childComplexity), true
-	case "IntelligenceKeyResult.quality":
-		if e.complexity.IntelligenceKeyResult.Quality == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.Quality(childComplexity), true
-	case "IntelligenceKeyResult.reason":
-		if e.complexity.IntelligenceKeyResult.Reason == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.Reason(childComplexity), true
-	case "IntelligenceKeyResult.success":
-		if e.complexity.IntelligenceKeyResult.Success == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.Success(childComplexity), true
-	case "IntelligenceKeyResult.taskID":
-		if e.complexity.IntelligenceKeyResult.TaskID == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceKeyResult.TaskID(childComplexity), true
-
-	case "IntelligenceRun.benchmark":
-		if e.complexity.IntelligenceRun.Benchmark == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.Benchmark(childComplexity), true
-	case "IntelligenceRun.channelID":
-		if e.complexity.IntelligenceRun.ChannelID == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.ChannelID(childComplexity), true
-	case "IntelligenceRun.channelName":
-		if e.complexity.IntelligenceRun.ChannelName == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.ChannelName(childComplexity), true
-	case "IntelligenceRun.createdAt":
-		if e.complexity.IntelligenceRun.CreatedAt == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.CreatedAt(childComplexity), true
-	case "IntelligenceRun.durationMs":
-		if e.complexity.IntelligenceRun.DurationMs == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.DurationMs(childComplexity), true
-	case "IntelligenceRun.failedKeys":
-		if e.complexity.IntelligenceRun.FailedKeys == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.FailedKeys(childComplexity), true
-	case "IntelligenceRun.id":
-		if e.complexity.IntelligenceRun.ID == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.ID(childComplexity), true
-	case "IntelligenceRun.modelID":
-		if e.complexity.IntelligenceRun.ModelID == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.ModelID(childComplexity), true
-	case "IntelligenceRun.reasoningEffort":
-		if e.complexity.IntelligenceRun.ReasoningEffort == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.ReasoningEffort(childComplexity), true
-	case "IntelligenceRun.results":
-		if e.complexity.IntelligenceRun.Results == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.Results(childComplexity), true
-	case "IntelligenceRun.status":
-		if e.complexity.IntelligenceRun.Status == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.Status(childComplexity), true
-	case "IntelligenceRun.successKeys":
-		if e.complexity.IntelligenceRun.SuccessKeys == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.SuccessKeys(childComplexity), true
-	case "IntelligenceRun.totalKeys":
-		if e.complexity.IntelligenceRun.TotalKeys == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.TotalKeys(childComplexity), true
-	case "IntelligenceRun.trigger":
-		if e.complexity.IntelligenceRun.Trigger == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.Trigger(childComplexity), true
-	case "IntelligenceRun.updatedAt":
-		if e.complexity.IntelligenceRun.UpdatedAt == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRun.UpdatedAt(childComplexity), true
-
-	case "IntelligenceRunConnection.edges":
-		if e.complexity.IntelligenceRunConnection.Edges == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRunConnection.Edges(childComplexity), true
-	case "IntelligenceRunConnection.pageInfo":
-		if e.complexity.IntelligenceRunConnection.PageInfo == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRunConnection.PageInfo(childComplexity), true
-	case "IntelligenceRunConnection.totalCount":
-		if e.complexity.IntelligenceRunConnection.TotalCount == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRunConnection.TotalCount(childComplexity), true
-
-	case "IntelligenceRunEdge.cursor":
-		if e.complexity.IntelligenceRunEdge.Cursor == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRunEdge.Cursor(childComplexity), true
-	case "IntelligenceRunEdge.node":
-		if e.complexity.IntelligenceRunEdge.Node == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceRunEdge.Node(childComplexity), true
-
-	case "IntelligenceTarget.apiKey":
-		if e.complexity.IntelligenceTarget.APIKey == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceTarget.APIKey(childComplexity), true
-	case "IntelligenceTarget.benchmark":
-		if e.complexity.IntelligenceTarget.Benchmark == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceTarget.Benchmark(childComplexity), true
-	case "IntelligenceTarget.channelID":
-		if e.complexity.IntelligenceTarget.ChannelID == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceTarget.ChannelID(childComplexity), true
-	case "IntelligenceTarget.channelName":
-		if e.complexity.IntelligenceTarget.ChannelName == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceTarget.ChannelName(childComplexity), true
-	case "IntelligenceTarget.modelID":
-		if e.complexity.IntelligenceTarget.ModelID == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceTarget.ModelID(childComplexity), true
-	case "IntelligenceTarget.reasoningEffort":
-		if e.complexity.IntelligenceTarget.ReasoningEffort == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceTarget.ReasoningEffort(childComplexity), true
-	case "IntelligenceTarget.timeoutMinutes":
-		if e.complexity.IntelligenceTarget.TimeoutMinutes == nil {
-			break
-		}
-
-		return e.complexity.IntelligenceTarget.TimeoutMinutes(childComplexity), true
-
 	case "Model.associatedChannelCount":
 		if e.complexity.Model.AssociatedChannelCount == nil {
 			break
@@ -7085,17 +6658,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.EnableSelectedChannelAPIKeys(childComplexity, args["channelID"].(objects.GUID), args["keys"].([]string)), true
-	case "Mutation.evaluateChannelIntelligence":
-		if e.complexity.Mutation.EvaluateChannelIntelligence == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_evaluateChannelIntelligence_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.EvaluateChannelIntelligence(childComplexity, args["input"].(IntelligenceEvaluateInput)), true
 	case "Mutation.loadApiKeyProfileTemplate":
 		if e.complexity.Mutation.LoadAPIKeyProfileTemplate == nil {
 			break
@@ -7190,17 +6752,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.RotateAPIKey(childComplexity, args["id"].(objects.GUID)), true
-	case "Mutation.runIntelligenceCheckNow":
-		if e.complexity.Mutation.RunIntelligenceCheckNow == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_runIntelligenceCheckNow_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.RunIntelligenceCheckNow(childComplexity, args["channelID"].(*objects.GUID), args["apiKey"].(*string)), true
 	case "Mutation.saveChannelEndpoints":
 		if e.complexity.Mutation.SaveChannelEndpoints == nil {
 			break
@@ -7234,28 +6785,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SaveProxyPreset(childComplexity, args["input"].(biz.ProxyPreset)), true
-	case "Mutation.setIntelligenceConfig":
-		if e.complexity.Mutation.SetIntelligenceConfig == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_setIntelligenceConfig_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.SetIntelligenceConfig(childComplexity, args["input"].(IntelligenceConfigInput)), true
-	case "Mutation.setIntelligenceRunVerdict":
-		if e.complexity.Mutation.SetIntelligenceRunVerdict == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_setIntelligenceRunVerdict_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.SetIntelligenceRunVerdict(childComplexity, args["input"].(SetIntelligenceRunVerdictInput)), true
 	case "Mutation.syncChannelModels":
 		if e.complexity.Mutation.SyncChannelModels == nil {
 			break
@@ -9229,34 +8758,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.GetCacheDiagnostics(childComplexity, args["input"].(*GetCacheDiagnosticsInput)), true
-	case "Query.intelligenceConfig":
-		if e.complexity.Query.IntelligenceConfig == nil {
-			break
-		}
-
-		return e.complexity.Query.IntelligenceConfig(childComplexity), true
-	case "Query.intelligenceHistory":
-		if e.complexity.Query.IntelligenceHistory == nil {
-			break
-		}
-
-		args, err := ec.field_Query_intelligenceHistory_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.IntelligenceHistory(childComplexity, args["channelID"].(objects.GUID), args["first"].(*int), args["after"].(*entgql.Cursor[int])), true
-	case "Query.intelligenceRuns":
-		if e.complexity.Query.IntelligenceRuns == nil {
-			break
-		}
-
-		args, err := ec.field_Query_intelligenceRuns_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.IntelligenceRuns(childComplexity, args["after"].(*entgql.Cursor[int]), args["first"].(*int), args["before"].(*entgql.Cursor[int]), args["last"].(*int), args["orderBy"].(*ent.IntelligenceRunOrder), args["where"].(*ent.IntelligenceRunWhereInput)), true
 	case "Query.me":
 		if e.complexity.Query.Me == nil {
 			break
@@ -10820,18 +10321,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.StoragePolicy.StoreResponseBody(childComplexity), true
 
-	case "SyncChannelModelsPayload.apiKeyFetchedModels":
-		if e.complexity.SyncChannelModelsPayload.APIKeyFetchedModels == nil {
-			break
-		}
-
-		return e.complexity.SyncChannelModelsPayload.APIKeyFetchedModels(childComplexity), true
-	case "SyncChannelModelsPayload.apiKeyModels":
-		if e.complexity.SyncChannelModelsPayload.APIKeyModels == nil {
-			break
-		}
-
-		return e.complexity.SyncChannelModelsPayload.APIKeyModels(childComplexity), true
 	case "SyncChannelModelsPayload.channelID":
 		if e.complexity.SyncChannelModelsPayload.ChannelID == nil {
 			break
@@ -12364,6 +11853,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.VersionCheck.ReleaseURL(childComplexity), true
 
+	case "VertexAPIKey.apiKey":
+		if e.complexity.VertexAPIKey.APIKey == nil {
+			break
+		}
+
+		return e.complexity.VertexAPIKey.APIKey(childComplexity), true
+	case "VertexAPIKey.projectID":
+		if e.complexity.VertexAPIKey.ProjectID == nil {
+			break
+		}
+
+		return e.complexity.VertexAPIKey.ProjectID(childComplexity), true
+	case "VertexAPIKey.region":
+		if e.complexity.VertexAPIKey.Region == nil {
+			break
+		}
+
+		return e.complexity.VertexAPIKey.Region(childComplexity), true
+
 	case "VideoStorageSettings.dataStorageID":
 		if e.complexity.VideoStorageSettings.DataStorageID == nil {
 			break
@@ -12518,7 +12026,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputBulkImportChannelsInput,
 		ec.unmarshalInputBulkUpdateChannelAutoDisableInput,
 		ec.unmarshalInputBulkUpdateChannelOrderingInput,
-		ec.unmarshalInputChannelAPIKeyModelsInput,
 		ec.unmarshalInputChannelCredentialsInput,
 		ec.unmarshalInputChannelEndpointInput,
 		ec.unmarshalInputChannelModelAssociationInput,
@@ -12582,11 +12089,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputGetChannelProbeDataInput,
 		ec.unmarshalInputHeaderEntryInput,
 		ec.unmarshalInputInitializeSystemInput,
-		ec.unmarshalInputIntelligenceConfigInput,
-		ec.unmarshalInputIntelligenceEvaluateInput,
-		ec.unmarshalInputIntelligenceRunOrder,
-		ec.unmarshalInputIntelligenceRunWhereInput,
-		ec.unmarshalInputIntelligenceTargetInput,
 		ec.unmarshalInputLoadApiKeyProfileTemplateInput,
 		ec.unmarshalInputModelAssociationInput,
 		ec.unmarshalInputModelAssociationWhenInput,
@@ -12649,7 +12151,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputSaveChannelEndpointsInput,
 		ec.unmarshalInputSaveChannelModelPriceInput,
 		ec.unmarshalInputSaveProxyPresetInput,
-		ec.unmarshalInputSetIntelligenceRunVerdictInput,
 		ec.unmarshalInputSignInInput,
 		ec.unmarshalInputSystemOrder,
 		ec.unmarshalInputSystemWhereInput,
@@ -12713,6 +12214,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUserRoleOrder,
 		ec.unmarshalInputUserRoleWhereInput,
 		ec.unmarshalInputUserWhereInput,
+		ec.unmarshalInputVertexAPIKeyInput,
 		ec.unmarshalInputWebDAVInput,
 		ec.unmarshalInputWebhookNotifierConfigInput,
 		ec.unmarshalInputWebhookSubscriptionInput,
@@ -13828,17 +13330,6 @@ func (ec *executionContext) field_Mutation_enableSelectedChannelAPIKeys_args(ctx
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_evaluateChannelIntelligence_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNIntelligenceEvaluateInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceEvaluateInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_loadApiKeyProfileTemplate_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -13932,22 +13423,6 @@ func (ec *executionContext) field_Mutation_rotateAPIKey_args(ctx context.Context
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_runIntelligenceCheckNow_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "channelID", ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID)
-	if err != nil {
-		return nil, err
-	}
-	args["channelID"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "apiKey", ec.unmarshalOString2ᚖstring)
-	if err != nil {
-		return nil, err
-	}
-	args["apiKey"] = arg1
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_saveChannelEndpoints_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -13979,28 +13454,6 @@ func (ec *executionContext) field_Mutation_saveProxyPreset_args(ctx context.Cont
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSaveProxyPresetInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐProxyPreset)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_setIntelligenceConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNIntelligenceConfigInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceConfigInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_setIntelligenceRunVerdict_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSetIntelligenceRunVerdictInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐSetIntelligenceRunVerdictInput)
 	if err != nil {
 		return nil, err
 	}
@@ -15425,63 +14878,6 @@ func (ec *executionContext) field_Query_getCacheDiagnostics_args(ctx context.Con
 		return nil, err
 	}
 	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_intelligenceHistory_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "channelID", ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID)
-	if err != nil {
-		return nil, err
-	}
-	args["channelID"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "first", ec.unmarshalOInt2ᚖint)
-	if err != nil {
-		return nil, err
-	}
-	args["first"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "after", ec.unmarshalOCursor2ᚖentgoᚗioᚋcontribᚋentgqlᚐCursor)
-	if err != nil {
-		return nil, err
-	}
-	args["after"] = arg2
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_intelligenceRuns_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "after", ec.unmarshalOCursor2ᚖentgoᚗioᚋcontribᚋentgqlᚐCursor)
-	if err != nil {
-		return nil, err
-	}
-	args["after"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "first", ec.unmarshalOInt2ᚖint)
-	if err != nil {
-		return nil, err
-	}
-	args["first"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "before", ec.unmarshalOCursor2ᚖentgoᚗioᚋcontribᚋentgqlᚐCursor)
-	if err != nil {
-		return nil, err
-	}
-	args["before"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "last", ec.unmarshalOInt2ᚖint)
-	if err != nil {
-		return nil, err
-	}
-	args["last"] = arg3
-	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "orderBy", ec.unmarshalOIntelligenceRunOrder2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunOrder)
-	if err != nil {
-		return nil, err
-	}
-	args["orderBy"] = arg4
-	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "where", ec.unmarshalOIntelligenceRunWhereInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunWhereInput)
-	if err != nil {
-		return nil, err
-	}
-	args["where"] = arg5
 	return args, nil
 }
 
@@ -22466,12 +21862,8 @@ func (ec *executionContext) fieldContext_Channel_credentials(_ context.Context, 
 				return ec.fieldContext_ChannelCredentials_apiKey(ctx, field)
 			case "apiKeys":
 				return ec.fieldContext_ChannelCredentials_apiKeys(ctx, field)
-			case "apiKeyRemarks":
-				return ec.fieldContext_ChannelCredentials_apiKeyRemarks(ctx, field)
-			case "apiKeyModels":
-				return ec.fieldContext_ChannelCredentials_apiKeyModels(ctx, field)
-			case "apiKeyFetchedModels":
-				return ec.fieldContext_ChannelCredentials_apiKeyFetchedModels(ctx, field)
+			case "vertexApiKeys":
+				return ec.fieldContext_ChannelCredentials_vertexApiKeys(ctx, field)
 			case "gcp":
 				return ec.fieldContext_ChannelCredentials_gcp(ctx, field)
 			case "oauth":
@@ -22558,64 +21950,6 @@ func (ec *executionContext) fieldContext_Channel_liveLimiterStats(_ context.Cont
 				return ec.fieldContext_ChannelLimiterStats_queueSize(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ChannelLimiterStats", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ChannelAPIKeyModels_apiKey(ctx context.Context, field graphql.CollectedField, obj *objects.APIKeyModels) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_ChannelAPIKeyModels_apiKey,
-		func(ctx context.Context) (any, error) {
-			return obj.APIKey, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_ChannelAPIKeyModels_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ChannelAPIKeyModels",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ChannelAPIKeyModels_models(ctx context.Context, field graphql.CollectedField, obj *objects.APIKeyModels) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_ChannelAPIKeyModels_models,
-		func(ctx context.Context) (any, error) {
-			return obj.Models, nil
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_ChannelAPIKeyModels_models(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ChannelAPIKeyModels",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -22782,52 +22116,23 @@ func (ec *executionContext) fieldContext_ChannelCredentials_apiKeys(_ context.Co
 	return fc, nil
 }
 
-func (ec *executionContext) _ChannelCredentials_apiKeyRemarks(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelCredentials) (ret graphql.Marshaler) {
+func (ec *executionContext) _ChannelCredentials_vertexApiKeys(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelCredentials) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_ChannelCredentials_apiKeyRemarks,
+		ec.fieldContext_ChannelCredentials_vertexApiKeys,
 		func(ctx context.Context) (any, error) {
-			return obj.APIKeyRemarks, nil
+			return obj.VertexAPIKeys, nil
 		},
 		nil,
-		ec.marshalOString2ᚕstringᚄ,
+		ec.marshalOVertexAPIKey2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ,
 		true,
 		false,
 	)
 }
 
-func (ec *executionContext) fieldContext_ChannelCredentials_apiKeyRemarks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ChannelCredentials",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ChannelCredentials_apiKeyModels(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelCredentials) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_ChannelCredentials_apiKeyModels,
-		func(ctx context.Context) (any, error) {
-			return obj.APIKeyModels, nil
-		},
-		nil,
-		ec.marshalOChannelAPIKeyModels2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModelsᚄ,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_ChannelCredentials_apiKeyModels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ChannelCredentials_vertexApiKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ChannelCredentials",
 		Field:      field,
@@ -22835,47 +22140,14 @@ func (ec *executionContext) fieldContext_ChannelCredentials_apiKeyModels(_ conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "projectID":
+				return ec.fieldContext_VertexAPIKey_projectID(ctx, field)
 			case "apiKey":
-				return ec.fieldContext_ChannelAPIKeyModels_apiKey(ctx, field)
-			case "models":
-				return ec.fieldContext_ChannelAPIKeyModels_models(ctx, field)
+				return ec.fieldContext_VertexAPIKey_apiKey(ctx, field)
+			case "region":
+				return ec.fieldContext_VertexAPIKey_region(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type ChannelAPIKeyModels", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ChannelCredentials_apiKeyFetchedModels(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelCredentials) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_ChannelCredentials_apiKeyFetchedModels,
-		func(ctx context.Context) (any, error) {
-			return obj.APIKeyFetchedModels, nil
-		},
-		nil,
-		ec.marshalOChannelAPIKeyModels2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModelsᚄ,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_ChannelCredentials_apiKeyFetchedModels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ChannelCredentials",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "apiKey":
-				return ec.fieldContext_ChannelAPIKeyModels_apiKey(ctx, field)
-			case "models":
-				return ec.fieldContext_ChannelAPIKeyModels_models(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ChannelAPIKeyModels", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type VertexAPIKey", field.Name)
 		},
 	}
 	return fc, nil
@@ -31153,1572 +30425,6 @@ func (ec *executionContext) fieldContext_InitializeSystemPayload_token(_ context
 	return fc, nil
 }
 
-func (ec *executionContext) _IntelligenceConfig_enabled(ctx context.Context, field graphql.CollectedField, obj *IntelligenceConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceConfig_enabled,
-		func(ctx context.Context) (any, error) {
-			return obj.Enabled, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceConfig_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceConfig_cronExpression(ctx context.Context, field graphql.CollectedField, obj *IntelligenceConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceConfig_cronExpression,
-		func(ctx context.Context) (any, error) {
-			return obj.CronExpression, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceConfig_cronExpression(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceConfig_nextExecutionAt(ctx context.Context, field graphql.CollectedField, obj *IntelligenceConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceConfig_nextExecutionAt,
-		func(ctx context.Context) (any, error) {
-			return obj.NextExecutionAt, nil
-		},
-		nil,
-		ec.marshalOTime2ᚖtimeᚐTime,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceConfig_nextExecutionAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Time does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceConfig_disableDegradedKeys(ctx context.Context, field graphql.CollectedField, obj *IntelligenceConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceConfig_disableDegradedKeys,
-		func(ctx context.Context) (any, error) {
-			return obj.DisableDegradedKeys, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceConfig_disableDegradedKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceConfig_targets(ctx context.Context, field graphql.CollectedField, obj *IntelligenceConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceConfig_targets,
-		func(ctx context.Context) (any, error) {
-			return obj.Targets, nil
-		},
-		nil,
-		ec.marshalNIntelligenceTarget2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceTargetᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceConfig_targets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "channelID":
-				return ec.fieldContext_IntelligenceTarget_channelID(ctx, field)
-			case "channelName":
-				return ec.fieldContext_IntelligenceTarget_channelName(ctx, field)
-			case "modelID":
-				return ec.fieldContext_IntelligenceTarget_modelID(ctx, field)
-			case "apiKey":
-				return ec.fieldContext_IntelligenceTarget_apiKey(ctx, field)
-			case "reasoningEffort":
-				return ec.fieldContext_IntelligenceTarget_reasoningEffort(ctx, field)
-			case "timeoutMinutes":
-				return ec.fieldContext_IntelligenceTarget_timeoutMinutes(ctx, field)
-			case "benchmark":
-				return ec.fieldContext_IntelligenceTarget_benchmark(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type IntelligenceTarget", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceEvaluatePayload_channelID(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceEvaluatePayload_channelID,
-		func(ctx context.Context) (any, error) {
-			return obj.ChannelID, nil
-		},
-		nil,
-		ec.marshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceEvaluatePayload",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceEvaluatePayload_model(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceEvaluatePayload_model,
-		func(ctx context.Context) (any, error) {
-			return obj.Model, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceEvaluatePayload",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceEvaluatePayload_total(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceEvaluatePayload_total,
-		func(ctx context.Context) (any, error) {
-			return obj.Total, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceEvaluatePayload",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceEvaluatePayload_successCount(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceEvaluatePayload_successCount,
-		func(ctx context.Context) (any, error) {
-			return obj.SuccessCount, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_successCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceEvaluatePayload",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceEvaluatePayload_failedCount(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceEvaluatePayload_failedCount,
-		func(ctx context.Context) (any, error) {
-			return obj.FailedCount, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_failedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceEvaluatePayload",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceEvaluatePayload_results(ctx context.Context, field graphql.CollectedField, obj *IntelligenceEvaluatePayload) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceEvaluatePayload_results,
-		func(ctx context.Context) (any, error) {
-			return obj.Results, nil
-		},
-		nil,
-		ec.marshalNIntelligenceKeyResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceKeyResultᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceEvaluatePayload_results(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceEvaluatePayload",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "keyPrefix":
-				return ec.fieldContext_IntelligenceKeyResult_keyPrefix(ctx, field)
-			case "success":
-				return ec.fieldContext_IntelligenceKeyResult_success(ctx, field)
-			case "quality":
-				return ec.fieldContext_IntelligenceKeyResult_quality(ctx, field)
-			case "label":
-				return ec.fieldContext_IntelligenceKeyResult_label(ctx, field)
-			case "reason":
-				return ec.fieldContext_IntelligenceKeyResult_reason(ctx, field)
-			case "taskID":
-				return ec.fieldContext_IntelligenceKeyResult_taskID(ctx, field)
-			case "generationMs":
-				return ec.fieldContext_IntelligenceKeyResult_generationMs(ctx, field)
-			case "durationMs":
-				return ec.fieldContext_IntelligenceKeyResult_durationMs(ctx, field)
-			case "html":
-				return ec.fieldContext_IntelligenceKeyResult_html(ctx, field)
-			case "answer":
-				return ec.fieldContext_IntelligenceKeyResult_answer(ctx, field)
-			case "error":
-				return ec.fieldContext_IntelligenceKeyResult_error(ctx, field)
-			case "manualVerdict":
-				return ec.fieldContext_IntelligenceKeyResult_manualVerdict(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type IntelligenceKeyResult", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_keyPrefix(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_keyPrefix,
-		func(ctx context.Context) (any, error) {
-			return obj.KeyPrefix, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_keyPrefix(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_success(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_success,
-		func(ctx context.Context) (any, error) {
-			return obj.Success, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_quality(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_quality,
-		func(ctx context.Context) (any, error) {
-			return obj.Quality, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_quality(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_label(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_label,
-		func(ctx context.Context) (any, error) {
-			return obj.Label, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_reason(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_reason,
-		func(ctx context.Context) (any, error) {
-			return obj.Reason, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_taskID(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_taskID,
-		func(ctx context.Context) (any, error) {
-			return obj.TaskID, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_taskID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_generationMs(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_generationMs,
-		func(ctx context.Context) (any, error) {
-			return obj.GenerationMs, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_generationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_durationMs(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_durationMs,
-		func(ctx context.Context) (any, error) {
-			return obj.DurationMs, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_durationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_html(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_html,
-		func(ctx context.Context) (any, error) {
-			return obj.HTML, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_html(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_answer(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_answer,
-		func(ctx context.Context) (any, error) {
-			return obj.Answer, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_answer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_error(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_error,
-		func(ctx context.Context) (any, error) {
-			return obj.Error, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceKeyResult_manualVerdict(ctx context.Context, field graphql.CollectedField, obj *IntelligenceKeyResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceKeyResult_manualVerdict,
-		func(ctx context.Context) (any, error) {
-			return obj.ManualVerdict, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceKeyResult_manualVerdict(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceKeyResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_id(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_id,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.IntelligenceRun().ID(ctx, obj)
-		},
-		nil,
-		ec.marshalNID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_createdAt(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_createdAt,
-		func(ctx context.Context) (any, error) {
-			return obj.CreatedAt, nil
-		},
-		nil,
-		ec.marshalNTime2timeᚐTime,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Time does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_updatedAt(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_updatedAt,
-		func(ctx context.Context) (any, error) {
-			return obj.UpdatedAt, nil
-		},
-		nil,
-		ec.marshalNTime2timeᚐTime,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Time does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_channelID(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_channelID,
-		func(ctx context.Context) (any, error) {
-			return obj.ChannelID, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_channelName(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_channelName,
-		func(ctx context.Context) (any, error) {
-			return obj.ChannelName, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_channelName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_modelID(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_modelID,
-		func(ctx context.Context) (any, error) {
-			return obj.ModelID, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_modelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_reasoningEffort(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_reasoningEffort,
-		func(ctx context.Context) (any, error) {
-			return obj.ReasoningEffort, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_reasoningEffort(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_benchmark(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_benchmark,
-		func(ctx context.Context) (any, error) {
-			return obj.Benchmark, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_benchmark(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_trigger(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_trigger,
-		func(ctx context.Context) (any, error) {
-			return obj.Trigger, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_trigger(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_status(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_status,
-		func(ctx context.Context) (any, error) {
-			return obj.Status, nil
-		},
-		nil,
-		ec.marshalNIntelligenceRunStatus2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatus,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type IntelligenceRunStatus does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_totalKeys(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_totalKeys,
-		func(ctx context.Context) (any, error) {
-			return obj.TotalKeys, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_totalKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_successKeys(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_successKeys,
-		func(ctx context.Context) (any, error) {
-			return obj.SuccessKeys, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_successKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_failedKeys(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_failedKeys,
-		func(ctx context.Context) (any, error) {
-			return obj.FailedKeys, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_failedKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_durationMs(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_durationMs,
-		func(ctx context.Context) (any, error) {
-			return obj.DurationMs, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_durationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRun_results(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRun) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRun_results,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.IntelligenceRun().Results(ctx, obj)
-		},
-		nil,
-		ec.marshalOIntelligenceKeyResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceKeyResultᚄ,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRun_results(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRun",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "keyPrefix":
-				return ec.fieldContext_IntelligenceKeyResult_keyPrefix(ctx, field)
-			case "success":
-				return ec.fieldContext_IntelligenceKeyResult_success(ctx, field)
-			case "quality":
-				return ec.fieldContext_IntelligenceKeyResult_quality(ctx, field)
-			case "label":
-				return ec.fieldContext_IntelligenceKeyResult_label(ctx, field)
-			case "reason":
-				return ec.fieldContext_IntelligenceKeyResult_reason(ctx, field)
-			case "taskID":
-				return ec.fieldContext_IntelligenceKeyResult_taskID(ctx, field)
-			case "generationMs":
-				return ec.fieldContext_IntelligenceKeyResult_generationMs(ctx, field)
-			case "durationMs":
-				return ec.fieldContext_IntelligenceKeyResult_durationMs(ctx, field)
-			case "html":
-				return ec.fieldContext_IntelligenceKeyResult_html(ctx, field)
-			case "answer":
-				return ec.fieldContext_IntelligenceKeyResult_answer(ctx, field)
-			case "error":
-				return ec.fieldContext_IntelligenceKeyResult_error(ctx, field)
-			case "manualVerdict":
-				return ec.fieldContext_IntelligenceKeyResult_manualVerdict(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type IntelligenceKeyResult", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRunConnection_edges(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRunConnection) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRunConnection_edges,
-		func(ctx context.Context) (any, error) {
-			return obj.Edges, nil
-		},
-		nil,
-		ec.marshalOIntelligenceRunEdge2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunEdge,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRunConnection_edges(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRunConnection",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "node":
-				return ec.fieldContext_IntelligenceRunEdge_node(ctx, field)
-			case "cursor":
-				return ec.fieldContext_IntelligenceRunEdge_cursor(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type IntelligenceRunEdge", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRunConnection_pageInfo(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRunConnection) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRunConnection_pageInfo,
-		func(ctx context.Context) (any, error) {
-			return obj.PageInfo, nil
-		},
-		nil,
-		ec.marshalNPageInfo2entgoᚗioᚋcontribᚋentgqlᚐPageInfo,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRunConnection_pageInfo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRunConnection",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "hasNextPage":
-				return ec.fieldContext_PageInfo_hasNextPage(ctx, field)
-			case "hasPreviousPage":
-				return ec.fieldContext_PageInfo_hasPreviousPage(ctx, field)
-			case "startCursor":
-				return ec.fieldContext_PageInfo_startCursor(ctx, field)
-			case "endCursor":
-				return ec.fieldContext_PageInfo_endCursor(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type PageInfo", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRunConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRunConnection) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRunConnection_totalCount,
-		func(ctx context.Context) (any, error) {
-			return obj.TotalCount, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRunConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRunConnection",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRunEdge_node(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRunEdge) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRunEdge_node,
-		func(ctx context.Context) (any, error) {
-			return obj.Node, nil
-		},
-		nil,
-		ec.marshalOIntelligenceRun2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRun,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRunEdge_node(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRunEdge",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_IntelligenceRun_id(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_IntelligenceRun_createdAt(ctx, field)
-			case "updatedAt":
-				return ec.fieldContext_IntelligenceRun_updatedAt(ctx, field)
-			case "channelID":
-				return ec.fieldContext_IntelligenceRun_channelID(ctx, field)
-			case "channelName":
-				return ec.fieldContext_IntelligenceRun_channelName(ctx, field)
-			case "modelID":
-				return ec.fieldContext_IntelligenceRun_modelID(ctx, field)
-			case "reasoningEffort":
-				return ec.fieldContext_IntelligenceRun_reasoningEffort(ctx, field)
-			case "benchmark":
-				return ec.fieldContext_IntelligenceRun_benchmark(ctx, field)
-			case "trigger":
-				return ec.fieldContext_IntelligenceRun_trigger(ctx, field)
-			case "status":
-				return ec.fieldContext_IntelligenceRun_status(ctx, field)
-			case "totalKeys":
-				return ec.fieldContext_IntelligenceRun_totalKeys(ctx, field)
-			case "successKeys":
-				return ec.fieldContext_IntelligenceRun_successKeys(ctx, field)
-			case "failedKeys":
-				return ec.fieldContext_IntelligenceRun_failedKeys(ctx, field)
-			case "durationMs":
-				return ec.fieldContext_IntelligenceRun_durationMs(ctx, field)
-			case "results":
-				return ec.fieldContext_IntelligenceRun_results(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type IntelligenceRun", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceRunEdge_cursor(ctx context.Context, field graphql.CollectedField, obj *ent.IntelligenceRunEdge) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceRunEdge_cursor,
-		func(ctx context.Context) (any, error) {
-			return obj.Cursor, nil
-		},
-		nil,
-		ec.marshalNCursor2entgoᚗioᚋcontribᚋentgqlᚐCursor,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceRunEdge_cursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceRunEdge",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Cursor does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceTarget_channelID(ctx context.Context, field graphql.CollectedField, obj *IntelligenceTarget) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceTarget_channelID,
-		func(ctx context.Context) (any, error) {
-			return obj.ChannelID, nil
-		},
-		nil,
-		ec.marshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceTarget_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceTarget",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceTarget_channelName(ctx context.Context, field graphql.CollectedField, obj *IntelligenceTarget) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceTarget_channelName,
-		func(ctx context.Context) (any, error) {
-			return obj.ChannelName, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceTarget_channelName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceTarget",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceTarget_modelID(ctx context.Context, field graphql.CollectedField, obj *IntelligenceTarget) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceTarget_modelID,
-		func(ctx context.Context) (any, error) {
-			return obj.ModelID, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceTarget_modelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceTarget",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceTarget_apiKey(ctx context.Context, field graphql.CollectedField, obj *IntelligenceTarget) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceTarget_apiKey,
-		func(ctx context.Context) (any, error) {
-			return obj.APIKey, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceTarget_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceTarget",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceTarget_reasoningEffort(ctx context.Context, field graphql.CollectedField, obj *IntelligenceTarget) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceTarget_reasoningEffort,
-		func(ctx context.Context) (any, error) {
-			return obj.ReasoningEffort, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceTarget_reasoningEffort(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceTarget",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceTarget_timeoutMinutes(ctx context.Context, field graphql.CollectedField, obj *IntelligenceTarget) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceTarget_timeoutMinutes,
-		func(ctx context.Context) (any, error) {
-			return obj.TimeoutMinutes, nil
-		},
-		nil,
-		ec.marshalOInt2ᚖint,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceTarget_timeoutMinutes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceTarget",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _IntelligenceTarget_benchmark(ctx context.Context, field graphql.CollectedField, obj *IntelligenceTarget) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_IntelligenceTarget_benchmark,
-		func(ctx context.Context) (any, error) {
-			return obj.Benchmark, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_IntelligenceTarget_benchmark(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "IntelligenceTarget",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Model_id(ctx context.Context, field graphql.CollectedField, obj *ent.Model) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -36666,228 +34372,6 @@ func (ec *executionContext) fieldContext_Mutation_testChannelAPIKey(ctx context.
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_evaluateChannelIntelligence(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_evaluateChannelIntelligence,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().EvaluateChannelIntelligence(ctx, fc.Args["input"].(IntelligenceEvaluateInput))
-		},
-		nil,
-		ec.marshalNIntelligenceEvaluatePayload2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceEvaluatePayload,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_evaluateChannelIntelligence(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "channelID":
-				return ec.fieldContext_IntelligenceEvaluatePayload_channelID(ctx, field)
-			case "model":
-				return ec.fieldContext_IntelligenceEvaluatePayload_model(ctx, field)
-			case "total":
-				return ec.fieldContext_IntelligenceEvaluatePayload_total(ctx, field)
-			case "successCount":
-				return ec.fieldContext_IntelligenceEvaluatePayload_successCount(ctx, field)
-			case "failedCount":
-				return ec.fieldContext_IntelligenceEvaluatePayload_failedCount(ctx, field)
-			case "results":
-				return ec.fieldContext_IntelligenceEvaluatePayload_results(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type IntelligenceEvaluatePayload", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_evaluateChannelIntelligence_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_setIntelligenceConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_setIntelligenceConfig,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().SetIntelligenceConfig(ctx, fc.Args["input"].(IntelligenceConfigInput))
-		},
-		nil,
-		ec.marshalNIntelligenceConfig2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceConfig,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_setIntelligenceConfig(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "enabled":
-				return ec.fieldContext_IntelligenceConfig_enabled(ctx, field)
-			case "cronExpression":
-				return ec.fieldContext_IntelligenceConfig_cronExpression(ctx, field)
-			case "nextExecutionAt":
-				return ec.fieldContext_IntelligenceConfig_nextExecutionAt(ctx, field)
-			case "disableDegradedKeys":
-				return ec.fieldContext_IntelligenceConfig_disableDegradedKeys(ctx, field)
-			case "targets":
-				return ec.fieldContext_IntelligenceConfig_targets(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type IntelligenceConfig", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_setIntelligenceConfig_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_runIntelligenceCheckNow(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_runIntelligenceCheckNow,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().RunIntelligenceCheckNow(ctx, fc.Args["channelID"].(*objects.GUID), fc.Args["apiKey"].(*string))
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_runIntelligenceCheckNow(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_runIntelligenceCheckNow_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_setIntelligenceRunVerdict(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_setIntelligenceRunVerdict,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().SetIntelligenceRunVerdict(ctx, fc.Args["input"].(SetIntelligenceRunVerdictInput))
-		},
-		nil,
-		ec.marshalNIntelligenceRun2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRun,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_setIntelligenceRunVerdict(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_IntelligenceRun_id(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_IntelligenceRun_createdAt(ctx, field)
-			case "updatedAt":
-				return ec.fieldContext_IntelligenceRun_updatedAt(ctx, field)
-			case "channelID":
-				return ec.fieldContext_IntelligenceRun_channelID(ctx, field)
-			case "channelName":
-				return ec.fieldContext_IntelligenceRun_channelName(ctx, field)
-			case "modelID":
-				return ec.fieldContext_IntelligenceRun_modelID(ctx, field)
-			case "reasoningEffort":
-				return ec.fieldContext_IntelligenceRun_reasoningEffort(ctx, field)
-			case "benchmark":
-				return ec.fieldContext_IntelligenceRun_benchmark(ctx, field)
-			case "trigger":
-				return ec.fieldContext_IntelligenceRun_trigger(ctx, field)
-			case "status":
-				return ec.fieldContext_IntelligenceRun_status(ctx, field)
-			case "totalKeys":
-				return ec.fieldContext_IntelligenceRun_totalKeys(ctx, field)
-			case "successKeys":
-				return ec.fieldContext_IntelligenceRun_successKeys(ctx, field)
-			case "failedKeys":
-				return ec.fieldContext_IntelligenceRun_failedKeys(ctx, field)
-			case "durationMs":
-				return ec.fieldContext_IntelligenceRun_durationMs(ctx, field)
-			case "results":
-				return ec.fieldContext_IntelligenceRun_results(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type IntelligenceRun", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_setIntelligenceRunVerdict_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Mutation_bulkImportChannels(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -39166,10 +36650,6 @@ func (ec *executionContext) fieldContext_Mutation_syncChannelModels(ctx context.
 				return ec.fieldContext_SyncChannelModelsPayload_supportedModels(ctx, field)
 			case "manualModels":
 				return ec.fieldContext_SyncChannelModelsPayload_manualModels(ctx, field)
-			case "apiKeyModels":
-				return ec.fieldContext_SyncChannelModelsPayload_apiKeyModels(ctx, field)
-			case "apiKeyFetchedModels":
-				return ec.fieldContext_SyncChannelModelsPayload_apiKeyFetchedModels(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SyncChannelModelsPayload", field.Name)
 		},
@@ -48199,55 +45679,6 @@ func (ec *executionContext) fieldContext_Query_dataStorages(ctx context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_intelligenceRuns(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_intelligenceRuns,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().IntelligenceRuns(ctx, fc.Args["after"].(*entgql.Cursor[int]), fc.Args["first"].(*int), fc.Args["before"].(*entgql.Cursor[int]), fc.Args["last"].(*int), fc.Args["orderBy"].(*ent.IntelligenceRunOrder), fc.Args["where"].(*ent.IntelligenceRunWhereInput))
-		},
-		nil,
-		ec.marshalNIntelligenceRunConnection2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunConnection,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_intelligenceRuns(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "edges":
-				return ec.fieldContext_IntelligenceRunConnection_edges(ctx, field)
-			case "pageInfo":
-				return ec.fieldContext_IntelligenceRunConnection_pageInfo(ctx, field)
-			case "totalCount":
-				return ec.fieldContext_IntelligenceRunConnection_totalCount(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type IntelligenceRunConnection", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_intelligenceRuns_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Query_models(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -48830,96 +46261,6 @@ func (ec *executionContext) fieldContext_Query_users(ctx context.Context, field 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_users_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_intelligenceConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_intelligenceConfig,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Query().IntelligenceConfig(ctx)
-		},
-		nil,
-		ec.marshalNIntelligenceConfig2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceConfig,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_intelligenceConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "enabled":
-				return ec.fieldContext_IntelligenceConfig_enabled(ctx, field)
-			case "cronExpression":
-				return ec.fieldContext_IntelligenceConfig_cronExpression(ctx, field)
-			case "nextExecutionAt":
-				return ec.fieldContext_IntelligenceConfig_nextExecutionAt(ctx, field)
-			case "disableDegradedKeys":
-				return ec.fieldContext_IntelligenceConfig_disableDegradedKeys(ctx, field)
-			case "targets":
-				return ec.fieldContext_IntelligenceConfig_targets(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type IntelligenceConfig", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_intelligenceHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_intelligenceHistory,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().IntelligenceHistory(ctx, fc.Args["channelID"].(objects.GUID), fc.Args["first"].(*int), fc.Args["after"].(*entgql.Cursor[int]))
-		},
-		nil,
-		ec.marshalNIntelligenceRunConnection2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunConnection,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_intelligenceHistory(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "edges":
-				return ec.fieldContext_IntelligenceRunConnection_edges(ctx, field)
-			case "pageInfo":
-				return ec.fieldContext_IntelligenceRunConnection_pageInfo(ctx, field)
-			case "totalCount":
-				return ec.fieldContext_IntelligenceRunConnection_totalCount(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type IntelligenceRunConnection", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_intelligenceHistory_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -58225,76 +55566,6 @@ func (ec *executionContext) fieldContext_SyncChannelModelsPayload_manualModels(_
 	return fc, nil
 }
 
-func (ec *executionContext) _SyncChannelModelsPayload_apiKeyModels(ctx context.Context, field graphql.CollectedField, obj *SyncChannelModelsPayload) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SyncChannelModelsPayload_apiKeyModels,
-		func(ctx context.Context) (any, error) {
-			return obj.APIKeyModels, nil
-		},
-		nil,
-		ec.marshalOChannelAPIKeyModels2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModelsᚄ,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_SyncChannelModelsPayload_apiKeyModels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SyncChannelModelsPayload",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "apiKey":
-				return ec.fieldContext_ChannelAPIKeyModels_apiKey(ctx, field)
-			case "models":
-				return ec.fieldContext_ChannelAPIKeyModels_models(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ChannelAPIKeyModels", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SyncChannelModelsPayload_apiKeyFetchedModels(ctx context.Context, field graphql.CollectedField, obj *SyncChannelModelsPayload) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SyncChannelModelsPayload_apiKeyFetchedModels,
-		func(ctx context.Context) (any, error) {
-			return obj.APIKeyFetchedModels, nil
-		},
-		nil,
-		ec.marshalOChannelAPIKeyModels2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModelsᚄ,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_SyncChannelModelsPayload_apiKeyFetchedModels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SyncChannelModelsPayload",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "apiKey":
-				return ec.fieldContext_ChannelAPIKeyModels_apiKey(ctx, field)
-			case "models":
-				return ec.fieldContext_ChannelAPIKeyModels_models(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ChannelAPIKeyModels", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _System_id(ctx context.Context, field graphql.CollectedField, obj *ent.System) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -66250,6 +63521,93 @@ func (ec *executionContext) fieldContext_VersionCheck_releaseUrl(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _VertexAPIKey_projectID(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VertexAPIKey_projectID,
+		func(ctx context.Context) (any, error) {
+			return obj.ProjectID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VertexAPIKey_projectID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VertexAPIKey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VertexAPIKey_apiKey(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VertexAPIKey_apiKey,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKey, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VertexAPIKey_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VertexAPIKey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VertexAPIKey_region(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VertexAPIKey_region,
+		func(ctx context.Context) (any, error) {
+			return obj.Region, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VertexAPIKey_region(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VertexAPIKey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _VideoStorageSettings_enabled(ctx context.Context, field graphql.CollectedField, obj *biz.VideoStorageSettings) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -70399,40 +67757,6 @@ func (ec *executionContext) unmarshalInputBulkUpdateChannelOrderingInput(ctx con
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputChannelAPIKeyModelsInput(ctx context.Context, obj any) (objects.APIKeyModels, error) {
-	var it objects.APIKeyModels
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"apiKey", "models"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "apiKey":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.APIKey = data
-		case "models":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("models"))
-			data, err := ec.unmarshalNString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Models = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputChannelCredentialsInput(ctx context.Context, obj any) (objects.ChannelCredentials, error) {
 	var it objects.ChannelCredentials
 	asMap := map[string]any{}
@@ -70440,7 +67764,7 @@ func (ec *executionContext) unmarshalInputChannelCredentialsInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"apiKey", "apiKeys", "apiKeyRemarks", "apiKeyModels", "apiKeyFetchedModels", "gcp", "oauth", "managementApiKey"}
+	fieldsInOrder := [...]string{"apiKey", "apiKeys", "vertexApiKeys", "gcp", "oauth", "managementApiKey"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -70461,27 +67785,13 @@ func (ec *executionContext) unmarshalInputChannelCredentialsInput(ctx context.Co
 				return it, err
 			}
 			it.APIKeys = data
-		case "apiKeyRemarks":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKeyRemarks"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+		case "vertexApiKeys":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("vertexApiKeys"))
+			data, err := ec.unmarshalOVertexAPIKeyInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.APIKeyRemarks = data
-		case "apiKeyModels":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKeyModels"))
-			data, err := ec.unmarshalOChannelAPIKeyModelsInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModelsᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.APIKeyModels = data
-		case "apiKeyFetchedModels":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKeyFetchedModels"))
-			data, err := ec.unmarshalOChannelAPIKeyModelsInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModelsᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.APIKeyFetchedModels = data
+			it.VertexAPIKeys = data
 		case "gcp":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gcp"))
 			data, err := ec.unmarshalOGCPCredentialInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGCPCredential(ctx, v)
@@ -77097,7 +74407,7 @@ func (ec *executionContext) unmarshalInputFetchModelsInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"channelType", "baseURL", "apiKey", "channelID"}
+	fieldsInOrder := [...]string{"channelType", "baseURL", "apiKey", "projectID", "region", "channelID"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -77125,6 +74435,20 @@ func (ec *executionContext) unmarshalInputFetchModelsInput(ctx context.Context, 
 				return it, err
 			}
 			it.APIKey = data
+		case "projectID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "region":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("region"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Region = data
 		case "channelID":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelID"))
 			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
@@ -77420,1227 +74744,6 @@ func (ec *executionContext) unmarshalInputInitializeSystemInput(ctx context.Cont
 				return it, err
 			}
 			it.BrandName = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputIntelligenceConfigInput(ctx context.Context, obj any) (IntelligenceConfigInput, error) {
-	var it IntelligenceConfigInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"enabled", "cronExpression", "disableDegradedKeys", "targets"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "enabled":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
-			data, err := ec.unmarshalNBoolean2bool(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Enabled = data
-		case "cronExpression":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cronExpression"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CronExpression = data
-		case "disableDegradedKeys":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("disableDegradedKeys"))
-			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DisableDegradedKeys = data
-		case "targets":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targets"))
-			data, err := ec.unmarshalNIntelligenceTargetInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceTargetInputᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Targets = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputIntelligenceEvaluateInput(ctx context.Context, obj any) (IntelligenceEvaluateInput, error) {
-	var it IntelligenceEvaluateInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"channelID", "modelID", "keys", "prompt", "baseURL", "reasoningEffort", "benchmark"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "channelID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelID"))
-			data, err := ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelID = data
-		case "modelID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelID"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelID = data
-		case "keys":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("keys"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Keys = data
-		case "prompt":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("prompt"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Prompt = data
-		case "baseURL":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("baseURL"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BaseURL = data
-		case "reasoningEffort":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffort"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffort = data
-		case "benchmark":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmark"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Benchmark = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputIntelligenceRunOrder(ctx context.Context, obj any) (ent.IntelligenceRunOrder, error) {
-	var it ent.IntelligenceRunOrder
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	if _, present := asMap["direction"]; !present {
-		asMap["direction"] = "ASC"
-	}
-
-	fieldsInOrder := [...]string{"direction", "field"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "direction":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("direction"))
-			data, err := ec.unmarshalNOrderDirection2entgoᚗioᚋcontribᚋentgqlᚐOrderDirection(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Direction = data
-		case "field":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("field"))
-			data, err := ec.unmarshalNIntelligenceRunOrderField2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunOrderField(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Field = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputIntelligenceRunWhereInput(ctx context.Context, obj any) (ent.IntelligenceRunWhereInput, error) {
-	var it ent.IntelligenceRunWhereInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "channelIDGT", "channelIDGTE", "channelIDLT", "channelIDLTE", "channelName", "channelNameNEQ", "channelNameIn", "channelNameNotIn", "channelNameGT", "channelNameGTE", "channelNameLT", "channelNameLTE", "channelNameContains", "channelNameHasPrefix", "channelNameHasSuffix", "channelNameEqualFold", "channelNameContainsFold", "modelID", "modelIDNEQ", "modelIDIn", "modelIDNotIn", "modelIDGT", "modelIDGTE", "modelIDLT", "modelIDLTE", "modelIDContains", "modelIDHasPrefix", "modelIDHasSuffix", "modelIDEqualFold", "modelIDContainsFold", "reasoningEffort", "reasoningEffortNEQ", "reasoningEffortIn", "reasoningEffortNotIn", "reasoningEffortGT", "reasoningEffortGTE", "reasoningEffortLT", "reasoningEffortLTE", "reasoningEffortContains", "reasoningEffortHasPrefix", "reasoningEffortHasSuffix", "reasoningEffortEqualFold", "reasoningEffortContainsFold", "benchmark", "benchmarkNEQ", "benchmarkIn", "benchmarkNotIn", "benchmarkGT", "benchmarkGTE", "benchmarkLT", "benchmarkLTE", "benchmarkContains", "benchmarkHasPrefix", "benchmarkHasSuffix", "benchmarkEqualFold", "benchmarkContainsFold", "trigger", "triggerNEQ", "triggerIn", "triggerNotIn", "triggerGT", "triggerGTE", "triggerLT", "triggerLTE", "triggerContains", "triggerHasPrefix", "triggerHasSuffix", "triggerEqualFold", "triggerContainsFold", "status", "statusNEQ", "statusIn", "statusNotIn", "totalKeys", "totalKeysNEQ", "totalKeysIn", "totalKeysNotIn", "totalKeysGT", "totalKeysGTE", "totalKeysLT", "totalKeysLTE", "successKeys", "successKeysNEQ", "successKeysIn", "successKeysNotIn", "successKeysGT", "successKeysGTE", "successKeysLT", "successKeysLTE", "failedKeys", "failedKeysNEQ", "failedKeysIn", "failedKeysNotIn", "failedKeysGT", "failedKeysGTE", "failedKeysLT", "failedKeysLTE", "durationMs", "durationMsNEQ", "durationMsIn", "durationMsNotIn", "durationMsGT", "durationMsGTE", "durationMsLT", "durationMsLTE"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "not":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("not"))
-			data, err := ec.unmarshalOIntelligenceRunWhereInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunWhereInput(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Not = data
-		case "and":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("and"))
-			data, err := ec.unmarshalOIntelligenceRunWhereInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunWhereInputᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.And = data
-		case "or":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("or"))
-			data, err := ec.unmarshalOIntelligenceRunWhereInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunWhereInputᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Or = data
-		case "id":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			converted, err := objects.ConvertGUIDPtrToIntPtr(data)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			it.ID = converted
-		case "idNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idNEQ"))
-			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			converted, err := objects.ConvertGUIDPtrToIntPtr(data)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			it.IDNEQ = converted
-		case "idIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idIn"))
-			data, err := ec.unmarshalOID2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUIDᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			converted, err := objects.ConvertGUIDPtrsToInts(data)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			it.IDIn = converted
-		case "idNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idNotIn"))
-			data, err := ec.unmarshalOID2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUIDᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			converted, err := objects.ConvertGUIDPtrsToInts(data)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			it.IDNotIn = converted
-		case "idGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idGT"))
-			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			converted, err := objects.ConvertGUIDPtrToIntPtr(data)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			it.IDGT = converted
-		case "idGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idGTE"))
-			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			converted, err := objects.ConvertGUIDPtrToIntPtr(data)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			it.IDGTE = converted
-		case "idLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idLT"))
-			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			converted, err := objects.ConvertGUIDPtrToIntPtr(data)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			it.IDLT = converted
-		case "idLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idLTE"))
-			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			converted, err := objects.ConvertGUIDPtrToIntPtr(data)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			it.IDLTE = converted
-		case "createdAt":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAt"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CreatedAt = data
-		case "createdAtNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAtNEQ"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CreatedAtNEQ = data
-		case "createdAtIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAtIn"))
-			data, err := ec.unmarshalOTime2ᚕtimeᚐTimeᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CreatedAtIn = data
-		case "createdAtNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAtNotIn"))
-			data, err := ec.unmarshalOTime2ᚕtimeᚐTimeᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CreatedAtNotIn = data
-		case "createdAtGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAtGT"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CreatedAtGT = data
-		case "createdAtGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAtGTE"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CreatedAtGTE = data
-		case "createdAtLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAtLT"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CreatedAtLT = data
-		case "createdAtLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAtLTE"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CreatedAtLTE = data
-		case "updatedAt":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("updatedAt"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UpdatedAt = data
-		case "updatedAtNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("updatedAtNEQ"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UpdatedAtNEQ = data
-		case "updatedAtIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("updatedAtIn"))
-			data, err := ec.unmarshalOTime2ᚕtimeᚐTimeᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UpdatedAtIn = data
-		case "updatedAtNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("updatedAtNotIn"))
-			data, err := ec.unmarshalOTime2ᚕtimeᚐTimeᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UpdatedAtNotIn = data
-		case "updatedAtGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("updatedAtGT"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UpdatedAtGT = data
-		case "updatedAtGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("updatedAtGTE"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UpdatedAtGTE = data
-		case "updatedAtLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("updatedAtLT"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UpdatedAtLT = data
-		case "updatedAtLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("updatedAtLTE"))
-			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UpdatedAtLTE = data
-		case "channelID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelID"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelID = data
-		case "channelIDNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelIDNEQ"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelIDNEQ = data
-		case "channelIDIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelIDIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelIDIn = data
-		case "channelIDNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelIDNotIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelIDNotIn = data
-		case "channelIDGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelIDGT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelIDGT = data
-		case "channelIDGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelIDGTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelIDGTE = data
-		case "channelIDLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelIDLT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelIDLT = data
-		case "channelIDLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelIDLTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelIDLTE = data
-		case "channelName":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelName"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelName = data
-		case "channelNameNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameNEQ"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameNEQ = data
-		case "channelNameIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameIn = data
-		case "channelNameNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameNotIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameNotIn = data
-		case "channelNameGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameGT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameGT = data
-		case "channelNameGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameGTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameGTE = data
-		case "channelNameLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameLT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameLT = data
-		case "channelNameLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameLTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameLTE = data
-		case "channelNameContains":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameContains"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameContains = data
-		case "channelNameHasPrefix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameHasPrefix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameHasPrefix = data
-		case "channelNameHasSuffix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameHasSuffix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameHasSuffix = data
-		case "channelNameEqualFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameEqualFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameEqualFold = data
-		case "channelNameContainsFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelNameContainsFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelNameContainsFold = data
-		case "modelID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelID"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelID = data
-		case "modelIDNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDNEQ"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDNEQ = data
-		case "modelIDIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDIn = data
-		case "modelIDNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDNotIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDNotIn = data
-		case "modelIDGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDGT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDGT = data
-		case "modelIDGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDGTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDGTE = data
-		case "modelIDLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDLT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDLT = data
-		case "modelIDLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDLTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDLTE = data
-		case "modelIDContains":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDContains"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDContains = data
-		case "modelIDHasPrefix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDHasPrefix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDHasPrefix = data
-		case "modelIDHasSuffix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDHasSuffix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDHasSuffix = data
-		case "modelIDEqualFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDEqualFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDEqualFold = data
-		case "modelIDContainsFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelIDContainsFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelIDContainsFold = data
-		case "reasoningEffort":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffort"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffort = data
-		case "reasoningEffortNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortNEQ"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortNEQ = data
-		case "reasoningEffortIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortIn = data
-		case "reasoningEffortNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortNotIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortNotIn = data
-		case "reasoningEffortGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortGT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortGT = data
-		case "reasoningEffortGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortGTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortGTE = data
-		case "reasoningEffortLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortLT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortLT = data
-		case "reasoningEffortLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortLTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortLTE = data
-		case "reasoningEffortContains":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortContains"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortContains = data
-		case "reasoningEffortHasPrefix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortHasPrefix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortHasPrefix = data
-		case "reasoningEffortHasSuffix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortHasSuffix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortHasSuffix = data
-		case "reasoningEffortEqualFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortEqualFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortEqualFold = data
-		case "reasoningEffortContainsFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffortContainsFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffortContainsFold = data
-		case "benchmark":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmark"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Benchmark = data
-		case "benchmarkNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkNEQ"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkNEQ = data
-		case "benchmarkIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkIn = data
-		case "benchmarkNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkNotIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkNotIn = data
-		case "benchmarkGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkGT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkGT = data
-		case "benchmarkGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkGTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkGTE = data
-		case "benchmarkLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkLT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkLT = data
-		case "benchmarkLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkLTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkLTE = data
-		case "benchmarkContains":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkContains"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkContains = data
-		case "benchmarkHasPrefix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkHasPrefix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkHasPrefix = data
-		case "benchmarkHasSuffix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkHasSuffix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkHasSuffix = data
-		case "benchmarkEqualFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkEqualFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkEqualFold = data
-		case "benchmarkContainsFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmarkContainsFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BenchmarkContainsFold = data
-		case "trigger":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("trigger"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Trigger = data
-		case "triggerNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerNEQ"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerNEQ = data
-		case "triggerIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerIn = data
-		case "triggerNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerNotIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerNotIn = data
-		case "triggerGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerGT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerGT = data
-		case "triggerGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerGTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerGTE = data
-		case "triggerLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerLT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerLT = data
-		case "triggerLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerLTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerLTE = data
-		case "triggerContains":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerContains"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerContains = data
-		case "triggerHasPrefix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerHasPrefix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerHasPrefix = data
-		case "triggerHasSuffix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerHasSuffix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerHasSuffix = data
-		case "triggerEqualFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerEqualFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerEqualFold = data
-		case "triggerContainsFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerContainsFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerContainsFold = data
-		case "status":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
-			data, err := ec.unmarshalOIntelligenceRunStatus2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatus(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Status = data
-		case "statusNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("statusNEQ"))
-			data, err := ec.unmarshalOIntelligenceRunStatus2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatus(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.StatusNEQ = data
-		case "statusIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("statusIn"))
-			data, err := ec.unmarshalOIntelligenceRunStatus2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatusᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.StatusIn = data
-		case "statusNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("statusNotIn"))
-			data, err := ec.unmarshalOIntelligenceRunStatus2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatusᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.StatusNotIn = data
-		case "totalKeys":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("totalKeys"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TotalKeys = data
-		case "totalKeysNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("totalKeysNEQ"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TotalKeysNEQ = data
-		case "totalKeysIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("totalKeysIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TotalKeysIn = data
-		case "totalKeysNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("totalKeysNotIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TotalKeysNotIn = data
-		case "totalKeysGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("totalKeysGT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TotalKeysGT = data
-		case "totalKeysGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("totalKeysGTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TotalKeysGTE = data
-		case "totalKeysLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("totalKeysLT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TotalKeysLT = data
-		case "totalKeysLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("totalKeysLTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TotalKeysLTE = data
-		case "successKeys":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("successKeys"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SuccessKeys = data
-		case "successKeysNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("successKeysNEQ"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SuccessKeysNEQ = data
-		case "successKeysIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("successKeysIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SuccessKeysIn = data
-		case "successKeysNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("successKeysNotIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SuccessKeysNotIn = data
-		case "successKeysGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("successKeysGT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SuccessKeysGT = data
-		case "successKeysGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("successKeysGTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SuccessKeysGTE = data
-		case "successKeysLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("successKeysLT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SuccessKeysLT = data
-		case "successKeysLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("successKeysLTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SuccessKeysLTE = data
-		case "failedKeys":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("failedKeys"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FailedKeys = data
-		case "failedKeysNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("failedKeysNEQ"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FailedKeysNEQ = data
-		case "failedKeysIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("failedKeysIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FailedKeysIn = data
-		case "failedKeysNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("failedKeysNotIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FailedKeysNotIn = data
-		case "failedKeysGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("failedKeysGT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FailedKeysGT = data
-		case "failedKeysGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("failedKeysGTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FailedKeysGTE = data
-		case "failedKeysLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("failedKeysLT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FailedKeysLT = data
-		case "failedKeysLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("failedKeysLTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FailedKeysLTE = data
-		case "durationMs":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMs"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DurationMs = data
-		case "durationMsNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMsNEQ"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DurationMsNEQ = data
-		case "durationMsIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMsIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DurationMsIn = data
-		case "durationMsNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMsNotIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DurationMsNotIn = data
-		case "durationMsGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMsGT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DurationMsGT = data
-		case "durationMsGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMsGTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DurationMsGTE = data
-		case "durationMsLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMsLT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DurationMsLT = data
-		case "durationMsLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMsLTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DurationMsLTE = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputIntelligenceTargetInput(ctx context.Context, obj any) (IntelligenceTargetInput, error) {
-	var it IntelligenceTargetInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"channelID", "modelID", "apiKey", "reasoningEffort", "timeoutMinutes", "benchmark"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "channelID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelID"))
-			data, err := ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ChannelID = data
-		case "modelID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelID"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ModelID = data
-		case "apiKey":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.APIKey = data
-		case "reasoningEffort":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoningEffort"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ReasoningEffort = data
-		case "timeoutMinutes":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timeoutMinutes"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TimeoutMinutes = data
-		case "benchmark":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("benchmark"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Benchmark = data
 		}
 	}
 
@@ -88802,47 +84905,6 @@ func (ec *executionContext) unmarshalInputSaveProxyPresetInput(ctx context.Conte
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputSetIntelligenceRunVerdictInput(ctx context.Context, obj any) (SetIntelligenceRunVerdictInput, error) {
-	var it SetIntelligenceRunVerdictInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"runID", "keyPrefix", "verdict"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "runID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("runID"))
-			data, err := ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.RunID = data
-		case "keyPrefix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("keyPrefix"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.KeyPrefix = data
-		case "verdict":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("verdict"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Verdict = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputSignInInput(ctx context.Context, obj any) (SignInInput, error) {
 	var it SignInInput
 	asMap := map[string]any{}
@@ -96504,6 +92566,47 @@ func (ec *executionContext) unmarshalInputUserWhereInput(ctx context.Context, ob
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputVertexAPIKeyInput(ctx context.Context, obj any) (objects.VertexAPIKey, error) {
+	var it objects.VertexAPIKey
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectID", "apiKey", "region"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectID"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "apiKey":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APIKey = data
+		case "region":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("region"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Region = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputWebDAVInput(ctx context.Context, obj any) (objects.WebDAV, error) {
 	var it objects.WebDAV
 	asMap := map[string]any{}
@@ -96784,11 +92887,6 @@ func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj
 			return graphql.Null
 		}
 		return ec._Model(ctx, sel, obj)
-	case *ent.IntelligenceRun:
-		if obj == nil {
-			return graphql.Null
-		}
-		return ec._IntelligenceRun(ctx, sel, obj)
 	case *ent.DataStorage:
 		if obj == nil {
 			return graphql.Null
@@ -99452,50 +95550,6 @@ func (ec *executionContext) _Channel(ctx context.Context, sel ast.SelectionSet, 
 	return out
 }
 
-var channelAPIKeyModelsImplementors = []string{"ChannelAPIKeyModels"}
-
-func (ec *executionContext) _ChannelAPIKeyModels(ctx context.Context, sel ast.SelectionSet, obj *objects.APIKeyModels) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, channelAPIKeyModelsImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("ChannelAPIKeyModels")
-		case "apiKey":
-			out.Values[i] = ec._ChannelAPIKeyModels_apiKey(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "models":
-			out.Values[i] = ec._ChannelAPIKeyModels_models(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var channelConnectionImplementors = []string{"ChannelConnection"}
 
 func (ec *executionContext) _ChannelConnection(ctx context.Context, sel ast.SelectionSet, obj *ent.ChannelConnection) graphql.Marshaler {
@@ -99557,12 +95611,8 @@ func (ec *executionContext) _ChannelCredentials(ctx context.Context, sel ast.Sel
 			out.Values[i] = ec._ChannelCredentials_apiKey(ctx, field, obj)
 		case "apiKeys":
 			out.Values[i] = ec._ChannelCredentials_apiKeys(ctx, field, obj)
-		case "apiKeyRemarks":
-			out.Values[i] = ec._ChannelCredentials_apiKeyRemarks(ctx, field, obj)
-		case "apiKeyModels":
-			out.Values[i] = ec._ChannelCredentials_apiKeyModels(ctx, field, obj)
-		case "apiKeyFetchedModels":
-			out.Values[i] = ec._ChannelCredentials_apiKeyFetchedModels(ctx, field, obj)
+		case "vertexApiKeys":
+			out.Values[i] = ec._ChannelCredentials_vertexApiKeys(ctx, field, obj)
 		case "gcp":
 			out.Values[i] = ec._ChannelCredentials_gcp(ctx, field, obj)
 		case "oauth":
@@ -103511,520 +99561,6 @@ func (ec *executionContext) _InitializeSystemPayload(ctx context.Context, sel as
 	return out
 }
 
-var intelligenceConfigImplementors = []string{"IntelligenceConfig"}
-
-func (ec *executionContext) _IntelligenceConfig(ctx context.Context, sel ast.SelectionSet, obj *IntelligenceConfig) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, intelligenceConfigImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("IntelligenceConfig")
-		case "enabled":
-			out.Values[i] = ec._IntelligenceConfig_enabled(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "cronExpression":
-			out.Values[i] = ec._IntelligenceConfig_cronExpression(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "nextExecutionAt":
-			out.Values[i] = ec._IntelligenceConfig_nextExecutionAt(ctx, field, obj)
-		case "disableDegradedKeys":
-			out.Values[i] = ec._IntelligenceConfig_disableDegradedKeys(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "targets":
-			out.Values[i] = ec._IntelligenceConfig_targets(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var intelligenceEvaluatePayloadImplementors = []string{"IntelligenceEvaluatePayload"}
-
-func (ec *executionContext) _IntelligenceEvaluatePayload(ctx context.Context, sel ast.SelectionSet, obj *IntelligenceEvaluatePayload) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, intelligenceEvaluatePayloadImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("IntelligenceEvaluatePayload")
-		case "channelID":
-			out.Values[i] = ec._IntelligenceEvaluatePayload_channelID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "model":
-			out.Values[i] = ec._IntelligenceEvaluatePayload_model(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "total":
-			out.Values[i] = ec._IntelligenceEvaluatePayload_total(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "successCount":
-			out.Values[i] = ec._IntelligenceEvaluatePayload_successCount(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "failedCount":
-			out.Values[i] = ec._IntelligenceEvaluatePayload_failedCount(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "results":
-			out.Values[i] = ec._IntelligenceEvaluatePayload_results(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var intelligenceKeyResultImplementors = []string{"IntelligenceKeyResult"}
-
-func (ec *executionContext) _IntelligenceKeyResult(ctx context.Context, sel ast.SelectionSet, obj *IntelligenceKeyResult) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, intelligenceKeyResultImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("IntelligenceKeyResult")
-		case "keyPrefix":
-			out.Values[i] = ec._IntelligenceKeyResult_keyPrefix(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "success":
-			out.Values[i] = ec._IntelligenceKeyResult_success(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "quality":
-			out.Values[i] = ec._IntelligenceKeyResult_quality(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "label":
-			out.Values[i] = ec._IntelligenceKeyResult_label(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "reason":
-			out.Values[i] = ec._IntelligenceKeyResult_reason(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "taskID":
-			out.Values[i] = ec._IntelligenceKeyResult_taskID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "generationMs":
-			out.Values[i] = ec._IntelligenceKeyResult_generationMs(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "durationMs":
-			out.Values[i] = ec._IntelligenceKeyResult_durationMs(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "html":
-			out.Values[i] = ec._IntelligenceKeyResult_html(ctx, field, obj)
-		case "answer":
-			out.Values[i] = ec._IntelligenceKeyResult_answer(ctx, field, obj)
-		case "error":
-			out.Values[i] = ec._IntelligenceKeyResult_error(ctx, field, obj)
-		case "manualVerdict":
-			out.Values[i] = ec._IntelligenceKeyResult_manualVerdict(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var intelligenceRunImplementors = []string{"IntelligenceRun", "Node"}
-
-func (ec *executionContext) _IntelligenceRun(ctx context.Context, sel ast.SelectionSet, obj *ent.IntelligenceRun) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, intelligenceRunImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("IntelligenceRun")
-		case "id":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._IntelligenceRun_id(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "createdAt":
-			out.Values[i] = ec._IntelligenceRun_createdAt(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "updatedAt":
-			out.Values[i] = ec._IntelligenceRun_updatedAt(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "channelID":
-			out.Values[i] = ec._IntelligenceRun_channelID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "channelName":
-			out.Values[i] = ec._IntelligenceRun_channelName(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "modelID":
-			out.Values[i] = ec._IntelligenceRun_modelID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "reasoningEffort":
-			out.Values[i] = ec._IntelligenceRun_reasoningEffort(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "benchmark":
-			out.Values[i] = ec._IntelligenceRun_benchmark(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "trigger":
-			out.Values[i] = ec._IntelligenceRun_trigger(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "status":
-			out.Values[i] = ec._IntelligenceRun_status(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "totalKeys":
-			out.Values[i] = ec._IntelligenceRun_totalKeys(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "successKeys":
-			out.Values[i] = ec._IntelligenceRun_successKeys(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "failedKeys":
-			out.Values[i] = ec._IntelligenceRun_failedKeys(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "durationMs":
-			out.Values[i] = ec._IntelligenceRun_durationMs(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "results":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._IntelligenceRun_results(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var intelligenceRunConnectionImplementors = []string{"IntelligenceRunConnection"}
-
-func (ec *executionContext) _IntelligenceRunConnection(ctx context.Context, sel ast.SelectionSet, obj *ent.IntelligenceRunConnection) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, intelligenceRunConnectionImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("IntelligenceRunConnection")
-		case "edges":
-			out.Values[i] = ec._IntelligenceRunConnection_edges(ctx, field, obj)
-		case "pageInfo":
-			out.Values[i] = ec._IntelligenceRunConnection_pageInfo(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "totalCount":
-			out.Values[i] = ec._IntelligenceRunConnection_totalCount(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var intelligenceRunEdgeImplementors = []string{"IntelligenceRunEdge"}
-
-func (ec *executionContext) _IntelligenceRunEdge(ctx context.Context, sel ast.SelectionSet, obj *ent.IntelligenceRunEdge) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, intelligenceRunEdgeImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("IntelligenceRunEdge")
-		case "node":
-			out.Values[i] = ec._IntelligenceRunEdge_node(ctx, field, obj)
-		case "cursor":
-			out.Values[i] = ec._IntelligenceRunEdge_cursor(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var intelligenceTargetImplementors = []string{"IntelligenceTarget"}
-
-func (ec *executionContext) _IntelligenceTarget(ctx context.Context, sel ast.SelectionSet, obj *IntelligenceTarget) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, intelligenceTargetImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("IntelligenceTarget")
-		case "channelID":
-			out.Values[i] = ec._IntelligenceTarget_channelID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "channelName":
-			out.Values[i] = ec._IntelligenceTarget_channelName(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "modelID":
-			out.Values[i] = ec._IntelligenceTarget_modelID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "apiKey":
-			out.Values[i] = ec._IntelligenceTarget_apiKey(ctx, field, obj)
-		case "reasoningEffort":
-			out.Values[i] = ec._IntelligenceTarget_reasoningEffort(ctx, field, obj)
-		case "timeoutMinutes":
-			out.Values[i] = ec._IntelligenceTarget_timeoutMinutes(ctx, field, obj)
-		case "benchmark":
-			out.Values[i] = ec._IntelligenceTarget_benchmark(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var modelImplementors = []string{"Model", "Node"}
 
 func (ec *executionContext) _Model(ctx context.Context, sel ast.SelectionSet, obj *ent.Model) graphql.Marshaler {
@@ -105303,34 +100839,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "testChannelAPIKey":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_testChannelAPIKey(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "evaluateChannelIntelligence":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_evaluateChannelIntelligence(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "setIntelligenceConfig":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_setIntelligenceConfig(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "runIntelligenceCheckNow":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_runIntelligenceCheckNow(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "setIntelligenceRunVerdict":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_setIntelligenceRunVerdict(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -108994,28 +104502,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "intelligenceRuns":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_intelligenceRuns(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "models":
 			field := field
 
@@ -109268,50 +104754,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_users(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "intelligenceConfig":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_intelligenceConfig(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "intelligenceHistory":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_intelligenceHistory(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -113827,10 +109269,6 @@ func (ec *executionContext) _SyncChannelModelsPayload(ctx context.Context, sel a
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "apiKeyModels":
-			out.Values[i] = ec._SyncChannelModelsPayload_apiKeyModels(ctx, field, obj)
-		case "apiKeyFetchedModels":
-			out.Values[i] = ec._SyncChannelModelsPayload_apiKeyFetchedModels(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -117790,6 +113228,55 @@ func (ec *executionContext) _VersionCheck(ctx context.Context, sel ast.Selection
 	return out
 }
 
+var vertexAPIKeyImplementors = []string{"VertexAPIKey"}
+
+func (ec *executionContext) _VertexAPIKey(ctx context.Context, sel ast.SelectionSet, obj *objects.VertexAPIKey) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, vertexAPIKeyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VertexAPIKey")
+		case "projectID":
+			out.Values[i] = ec._VertexAPIKey_projectID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKey":
+			out.Values[i] = ec._VertexAPIKey_apiKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "region":
+			out.Values[i] = ec._VertexAPIKey_region(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var videoStorageSettingsImplementors = []string{"VideoStorageSettings"}
 
 func (ec *executionContext) _VideoStorageSettings(ctx context.Context, sel ast.SelectionSet, obj *biz.VideoStorageSettings) graphql.Marshaler {
@@ -119269,25 +114756,6 @@ func (ec *executionContext) marshalNChannel2ᚖgithubᚗcomᚋloopljᚋaxonhub�
 		return graphql.Null
 	}
 	return ec._Channel(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNChannelAPIKeyModels2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModels(ctx context.Context, sel ast.SelectionSet, v objects.APIKeyModels) graphql.Marshaler {
-	return ec._ChannelAPIKeyModels(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNChannelAPIKeyModels2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModels(ctx context.Context, sel ast.SelectionSet, v *objects.APIKeyModels) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._ChannelAPIKeyModels(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNChannelAPIKeyModelsInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModels(ctx context.Context, v any) (objects.APIKeyModels, error) {
-	res, err := ec.unmarshalInputChannelAPIKeyModelsInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNChannelConnection2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐChannelConnection(ctx context.Context, sel ast.SelectionSet, v ent.ChannelConnection) graphql.Marshaler {
@@ -121251,231 +116719,6 @@ func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.Selec
 		}
 	}
 	return res
-}
-
-func (ec *executionContext) marshalNIntelligenceConfig2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceConfig(ctx context.Context, sel ast.SelectionSet, v IntelligenceConfig) graphql.Marshaler {
-	return ec._IntelligenceConfig(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNIntelligenceConfig2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceConfig(ctx context.Context, sel ast.SelectionSet, v *IntelligenceConfig) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._IntelligenceConfig(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNIntelligenceConfigInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceConfigInput(ctx context.Context, v any) (IntelligenceConfigInput, error) {
-	res, err := ec.unmarshalInputIntelligenceConfigInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNIntelligenceEvaluateInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceEvaluateInput(ctx context.Context, v any) (IntelligenceEvaluateInput, error) {
-	res, err := ec.unmarshalInputIntelligenceEvaluateInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNIntelligenceEvaluatePayload2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceEvaluatePayload(ctx context.Context, sel ast.SelectionSet, v IntelligenceEvaluatePayload) graphql.Marshaler {
-	return ec._IntelligenceEvaluatePayload(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNIntelligenceEvaluatePayload2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceEvaluatePayload(ctx context.Context, sel ast.SelectionSet, v *IntelligenceEvaluatePayload) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._IntelligenceEvaluatePayload(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNIntelligenceKeyResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceKeyResultᚄ(ctx context.Context, sel ast.SelectionSet, v []*IntelligenceKeyResult) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNIntelligenceKeyResult2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceKeyResult(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNIntelligenceKeyResult2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceKeyResult(ctx context.Context, sel ast.SelectionSet, v *IntelligenceKeyResult) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._IntelligenceKeyResult(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNIntelligenceRun2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRun(ctx context.Context, sel ast.SelectionSet, v ent.IntelligenceRun) graphql.Marshaler {
-	return ec._IntelligenceRun(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNIntelligenceRun2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRun(ctx context.Context, sel ast.SelectionSet, v *ent.IntelligenceRun) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._IntelligenceRun(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNIntelligenceRunConnection2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunConnection(ctx context.Context, sel ast.SelectionSet, v ent.IntelligenceRunConnection) graphql.Marshaler {
-	return ec._IntelligenceRunConnection(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNIntelligenceRunConnection2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunConnection(ctx context.Context, sel ast.SelectionSet, v *ent.IntelligenceRunConnection) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._IntelligenceRunConnection(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNIntelligenceRunOrderField2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunOrderField(ctx context.Context, v any) (*ent.IntelligenceRunOrderField, error) {
-	var res = new(ent.IntelligenceRunOrderField)
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNIntelligenceRunOrderField2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunOrderField(ctx context.Context, sel ast.SelectionSet, v *ent.IntelligenceRunOrderField) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return v
-}
-
-func (ec *executionContext) unmarshalNIntelligenceRunStatus2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatus(ctx context.Context, v any) (intelligencerun.Status, error) {
-	var res intelligencerun.Status
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNIntelligenceRunStatus2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatus(ctx context.Context, sel ast.SelectionSet, v intelligencerun.Status) graphql.Marshaler {
-	return v
-}
-
-func (ec *executionContext) unmarshalNIntelligenceRunWhereInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunWhereInput(ctx context.Context, v any) (*ent.IntelligenceRunWhereInput, error) {
-	res, err := ec.unmarshalInputIntelligenceRunWhereInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNIntelligenceTarget2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceTargetᚄ(ctx context.Context, sel ast.SelectionSet, v []*IntelligenceTarget) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNIntelligenceTarget2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceTarget(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNIntelligenceTarget2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceTarget(ctx context.Context, sel ast.SelectionSet, v *IntelligenceTarget) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._IntelligenceTarget(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNIntelligenceTargetInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceTargetInputᚄ(ctx context.Context, v any) ([]*IntelligenceTargetInput, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]*IntelligenceTargetInput, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNIntelligenceTargetInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceTargetInput(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) unmarshalNIntelligenceTargetInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceTargetInput(ctx context.Context, v any) (*IntelligenceTargetInput, error) {
-	res, err := ec.unmarshalInputIntelligenceTargetInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNJSONRawMessage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐJSONRawMessage(ctx context.Context, v any) (objects.JSONRawMessage, error) {
@@ -123786,11 +119029,6 @@ func (ec *executionContext) marshalNSegment2ᚖgithubᚗcomᚋloopljᚋaxonhub�
 	return ec._Segment(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNSetIntelligenceRunVerdictInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐSetIntelligenceRunVerdictInput(ctx context.Context, v any) (SetIntelligenceRunVerdictInput, error) {
-	res, err := ec.unmarshalInputSetIntelligenceRunVerdictInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) marshalNSpan2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSpan(ctx context.Context, sel ast.SelectionSet, v biz.Span) graphql.Marshaler {
 	return ec._Span(ctx, sel, &v)
 }
@@ -125006,6 +120244,15 @@ func (ec *executionContext) marshalNVersionCheck2ᚖgithubᚗcomᚋloopljᚋaxon
 	return ec._VersionCheck(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNVertexAPIKey2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx context.Context, sel ast.SelectionSet, v objects.VertexAPIKey) graphql.Marshaler {
+	return ec._VertexAPIKey(ctx, sel, &v)
+}
+
+func (ec *executionContext) unmarshalNVertexAPIKeyInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx context.Context, v any) (objects.VertexAPIKey, error) {
+	res, err := ec.unmarshalInputVertexAPIKeyInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNVideoStorageSettings2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐVideoStorageSettings(ctx context.Context, sel ast.SelectionSet, v biz.VideoStorageSettings) graphql.Marshaler {
 	return ec._VideoStorageSettings(ctx, sel, &v)
 }
@@ -126058,118 +121305,6 @@ func (ec *executionContext) marshalOChannel2ᚖgithubᚗcomᚋloopljᚋaxonhub�
 		return graphql.Null
 	}
 	return ec._Channel(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOChannelAPIKeyModels2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModelsᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.APIKeyModels) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNChannelAPIKeyModels2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModels(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalOChannelAPIKeyModels2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModelsᚄ(ctx context.Context, sel ast.SelectionSet, v []*objects.APIKeyModels) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNChannelAPIKeyModels2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModels(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) unmarshalOChannelAPIKeyModelsInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModelsᚄ(ctx context.Context, v any) ([]objects.APIKeyModels, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]objects.APIKeyModels, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNChannelAPIKeyModelsInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModels(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
 }
 
 func (ec *executionContext) marshalOChannelCredentials2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelCredentials(ctx context.Context, sel ast.SelectionSet, v *objects.ChannelCredentials) graphql.Marshaler {
@@ -128163,223 +123298,6 @@ func (ec *executionContext) marshalOInt2ᚖint64(ctx context.Context, sel ast.Se
 	_ = ctx
 	res := graphql.MarshalInt64(*v)
 	return res
-}
-
-func (ec *executionContext) marshalOIntelligenceKeyResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceKeyResultᚄ(ctx context.Context, sel ast.SelectionSet, v []*IntelligenceKeyResult) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNIntelligenceKeyResult2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceKeyResult(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalOIntelligenceRun2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRun(ctx context.Context, sel ast.SelectionSet, v *ent.IntelligenceRun) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._IntelligenceRun(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOIntelligenceRunEdge2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunEdge(ctx context.Context, sel ast.SelectionSet, v []*ent.IntelligenceRunEdge) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalOIntelligenceRunEdge2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunEdge(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	return ret
-}
-
-func (ec *executionContext) marshalOIntelligenceRunEdge2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunEdge(ctx context.Context, sel ast.SelectionSet, v *ent.IntelligenceRunEdge) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._IntelligenceRunEdge(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalOIntelligenceRunOrder2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunOrder(ctx context.Context, v any) (*ent.IntelligenceRunOrder, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := ec.unmarshalInputIntelligenceRunOrder(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalOIntelligenceRunStatus2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatusᚄ(ctx context.Context, v any) ([]intelligencerun.Status, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]intelligencerun.Status, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNIntelligenceRunStatus2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatus(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) marshalOIntelligenceRunStatus2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatusᚄ(ctx context.Context, sel ast.SelectionSet, v []intelligencerun.Status) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNIntelligenceRunStatus2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatus(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) unmarshalOIntelligenceRunStatus2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatus(ctx context.Context, v any) (*intelligencerun.Status, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var res = new(intelligencerun.Status)
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalOIntelligenceRunStatus2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋintelligencerunᚐStatus(ctx context.Context, sel ast.SelectionSet, v *intelligencerun.Status) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return v
-}
-
-func (ec *executionContext) unmarshalOIntelligenceRunWhereInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunWhereInputᚄ(ctx context.Context, v any) ([]*ent.IntelligenceRunWhereInput, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]*ent.IntelligenceRunWhereInput, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNIntelligenceRunWhereInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunWhereInput(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) unmarshalOIntelligenceRunWhereInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐIntelligenceRunWhereInput(ctx context.Context, v any) (*ent.IntelligenceRunWhereInput, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := ec.unmarshalInputIntelligenceRunWhereInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOJSONRawMessage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐJSONRawMessage(ctx context.Context, v any) (objects.JSONRawMessage, error) {
@@ -132380,6 +127298,71 @@ func (ec *executionContext) unmarshalOUserWhereInput2ᚖgithubᚗcomᚋloopljᚋ
 	}
 	res, err := ec.unmarshalInputUserWhereInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOVertexAPIKey2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.VertexAPIKey) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNVertexAPIKey2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOVertexAPIKeyInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ(ctx context.Context, v any) ([]objects.VertexAPIKey, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]objects.VertexAPIKey, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNVertexAPIKeyInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) marshalOWebDAV2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWebDAV(ctx context.Context, sel ast.SelectionSet, v *objects.WebDAV) graphql.Marshaler {

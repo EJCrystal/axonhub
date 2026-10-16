@@ -365,6 +365,10 @@ type ChannelCredentials struct {
 	// fetching models must not select them for routing.
 	APIKeyFetchedModels []APIKeyModels `json:"apiKeyFetchedModels,omitempty"`
 
+	// VertexAPIKeys contains the project-bound credentials used by Gemini Vertex.
+	// The project and region must remain paired with the API key when keys rotate.
+	VertexAPIKeys []VertexAPIKey `json:"vertexApiKeys,omitempty"`
+
 	// ManagementAPIKey is an optional provider management/console API key used only
 	// for server-side quota checks (e.g. ZenMux). It is never attached to inference
 	// requests and never exposed to clients beyond credential write APIs.
@@ -375,6 +379,13 @@ type ChannelCredentials struct {
 
 	// GCP is the GCP credentials for the channel.
 	GCP *GCPCredential `json:"gcp,omitempty"`
+}
+
+// VertexAPIKey is a Gemini Vertex API key bound to its Google Cloud resource.
+type VertexAPIKey struct {
+	ProjectID string `json:"projectID"`
+	APIKey    string `json:"apiKey"`
+	Region    string `json:"region"`
 }
 
 // GetAllAPIKeys returns all API keys for the channel, combining APIKey and APIKeys fields.
@@ -393,6 +404,12 @@ func (c *ChannelCredentials) GetAllAPIKeys() []string {
 
 	// Add new APIKeys
 	keys = append(keys, c.APIKeys...)
+
+	for _, credential := range c.VertexAPIKeys {
+		if credential.APIKey != "" {
+			keys = append(keys, credential.APIKey)
+		}
+	}
 
 	return keys
 }
@@ -435,151 +452,6 @@ func (c *ChannelCredentials) GetEnabledAPIKeys(disabledKeys []DisabledAPIKey) []
 	return filterDisabled(c.GetAllAPIKeys(), disabledKeys)
 }
 
-// HasExplicitAPIKeyModels reports whether any key has an explicit model assignment.
-func (c *ChannelCredentials) HasExplicitAPIKeyModels() bool {
-	if c == nil {
-		return false
-	}
-
-	return len(c.APIKeyModels) > 0
-}
-
-// NormalizeAPIKeyModels keeps assignments only for keys present in the channel
-// and reports whether any key has an explicit model list.
-func (c *ChannelCredentials) NormalizeAPIKeyModels() bool {
-	if c == nil {
-		return false
-	}
-
-	keys := c.GetAllAPIKeys()
-	keySet := make(map[string]struct{}, len(keys))
-	for _, key := range keys {
-		keySet[key] = struct{}{}
-	}
-
-	explicit := false
-	normalized := make([]APIKeyModels, 0, len(c.APIKeyModels))
-	seen := make(map[string]struct{}, len(c.APIKeyModels))
-	for _, item := range c.APIKeyModels {
-		if _, ok := keySet[item.APIKey]; !ok {
-			continue
-		}
-		if _, ok := seen[item.APIKey]; ok {
-			continue
-		}
-
-		seen[item.APIKey] = struct{}{}
-		item.Models = lo.Uniq(item.Models)
-		explicit = true
-		normalized = append(normalized, item)
-	}
-	c.APIKeyModels = normalized
-
-	return explicit
-}
-
-// UnionEnabledAPIKeyModels excludes disabled keys before calculating the channel union.
-func (c *ChannelCredentials) UnionEnabledAPIKeyModels(fallback []string, disabledKeys []DisabledAPIKey) []string {
-	if c == nil {
-		return append([]string(nil), fallback...)
-	}
-
-	enabled := c.GetEnabledAPIKeys(disabledKeys)
-	assigned := make(map[string][]string, len(c.APIKeyModels))
-	for _, item := range c.APIKeyModels {
-		assigned[item.APIKey] = item.Models
-	}
-
-	union := make([]string, 0)
-	for _, key := range enabled {
-		if models, ok := assigned[key]; ok {
-			union = append(union, models...)
-			continue
-		}
-		union = append(union, fallback...)
-	}
-
-	return lo.Uniq(union)
-}
-
-// UnionAPIKeyModels returns the deduplicated models supported by the channel keys.
-// Keys without an explicit list contribute fallback, which is the channel-level list.
-func (c *ChannelCredentials) UnionAPIKeyModels(fallback []string) []string {
-	if c == nil {
-		return append([]string(nil), fallback...)
-	}
-
-	assigned := make(map[string][]string, len(c.APIKeyModels))
-	for _, item := range c.APIKeyModels {
-		assigned[item.APIKey] = item.Models
-	}
-
-	union := make([]string, 0)
-	for _, key := range c.GetAllAPIKeys() {
-		if models, ok := assigned[key]; ok {
-			union = append(union, models...)
-			continue
-		}
-		union = append(union, fallback...)
-	}
-
-	return lo.Uniq(union)
-}
-
-// ApplyFetchedAPIKeyModels records a successful per-key model fetch in the
-// capability cache. Keys absent from fetched keep their previous cache.
-func (c *ChannelCredentials) ApplyFetchedAPIKeyModels(fetched map[string][]string, disabledKeys []DisabledAPIKey) {
-	if c == nil || len(fetched) == 0 {
-		return
-	}
-
-	disabled := make(map[string]struct{}, len(disabledKeys))
-	for _, item := range disabledKeys {
-		if item.Key != "" && !item.IsExpired() {
-			disabled[item.Key] = struct{}{}
-		}
-	}
-
-	assigned := make(map[string][]string, len(c.APIKeyFetchedModels)+len(fetched))
-	for _, item := range c.APIKeyFetchedModels {
-		assigned[item.APIKey] = append([]string(nil), item.Models...)
-	}
-	for key, models := range fetched {
-		if _, ok := disabled[key]; ok {
-			continue
-		}
-		assigned[key] = lo.Uniq(models)
-	}
-
-	normalized := make([]APIKeyModels, 0, len(assigned))
-	for _, key := range c.GetAllAPIKeys() {
-		models, ok := assigned[key]
-		if !ok {
-			continue
-		}
-		normalized = append(normalized, APIKeyModels{APIKey: key, Models: models})
-	}
-	c.APIKeyFetchedModels = normalized
-}
-
-// ModelsForAPIKey returns the models explicitly assigned to one API key.
-// The second result is false when the key has no explicit assignment and
-// inherits the channel model list. An explicit empty assignment returns true.
-func (c *ChannelCredentials) ModelsForAPIKey(apiKey string) ([]string, bool) {
-	if c == nil || apiKey == "" {
-		return nil, false
-	}
-
-	for _, item := range c.APIKeyModels {
-		if item.APIKey != apiKey {
-			continue
-		}
-		return append([]string(nil), item.Models...), true
-	}
-
-	return nil, false
-}
-
 // FetchedModelsForAPIKey returns the cached upstream models for one API key.
 func (c *ChannelCredentials) FetchedModelsForAPIKey(apiKey string) ([]string, bool) {
 	if c == nil || apiKey == "" {
@@ -593,6 +465,21 @@ func (c *ChannelCredentials) FetchedModelsForAPIKey(apiKey string) ([]string, bo
 	}
 
 	return nil, false
+}
+
+func (c *ChannelCredentials) VertexAPIKey(apiKey string) (VertexAPIKey, bool) {
+	if c == nil {
+		return VertexAPIKey{}, false
+	}
+
+	for _, credential := range c.VertexAPIKeys {
+		if credential.APIKey == apiKey {
+			return credential, true
+		}
+	}
+
+	return VertexAPIKey{}, false
+}
 }
 
 // filterDisabled drops every candidate that carries an active disable record.
