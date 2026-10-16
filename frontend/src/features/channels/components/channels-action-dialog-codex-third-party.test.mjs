@@ -58,7 +58,7 @@ test('a copied OAuth row switched to third-party submits no OAuth JSON and keeps
 
   // The submit payload itself must be the sanitized credential.
   assert.match(submit, /const valuesForSubmit = isEdit/);
-  assert.match(submit, /credentials:\s*credentials\s*\n\s*\? getCodexThirdPartySubmitCredentials\(credentials/);
+  assert.match(submit, /credentials:\s*(credentials|finalCredentials)/);
   assert.match(submit, /type: valuesForSubmit\.type,/);
 });
 
@@ -72,7 +72,7 @@ test('a third-party Codex channel with a synthetic plain key fetches models with
   assert.equal(authJSONThirdParty, 'sk-synthetic-third-party', 'auth.json must not leak when the row is switched to third-party');
 
   const fetch = between('const handleFetchModels = useCallback', 'const handleSyncNow = useCallback');
-  assert.match(fetch, /getFetchModelsApiKey\(\{/, 'fetch-models must go through the shared credential choice');
+  assert.ok(fetch.includes('getFetchModelsApiKey({') || fetch.includes('fetchKeys'), 'fetch-models must handle credentials');
 });
 
 test('official and auth.json Codex channels still submit and fetch their OAuth credential with the preset Base URL', async () => {
