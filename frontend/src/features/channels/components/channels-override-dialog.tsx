@@ -125,7 +125,6 @@ function SaveTemplateDialog({ open, onOpenChange, onSave, isSaving }: SaveTempla
 
 export function ChannelsOverrideDialog({ open, onOpenChange, currentRow }: Props) {
   const { t } = useTranslation();
-  console.log('[DEBUG_OVERRIDE_DIALOG]', { open, currentRowId: currentRow?.id, settings: currentRow?.settings });
   const updateChannel = useUpdateChannel();
   const createTemplate = useCreateChannelOverrideTemplate();
   const deleteTemplate = useDeleteChannelOverrideTemplate();
