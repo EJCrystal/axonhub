@@ -183,7 +183,9 @@ export function ChannelsOverrideDialog({ open, onOpenChange, currentRow }: Props
       headerOverrideOperations: nextHeaders,
       bodyOverrideOperations: nextParams,
     });
-  }, [currentRow, open, form]);
+    replaceHeaders(nextHeaders);
+    replaceBodies(nextParams);
+  }, [currentRow, open, form, replaceHeaders, replaceBodies]);
 
   const addHeaderOp = useCallback(() => {
     appendHeader({ op: 'set', path: '', value: '' });
