@@ -406,6 +406,13 @@ type ComplexityRoot struct {
 		APIKeys             func(childComplexity int) int
 		GCP                 func(childComplexity int) int
 		OAuth               func(childComplexity int) int
+		VertexAPIKeys       func(childComplexity int) int
+	}
+
+	VertexAPIKey struct {
+		APIKey    func(childComplexity int) int
+		ProjectID func(childComplexity int) int
+		Region    func(childComplexity int) int
 	}
 
 	ChannelEdge struct {
@@ -3944,6 +3951,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelCredentials.OAuth(childComplexity), true
+	case "ChannelCredentials.vertexApiKeys":
+		if e.complexity.ChannelCredentials.VertexAPIKeys == nil {
+			break
+		}
+
+		return e.complexity.ChannelCredentials.VertexAPIKeys(childComplexity), true
+	case "VertexAPIKey.apiKey":
+		if e.complexity.VertexAPIKey.APIKey == nil {
+			break
+		}
+
+		return e.complexity.VertexAPIKey.APIKey(childComplexity), true
+	case "VertexAPIKey.projectID":
+		if e.complexity.VertexAPIKey.ProjectID == nil {
+			break
+		}
+
+		return e.complexity.VertexAPIKey.ProjectID(childComplexity), true
+	case "VertexAPIKey.region":
+		if e.complexity.VertexAPIKey.Region == nil {
+			break
+		}
+
+		return e.complexity.VertexAPIKey.Region(childComplexity), true
 
 	case "ChannelEdge.cursor":
 		if e.complexity.ChannelEdge.Cursor == nil {
@@ -12717,6 +12748,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputWebhookNotifierConfigInput,
 		ec.unmarshalInputWebhookSubscriptionInput,
 		ec.unmarshalInputWebhookTargetInput,
+		ec.unmarshalInputVertexAPIKeyInput,
 	)
 	first := true
 
@@ -22476,6 +22508,8 @@ func (ec *executionContext) fieldContext_Channel_credentials(_ context.Context, 
 				return ec.fieldContext_ChannelCredentials_gcp(ctx, field)
 			case "oauth":
 				return ec.fieldContext_ChannelCredentials_oauth(ctx, field)
+			case "vertexApiKeys":
+				return ec.fieldContext_ChannelCredentials_vertexApiKeys(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ChannelCredentials", field.Name)
 		},
@@ -22932,6 +22966,130 @@ func (ec *executionContext) _ChannelCredentials_oauth(ctx context.Context, field
 		true,
 		false,
 	)
+}
+
+func (ec *executionContext) _ChannelCredentials_vertexApiKeys(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelCredentials_vertexApiKeys,
+		func(ctx context.Context) (any, error) {
+			return obj.VertexAPIKeys, nil
+		},
+		nil,
+		ec.marshalOVertexAPIKey2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelCredentials_vertexApiKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "projectID":
+				return ec.fieldContext_VertexAPIKey_projectID(ctx, field)
+			case "apiKey":
+				return ec.fieldContext_VertexAPIKey_apiKey(ctx, field)
+			case "region":
+				return ec.fieldContext_VertexAPIKey_region(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type VertexAPIKey", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VertexAPIKey_projectID(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VertexAPIKey_projectID,
+		func(ctx context.Context) (any, error) {
+			return obj.ProjectID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VertexAPIKey_projectID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VertexAPIKey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VertexAPIKey_apiKey(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VertexAPIKey_apiKey,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKey, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VertexAPIKey_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VertexAPIKey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VertexAPIKey_region(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VertexAPIKey_region,
+		func(ctx context.Context) (any, error) {
+			return obj.Region, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VertexAPIKey_region(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VertexAPIKey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) fieldContext_ChannelCredentials_oauth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -70440,7 +70598,7 @@ func (ec *executionContext) unmarshalInputChannelCredentialsInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"apiKey", "apiKeys", "apiKeyRemarks", "apiKeyModels", "apiKeyFetchedModels", "gcp", "oauth", "managementApiKey"}
+	fieldsInOrder := [...]string{"apiKey", "apiKeys", "apiKeyRemarks", "apiKeyModels", "apiKeyFetchedModels", "vertexApiKeys", "gcp", "oauth", "managementApiKey"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -70482,6 +70640,13 @@ func (ec *executionContext) unmarshalInputChannelCredentialsInput(ctx context.Co
 				return it, err
 			}
 			it.APIKeyFetchedModels = data
+		case "vertexApiKeys":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("vertexApiKeys"))
+			data, err := ec.unmarshalOVertexAPIKeyInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.VertexAPIKeys = data
 		case "gcp":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gcp"))
 			data, err := ec.unmarshalOGCPCredentialInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGCPCredential(ctx, v)
@@ -77097,7 +77262,7 @@ func (ec *executionContext) unmarshalInputFetchModelsInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"channelType", "baseURL", "apiKey", "channelID"}
+	fieldsInOrder := [...]string{"channelType", "baseURL", "apiKey", "projectID", "region", "channelID"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -96696,6 +96861,47 @@ func (ec *executionContext) unmarshalInputWebhookTargetInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputVertexAPIKeyInput(ctx context.Context, obj any) (objects.VertexAPIKey, error) {
+	var it objects.VertexAPIKey
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectID", "apiKey", "region"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectID"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "apiKey":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APIKey = data
+		case "region":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("region"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Region = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -99567,6 +99773,8 @@ func (ec *executionContext) _ChannelCredentials(ctx context.Context, sel ast.Sel
 			out.Values[i] = ec._ChannelCredentials_gcp(ctx, field, obj)
 		case "oauth":
 			out.Values[i] = ec._ChannelCredentials_oauth(ctx, field, obj)
+		case "vertexApiKeys":
+			out.Values[i] = ec._ChannelCredentials_vertexApiKeys(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -126165,6 +126373,129 @@ func (ec *executionContext) unmarshalOChannelAPIKeyModelsInput2ᚕgithubᚗcom�
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
 		res[i], err = ec.unmarshalNChannelAPIKeyModelsInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModels(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+var vertexAPIKeyImplementors = []string{"VertexAPIKey"}
+
+func (ec *executionContext) _VertexAPIKey(ctx context.Context, sel ast.SelectionSet, obj *objects.VertexAPIKey) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, vertexAPIKeyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VertexAPIKey")
+		case "projectID":
+			out.Values[i] = ec._VertexAPIKey_projectID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKey":
+			out.Values[i] = ec._VertexAPIKey_apiKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "region":
+			out.Values[i] = ec._VertexAPIKey_region(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+func (ec *executionContext) marshalNVertexAPIKey2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx context.Context, sel ast.SelectionSet, v objects.VertexAPIKey) graphql.Marshaler {
+	return ec._VertexAPIKey(ctx, sel, &v)
+}
+
+func (ec *executionContext) unmarshalNVertexAPIKeyInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx context.Context, v any) (objects.VertexAPIKey, error) {
+	res, err := ec.unmarshalInputVertexAPIKeyInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOVertexAPIKey2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.VertexAPIKey) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNVertexAPIKey2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOVertexAPIKeyInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ(ctx context.Context, v any) ([]objects.VertexAPIKey, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]objects.VertexAPIKey, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNVertexAPIKeyInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
