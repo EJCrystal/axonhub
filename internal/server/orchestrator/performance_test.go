@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/channel"
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -56,6 +59,20 @@ func TestExtractErrorCode(t *testing.T) {
 			err:      &llm.ResponseError{StatusCode: 0},
 			expected: 500,
 		},
+		{
+			name: "fmt wrapped llm response error",
+			err: fmt.Errorf("upstream: %w", &llm.ResponseError{
+				StatusCode: 502,
+				Detail:     llm.ErrorDetail{Message: "Our servers are currently overloaded"},
+				Cause:      llm.ErrEmptyResponse,
+			}),
+			expected: 502,
+		},
+		{
+			name:     "fmt wrapped httpclient error",
+			err:      fmt.Errorf("request failed: %w", &httpclient.Error{StatusCode: 429}),
+			expected: 429,
+		},
 	}
 
 	for _, tt := range tests {
@@ -70,6 +87,103 @@ type mockChannelService struct{}
 
 func (m *mockChannelService) AsyncRecordPerformance(ctx context.Context, perf *biz.PerformanceRecord) {
 	// No-op for testing
+}
+
+func TestPerformanceRecording_OnOutboundRawError_WrappedResponseErrorDrivesAutoDisable(t *testing.T) {
+	ctx, client := setupTest(t)
+	channelService := newTestChannelService(client)
+	t.Cleanup(channelService.Stop)
+
+	policies := objects.ChannelPolicies{APIKeyAutoDisableRules: []objects.APIKeyAutoDisableRule{
+		{StatusCodes: []int{401}, Times: 1, Action: objects.APIKeyAutoDisableActionPermanent},
+		{StatusCodes: []int{500}, Times: 1, Action: objects.APIKeyAutoDisableActionPermanent},
+	}}
+
+	tests := []struct {
+		name         string
+		err          error
+		wantStatus   int
+		wantMessage  string
+		wantDisabled bool
+	}{
+		{
+			name: "wrapped 401 response error matches the 401 rule",
+			err: fmt.Errorf("upstream: %w", &llm.ResponseError{
+				StatusCode: 401,
+				Detail:     llm.ErrorDetail{Message: "invalid api key"},
+				Cause:      llm.ErrEmptyResponse,
+			}),
+			wantStatus:   401,
+			wantMessage:  "invalid api key",
+			wantDisabled: true,
+		},
+		{
+			name: "wrapped 502 response error is not counted as 500",
+			err: fmt.Errorf("upstream: %w", &llm.ResponseError{
+				StatusCode: 502,
+				Detail:     llm.ErrorDetail{Message: "Our servers are currently overloaded"},
+				Cause:      llm.ErrEmptyResponse,
+			}),
+			wantStatus:   502,
+			wantMessage:  "Our servers are currently overloaded",
+			wantDisabled: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			const apiKey = "target-key"
+			ch, err := client.Channel.Create().
+				SetType(channel.TypeOpenai).
+				SetName(tt.name).
+				SetBaseURL("https://api.openai.com/v1").
+				SetCredentials(objects.ChannelCredentials{APIKeys: []string{apiKey, "spare-key"}}).
+				SetSupportedModels([]string{"gpt-4"}).
+				SetDefaultTestModel("gpt-4").
+				SetStatus(channel.StatusEnabled).
+				SetPolicies(policies).
+				Save(ctx)
+			require.NoError(t, err)
+			channelService.SetEnabledChannelsForTest([]*biz.Channel{{Channel: ch}})
+
+			perf := &biz.PerformanceRecord{
+				ChannelID: ch.ID,
+				APIKey:    apiKey,
+				StartTime: time.Now(),
+			}
+			middleware := &performanceRecording{
+				outbound: &PersistentOutboundTransformer{
+					state: &PersistenceState{
+						Perf:           perf,
+						ChannelService: channelService,
+					},
+				},
+			}
+
+			middleware.OnOutboundRawError(ctx, tt.err)
+
+			require.Equal(t, tt.wantStatus, perf.ResponseStatusCode)
+			require.Equal(t, tt.wantMessage, perf.ErrorMessage)
+			require.True(t, perf.RequestCompleted)
+			require.False(t, perf.Success)
+
+			require.Eventually(t, func() bool {
+				metrics, metricsErr := channelService.GetChannelMetrics(ctx, ch.ID)
+				return metricsErr == nil && metrics != nil && metrics.FailureCount >= 1
+			}, 2*time.Second, 10*time.Millisecond)
+
+			updated, err := client.Channel.Get(ctx, ch.ID)
+			require.NoError(t, err)
+			require.Equal(t, channel.StatusEnabled, updated.Status)
+			if !tt.wantDisabled {
+				require.Empty(t, updated.DisabledAPIKeys)
+				return
+			}
+			require.Len(t, updated.DisabledAPIKeys, 1)
+			require.Equal(t, apiKey, updated.DisabledAPIKeys[0].Key)
+			require.Equal(t, tt.wantStatus, updated.DisabledAPIKeys[0].ErrorCode)
+		})
+	}
 }
 
 // TestPerformanceRecording_OnInboundLlmRequest_SetsStreamFlag verifies that
