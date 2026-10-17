@@ -280,33 +280,40 @@ test('more than five normalized limits expose the remaining rows for expansion',
   assert.match(columns, /const hiddenCount = limits\.length - QUOTA_VISIBLE_LIMIT/);
 });
 
-// The column-settings menu is the single source of truth for whether a column
-// renders. Responsive `hidden ... :table-cell` display gates on a toggleable
-// column silently override that choice, so enabling "标签"/"限额"/"代理 IP" in
-// 列设置 made them vanish below the breakpoint. Guard against reintroducing them.
-test('toggleable channel columns are not hidden by responsive display gates', () => {
+test('channels table container allows horizontal scroll and wraps in min-w-max without table-fixed', () => {
+  const tableSource = read('features/channels/components/channels-table.tsx');
+  assert.doesNotMatch(tableSource, /overflow-x-hidden/, 'table container must not disable horizontal scroll');
+  assert.match(tableSource, /min-w-max/, 'table must be wrapped in min-w-max to preserve column widths');
+  assert.doesNotMatch(tableSource, /table-fixed/, 'table must not be table-fixed which crushes columns to 0');
+});
+
+test('channel columns have minimum widths and are not hidden by responsive display gates', () => {
   const columnsSource = read('features/channels/components/channels-columns.tsx');
 
   const columnMeta = (columnId) => {
-    const idIndex = columnsSource.indexOf(`id: '${columnId}'`);
-    const keyIndex = idIndex === -1 ? columnsSource.indexOf(`accessorKey: '${columnId}'`) : idIndex;
-    assert.notEqual(keyIndex, -1, `${columnId} column should exist`);
+    const idIndex = columnsSource.indexOf("id: '" + columnId + "'");
+    const keyIndex = idIndex === -1 ? columnsSource.indexOf("accessorKey: '" + columnId + "'") : idIndex;
+    assert.notEqual(keyIndex, -1, columnId + ' column should exist');
     const metaIndex = columnsSource.indexOf('meta: {', keyIndex);
     const classNameIndex = columnsSource.indexOf('className:', metaIndex);
     const end = columnsSource.indexOf('\n', classNameIndex);
     return columnsSource.slice(classNameIndex, end);
   };
 
-  for (const columnId of ['quota', 'tags', 'proxy']) {
+  for (const columnId of ['quota', 'tags', 'proxy', 'createdAt']) {
     const meta = columnMeta(columnId);
-    assert.doesNotMatch(meta, /\bhidden\b/, `${columnId} must not be hidden by a responsive display gate`);
-    assert.doesNotMatch(meta, /(?:xl|2xl):table-cell/, `${columnId} must not be gated by a responsive breakpoint`);
-    assert.match(meta, /w-/, `${columnId} needs an explicit width so table-fixed cannot collapse it`);
+    assert.doesNotMatch(meta, /\bhidden\b/, columnId + ' must not be hidden by responsive display gate');
+    assert.doesNotMatch(meta, /(?:xl|2xl):table-cell/, columnId + ' must not be gated by a responsive breakpoint');
+  }
+
+  for (const columnId of ['name', 'provider', 'status', 'supportedModels']) {
+    const meta = columnMeta(columnId);
+    assert.doesNotMatch(meta, /min-w-0/, columnId + ' must have a non-zero minimum width');
+    assert.match(meta, /min-w-\d+/, columnId + ' must have an explicit min-w-* class to prevent collapse');
   }
 });
 
-
-// The channels table uses table-fixed and apportions leftover space to the
+// The channels table apportions leftover space to the
 // percentage-width columns. When the percentages summed to less than 100 they
 // no longer read as real percentages and the column widths drifted out of the
 // intended proportions. Keep them totalling exactly 100.
