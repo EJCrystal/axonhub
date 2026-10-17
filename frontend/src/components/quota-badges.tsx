@@ -555,15 +555,17 @@ function QuotaRow({ channel, effectiveMode }: { channel: ProviderQuotaChannel; e
     return Number.isNaN(date.getTime()) ? value : format(date, 'yyyy-MM-dd HH:mm');
   };
   return (
-    <div className='space-y-3 border-b py-3 first:pt-1 last:border-0 last:pb-1'>
+    <div className='min-w-0 space-y-3 border-b py-3 first:pt-1 last:border-0 last:pb-1'>
       <div className='flex items-center justify-between'>
-        <div className='flex items-center gap-2'>
+        <div className='flex min-w-0 flex-1 items-center gap-2'>
           <BatteryIcon
-            className={`h-4 w-4 ${status === 'exhausted' ? 'text-red-500' : status === 'warning' ? 'text-yellow-500' : 'text-muted-foreground'}`}
+            className={`h-4 w-4 shrink-0 ${status === 'exhausted' ? 'text-red-500' : status === 'warning' ? 'text-yellow-500' : 'text-muted-foreground'}`}
           />
-          <span className='text-foreground font-medium'>{channel.name}</span>
+          <span className='text-foreground truncate font-medium' title={channel.name}>
+            {channel.name}
+          </span>
         </div>
-        <div className='flex items-center gap-1.5'>
+        <div className='ml-2 flex shrink-0 items-center gap-1.5'>
           <Badge
             variant={status === 'exhausted' ? 'destructive' : 'outline'}
             className={status === 'available' ? BADGE_COLOR_CLASSES.green : status === 'warning' ? BADGE_COLOR_CLASSES.amber : ''}
@@ -2639,12 +2641,12 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
 
     return (
       <div
-        className={`max-h-[60vh] overflow-y-auto pr-1 pl-1 ${groupedChannels.length > 4 ? 'grid grid-cols-1 gap-x-4 sm:grid-cols-2' : ''}`}
+        className={`max-h-[60vh] overflow-y-auto pr-1 pl-1 ${sortedChannels.length > 4 ? 'grid grid-cols-1 gap-x-4 sm:grid-cols-2' : ''}`}
       >
         {groupedChannels.map((channel: ProviderQuotaChannel, index: number) => {
           const cat = getChannelCategory(channel, t);
           const showSectionHeader =
-            selectedCategory === 'all' &&
+            activeCategory === 'all' &&
             categories.length > 1 &&
             (index === 0 || getChannelCategory(groupedChannels[index - 1], t).key !== cat.key);
 
@@ -2654,7 +2656,7 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
                 <div className='col-span-full flex items-center gap-2 pt-3 pb-1 first:pt-1'>
                   <span className='text-muted-foreground/80 text-[11px] font-semibold tracking-wider uppercase'>{cat.label}</span>
                   <span className='bg-muted/70 py-0.2 text-muted-foreground/70 rounded-full px-1.5 text-[10px] font-medium'>
-                    {cat.count}
+                    {categoryCounts[cat.key]}
                   </span>
                   <div className='bg-border/40 h-[1px] flex-1' />
                 </div>
@@ -2676,7 +2678,7 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
       </PopoverTrigger>
       <PopoverContent
         className={
-          !isLoading && !isError && sortedChannels.length > 4 ? 'w-[640px] max-w-[calc(100vw-2rem)]' : 'w-80 max-w-[calc(100vw-2rem)]'
+          !isLoading && !isError && sortedChannels.length > 4 ? 'w-[680px] max-w-[calc(100vw-2rem)]' : 'w-80 max-w-[calc(100vw-2rem)]'
         }
         align='end'
       >
@@ -2704,7 +2706,7 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
                     : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
               >
-                {t('common.all') || '全部'} ({sortedChannels.length})
+                {t('common.all')} ({sortedChannels.length})
               </button>
               {categories.map((cat) => (
                 <button
