@@ -2617,8 +2617,11 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
     ).values()
   );
 
+  // Fall back to 'all' if selectedCategory is no longer available in the active categories
+  const activeCategory = selectedCategory !== 'all' && categories.some((c) => c.key === selectedCategory) ? selectedCategory : 'all';
+
   const groupedChannels =
-    selectedCategory === 'all' ? sortedChannels : sortedChannels.filter((ch) => getChannelCategory(ch, t).key === selectedCategory);
+    activeCategory === 'all' ? sortedChannels : sortedChannels.filter((ch) => getChannelCategory(ch, t).key === activeCategory);
 
   const renderContent = () => {
     if (isLoading) {
@@ -2701,7 +2704,7 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
                 type='button'
                 onClick={() => setSelectedCategory('all')}
                 className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
-                  selectedCategory === 'all'
+                  activeCategory === 'all'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
@@ -2714,7 +2717,7 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
                   type='button'
                   onClick={() => setSelectedCategory(cat.key)}
                   className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
-                    selectedCategory === cat.key
+                    activeCategory === cat.key
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
