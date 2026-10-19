@@ -45,10 +45,26 @@ const (
 	// rather than by the detection service.
 	IntelligenceBenchmarkCandy = "candy"
 
-	// intelligenceBenchmark selects the pelican (鹈鹕骑行) benchmark. A non-empty
-	// html body makes the service evaluate that source with its local classifier
-	// only, so no upstream credentials or model calls are involved.
-	intelligenceBenchmark = "pelican"
+	// intelligenceHTMLBenchmark selects the service's HTML classification mode.
+	// The submitted source is scored by the service's local classifier, so no
+	// upstream model or credential is involved. Submitting html under the pelican
+	// benchmark used to imply this mode, but the service now rejects that pairing:
+	// pelican means "generate a pelican upstream", html means "score this source".
+	intelligenceHTMLBenchmark = "html"
+
+	// intelligenceClassificationModel is the model name the service requires for
+	// its html mode. It is part of the request contract, not a model this
+	// deployment calls: html classification only checks that the field matches,
+	// then scores the submitted source locally.
+	intelligenceClassificationModel = "gpt-6-astra"
+
+	// intelligenceClassificationBaseURL and intelligenceClassificationAPIKey
+	// satisfy the service's required upstream fields, which html mode validates
+	// but never uses. They are deliberately placeholders: the channel's own base
+	// URL and key stay on this host, because handing a live credential to the
+	// detection service would buy nothing here.
+	intelligenceClassificationBaseURL = "https://example.com/v1"
+	intelligenceClassificationAPIKey  = "axonhub-intelligence-html-mode"
 
 	// intelligenceGenerateMaxTokens bounds the HTML produced by the tested model.
 	// The service caps submitted HTML at 2 MiB, so a single-file SVG animation
@@ -209,7 +225,10 @@ func newIntelligenceEvaluator(httpClient *httpclient.HttpClient, baseURL string)
 // short upstream hiccup would otherwise fail the whole check.
 func (c *intelligenceEvaluator) submit(ctx context.Context, html string) (string, error) {
 	body, err := json.Marshal(map[string]string{
-		"benchmark": intelligenceBenchmark,
+		"benchmark": intelligenceHTMLBenchmark,
+		"model":     intelligenceClassificationModel,
+		"base_url":  intelligenceClassificationBaseURL,
+		"api_key":   intelligenceClassificationAPIKey,
 		"html":      html,
 	})
 	if err != nil {
@@ -344,7 +363,6 @@ func (c *intelligenceEvaluator) poll(ctx context.Context, taskID string) (*Intel
 		return nil, false, nil
 	}
 }
-
 
 // intelligenceChannel loads the channel an evaluation targets, forcing one of the
 // requested keys when the caller named one.

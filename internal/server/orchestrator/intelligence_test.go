@@ -50,8 +50,10 @@ func newIntelligenceTestServer(t *testing.T, states []string) (*httptest.Server,
 	return server, &received, pollsUsed
 }
 
-// TestIntelligenceEvaluatorSubmitUsesHTMLMode verifies the free HTML mode payload:
-// the pelican benchmark plus the generated source, and no upstream credentials.
+// TestIntelligenceEvaluatorSubmitUsesHTMLMode verifies the HTML classification
+// payload: the html benchmark, the model name the service requires, placeholder
+// upstream fields, and the generated source. The real channel credential must
+// never leave this host, since html mode scores the source locally.
 func TestIntelligenceEvaluatorSubmitUsesHTMLMode(t *testing.T) {
 	server, received, _ := newIntelligenceTestServer(t, []string{`{"status":"succeeded"}`})
 
@@ -60,13 +62,14 @@ func TestIntelligenceEvaluatorSubmitUsesHTMLMode(t *testing.T) {
 	taskID, err := evaluator.submit(context.Background(), "<html>pelican</html>")
 	require.NoError(t, err)
 	require.Equal(t, "task-1", taskID)
-	require.Equal(t, "pelican", (*received)["benchmark"])
+	require.Equal(t, "html", (*received)["benchmark"])
+	require.Equal(t, intelligenceClassificationModel, (*received)["model"])
 	require.Equal(t, "<html>pelican</html>", (*received)["html"])
 
-	_, hasCredential := (*received)["api_key"]
-	require.False(t, hasCredential, "HTML mode must not submit upstream credentials")
-	_, hasBaseURL := (*received)["base_url"]
-	require.False(t, hasBaseURL, "HTML mode must not submit an upstream base url")
+	// The service requires these two fields, but html mode neither calls the
+	// upstream nor uses the credential, so a placeholder keeps it that way.
+	require.Equal(t, intelligenceClassificationBaseURL, (*received)["base_url"])
+	require.Equal(t, intelligenceClassificationAPIKey, (*received)["api_key"])
 }
 
 // TestIntelligenceEvaluatorWaitMapsAssessment verifies a terminal task is mapped
