@@ -159,6 +159,57 @@ func GetChannelAPIKey(ctx context.Context) (string, bool) {
 	return "", false
 }
 
+// ClearChannelAPIKey removes the API key selected for the previous channel attempt.
+func ClearChannelAPIKey(ctx context.Context) context.Context {
+	container := getContainer(ctx)
+	container.mu.Lock()
+	container.ChannelAPIKey = nil
+	container.mu.Unlock()
+
+	return withContainer(ctx, container)
+}
+
+// RecordFailedChannelAPIKey marks an API key as failed for a specific channel in the current request.
+func RecordFailedChannelAPIKey(ctx context.Context, channelID int, apiKey string) {
+	if apiKey == "" || channelID == 0 {
+		return
+	}
+	container := getContainer(ctx)
+	container.mu.Lock()
+	defer container.mu.Unlock()
+
+	if container.FailedChannelAPIKeys == nil {
+		container.FailedChannelAPIKeys = make(map[int][]string)
+	}
+	for _, existing := range container.FailedChannelAPIKeys[channelID] {
+		if existing == apiKey {
+			return
+		}
+	}
+	container.FailedChannelAPIKeys[channelID] = append(container.FailedChannelAPIKeys[channelID], apiKey)
+}
+
+// GetFailedChannelAPIKeys returns the list of failed API keys for a specific channel in the current request.
+func GetFailedChannelAPIKeys(ctx context.Context, channelID int) []string {
+	if channelID == 0 {
+		return nil
+	}
+	container := getContainer(ctx)
+	container.mu.RLock()
+	defer container.mu.RUnlock()
+
+	if container.FailedChannelAPIKeys == nil {
+		return nil
+	}
+	keys := container.FailedChannelAPIKeys[channelID]
+	if len(keys) == 0 {
+		return nil
+	}
+	result := make([]string, len(keys))
+	copy(result, keys)
+	return result
+}
+
 // WithProjectID stores the project ID in the context.
 func WithProjectID(ctx context.Context, projectID int) context.Context {
 	container := getContainer(ctx)

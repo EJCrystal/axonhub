@@ -83,22 +83,92 @@ func (c *Channel) enabledAPIKeysForRequest(ctx context.Context) []string {
 	return c.filterAPIKeysForRequest(ctx, c.cachedEnabledAPIKeys)
 }
 
+// EnabledAPIKeysForModel returns all enabled API keys in the channel that support the specified model,
+// excluding any keys passed in excludedKeys as well as any keys marked failed in the request context.
+func (c *Channel) EnabledAPIKeysForModel(ctx context.Context, model string, excludedKeys ...string) []string {
+	if c == nil || len(c.cachedEnabledAPIKeys) == 0 {
+		return nil
+	}
+
+	excludedSet := make(map[string]struct{}, len(excludedKeys))
+	for _, k := range excludedKeys {
+		if k != "" {
+			excludedSet[k] = struct{}{}
+		}
+	}
+
+	channelID := 0
+	if c.Channel != nil {
+		channelID = c.ID
+	}
+
+	if ctx != nil && channelID != 0 {
+		for _, k := range contexts.GetFailedChannelAPIKeys(ctx, channelID) {
+			excludedSet[k] = struct{}{}
+		}
+	}
+
+	hasModelFilter := model != "" && len(c.cachedAPIKeyModels) > 0
+
+	result := make([]string, 0, len(c.cachedEnabledAPIKeys))
+	for _, key := range c.cachedEnabledAPIKeys {
+		if _, excluded := excludedSet[key]; excluded {
+			continue
+		}
+
+		if hasModelFilter {
+			models, explicit := c.cachedAPIKeyModels[key]
+			if explicit && !lo.Contains(models, model) {
+				continue
+			}
+		}
+
+		result = append(result, key)
+	}
+
+	return result
+}
+
 func (c *Channel) filterAPIKeysForRequest(ctx context.Context, keys []string) []string {
-	if c == nil || len(keys) == 0 || len(c.cachedAPIKeyModels) == 0 {
+	if c == nil || len(keys) == 0 {
 		return keys
 	}
 
-	model, ok := contexts.GetChannelRequestModel(ctx)
-	if !ok || model == "" {
+	channelID := 0
+	if c.Channel != nil {
+		channelID = c.ID
+	}
+
+	model, hasModel := contexts.GetChannelRequestModel(ctx)
+	failedKeys := contexts.GetFailedChannelAPIKeys(ctx, channelID)
+	hasFailed := len(failedKeys) > 0
+	hasModelFilter := hasModel && model != "" && len(c.cachedAPIKeyModels) > 0
+
+	if !hasFailed && !hasModelFilter {
 		return keys
+	}
+
+	failedSet := make(map[string]struct{}, len(failedKeys))
+	for _, k := range failedKeys {
+		failedSet[k] = struct{}{}
 	}
 
 	filtered := make([]string, 0, len(keys))
 	for _, key := range keys {
-		models, explicit := c.cachedAPIKeyModels[key]
-		if !explicit || lo.Contains(models, model) {
-			filtered = append(filtered, key)
+		if hasFailed {
+			if _, failed := failedSet[key]; failed {
+				continue
+			}
 		}
+
+		if hasModelFilter {
+			models, explicit := c.cachedAPIKeyModels[key]
+			if explicit && !lo.Contains(models, model) {
+				continue
+			}
+		}
+
+		filtered = append(filtered, key)
 	}
 
 	return filtered
@@ -107,6 +177,13 @@ func (c *Channel) filterAPIKeysForRequest(ctx context.Context, keys []string) []
 func (p *TraceStickyKeyProvider) Get(ctx context.Context) string {
 	enabled := p.channel.enabledAPIKeysForRequest(ctx)
 	if len(enabled) == 0 {
+		channelID := 0
+		if p.channel != nil && p.channel.Channel != nil {
+			channelID = p.channel.ID
+		}
+		if channelID != 0 && len(contexts.GetFailedChannelAPIKeys(ctx, channelID)) > 0 {
+			return ""
+		}
 		if _, explicit := contexts.GetChannelRequestModel(ctx); explicit && len(p.channel.cachedAPIKeyModels) > 0 {
 			return ""
 		}
@@ -118,6 +195,7 @@ func (p *TraceStickyKeyProvider) Get(ctx context.Context) string {
 	}
 
 	if len(enabled) == 1 {
+		contexts.WithChannelAPIKey(ctx, enabled[0])
 		return enabled[0]
 	}
 

@@ -534,3 +534,38 @@ func TestContextContainerWithOtherValues(t *testing.T) {
 		t.Error("Our context values should also be accessible")
 	}
 }
+
+func TestFailedChannelAPIKeys(t *testing.T) {
+	ctx := EnsureContainer(t.Context())
+
+	// Initially empty
+	failed := GetFailedChannelAPIKeys(ctx, 1)
+	if len(failed) != 0 {
+		t.Errorf("expected 0 failed keys, got %d", len(failed))
+	}
+
+	// Record failed keys for channel 1
+	RecordFailedChannelAPIKey(ctx, 1, "key-1")
+	RecordFailedChannelAPIKey(ctx, 1, "key-2")
+	RecordFailedChannelAPIKey(ctx, 1, "key-1") // duplicate should be ignored
+
+	// Record failed key for channel 2
+	RecordFailedChannelAPIKey(ctx, 2, "key-ch2")
+
+	failedCh1 := GetFailedChannelAPIKeys(ctx, 1)
+	if len(failedCh1) != 2 || failedCh1[0] != "key-1" || failedCh1[1] != "key-2" {
+		t.Errorf("unexpected failed keys for channel 1: %v", failedCh1)
+	}
+
+	failedCh2 := GetFailedChannelAPIKeys(ctx, 2)
+	if len(failedCh2) != 1 || failedCh2[0] != "key-ch2" {
+		t.Errorf("unexpected failed keys for channel 2: %v", failedCh2)
+	}
+
+	// Empty channel ID or empty key ignored
+	RecordFailedChannelAPIKey(ctx, 0, "key-0")
+	RecordFailedChannelAPIKey(ctx, 1, "")
+	if len(GetFailedChannelAPIKeys(ctx, 0)) != 0 {
+		t.Error("expected empty for channel 0")
+	}
+}

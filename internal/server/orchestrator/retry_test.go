@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,8 +10,13 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/looplj/axonhub/internal/authz"
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
+	entchannel "github.com/looplj/axonhub/internal/ent/channel"
+	"github.com/looplj/axonhub/internal/ent/enttest"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
@@ -484,4 +490,289 @@ func TestIsRetryableErrorForChannel(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func newRetryTestChannel(t *testing.T, name string, credentials objects.ChannelCredentials) *biz.Channel {
+	t.Helper()
+
+	client := enttest.NewEntClient(t, "sqlite3", "file:retry-channel?mode=memory&_fk=1")
+	t.Cleanup(func() { _ = client.Close() })
+	ctx := authz.WithTestBypass(context.Background())
+	entity := client.Channel.Create().
+		SetType(entchannel.TypeOpenai).
+		SetName(name).
+		SetBaseURL("https://api.example.com/v1").
+		SetCredentials(credentials).
+		SetSupportedModels([]string{"gpt-4"}).
+		SetDefaultTestModel("gpt-4").
+		SaveX(ctx)
+
+	channelService := biz.NewChannelServiceForTest(client)
+	channel, err := channelService.TestBuildChannel(entity)
+	require.NoError(t, err)
+	return channel
+}
+
+func TestPersistentOutboundTransformer_MultiKeyRetryOn429(t *testing.T) {
+	ctx := contexts.EnsureContainer(t.Context())
+	ctx = contexts.WithTrace(ctx, &ent.Trace{TraceID: "trace-429"})
+
+	ch := newRetryTestChannel(t, "test-multi-key", objects.ChannelCredentials{
+		APIKeys: []string{"key-1", "key-2", "key-3"},
+	})
+
+	candidate := &ChannelModelsCandidate{
+		Channel: ch,
+		Models: []biz.ChannelModelEntry{
+			{RequestModel: "gpt-4", ActualModel: "gpt-4"},
+		},
+	}
+
+	state := &PersistenceState{
+		ChannelModelsCandidates: []*ChannelModelsCandidate{candidate},
+		CurrentCandidateIndex:   0,
+		CurrentCandidate:        candidate,
+		CurrentModelIndex:       0,
+		OriginalModel:           "gpt-4",
+	}
+
+	transformer := &PersistentOutboundTransformer{
+		state: state,
+	}
+
+	rateLimitErr := &httpclient.Error{StatusCode: http.StatusTooManyRequests}
+
+	// 1. Initial attempt with key-1
+	state.CurrentAPIKey = "key-1"
+	contexts.WithChannelAPIKey(ctx, "key-1")
+
+	// Since key-2 and key-3 are available, CanRetry must return true
+	assert.True(t, transformer.CanRetry(rateLimitErr), "should allow retry when other keys are available")
+
+	// Prepare for retry
+	err := transformer.PrepareForRetry(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, state.CurrentModelIndex, "should not advance model index while keys remain")
+	assert.Empty(t, state.CurrentAPIKey)
+	assert.Contains(t, state.FailedAPIKeys[ch.ID], "key-1")
+
+	// 2. Second attempt with key-2
+	state.CurrentAPIKey = "key-2"
+	contexts.WithChannelAPIKey(ctx, "key-2")
+
+	assert.True(t, transformer.CanRetry(rateLimitErr), "should allow retry when key-3 is still available")
+
+	err = transformer.PrepareForRetry(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, state.CurrentModelIndex)
+	assert.Contains(t, state.FailedAPIKeys[ch.ID], "key-2")
+
+	// 3. Third attempt with key-3 (last key)
+	state.CurrentAPIKey = "key-3"
+	contexts.WithChannelAPIKey(ctx, "key-3")
+
+	// All keys for this model are now exhausted, CanRetry must return false for 429 so pipeline switches channels
+	assert.False(t, transformer.CanRetry(rateLimitErr), "should reject 429 retry when all keys are exhausted")
+}
+
+func TestPersistentOutboundTransformer_TransformRequestUsesNextKeyAfterRetry(t *testing.T) {
+	keys := []string{"key-1", "key-2", "key-3"}
+	ch := newRetryTestChannel(t, "test-transform-retry-key", objects.ChannelCredentials{
+		APIKeys: keys,
+		APIKeyModels: []objects.APIKeyModels{
+			{APIKey: "key-1", Models: []string{"gpt-4"}},
+			{APIKey: "key-2", Models: []string{"gpt-4"}},
+			{APIKey: "key-3", Models: []string{"gpt-4"}},
+		},
+	})
+	candidate := &ChannelModelsCandidate{
+		Channel: ch,
+		Models:  []biz.ChannelModelEntry{{RequestModel: "gpt-4", ActualModel: "gpt-4"}},
+	}
+	state := &PersistenceState{
+		ChannelModelsCandidates: []*ChannelModelsCandidate{candidate},
+		CurrentCandidate:        candidate,
+		OriginalModel:           "gpt-4",
+	}
+	transformer := &PersistentOutboundTransformer{state: state}
+
+	ctx := contexts.EnsureContainer(context.Background())
+	ctx = contexts.WithTrace(ctx, &ent.Trace{TraceID: "trace-transform-retry"})
+	text := "Hello"
+	request := &llm.Request{
+		Model: "gpt-4",
+		Messages: []llm.Message{{
+			Role:    "user",
+			Content: llm.MessageContent{Content: &text},
+		}},
+	}
+
+	firstRequest, err := transformer.TransformRequest(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, firstRequest.Auth)
+	firstKey := firstRequest.Auth.APIKey
+	require.Contains(t, keys, firstKey)
+
+	require.NoError(t, transformer.PrepareForRetry(ctx))
+	secondRequest, err := transformer.TransformRequest(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, secondRequest.Auth)
+	require.Contains(t, keys, secondRequest.Auth.APIKey)
+	require.NotEqual(t, firstKey, secondRequest.Auth.APIKey)
+	require.Contains(t, state.FailedAPIKeys[ch.ID], firstKey)
+}
+
+func TestPersistentOutboundTransformer_SingleKeyNoRetryOn429(t *testing.T) {
+	ch := newRetryTestChannel(t, "test-single-key", objects.ChannelCredentials{
+		APIKeys: []string{"single-key"},
+	})
+
+	candidate := &ChannelModelsCandidate{
+		Channel: ch,
+		Models: []biz.ChannelModelEntry{
+			{RequestModel: "gpt-4", ActualModel: "gpt-4"},
+		},
+	}
+
+	state := &PersistenceState{
+		ChannelModelsCandidates: []*ChannelModelsCandidate{candidate},
+		CurrentCandidateIndex:   0,
+		CurrentCandidate:        candidate,
+		CurrentModelIndex:       0,
+		CurrentAPIKey:           "single-key",
+		OriginalModel:           "gpt-4",
+	}
+
+	transformer := &PersistentOutboundTransformer{
+		state: state,
+	}
+
+	rateLimitErr := &httpclient.Error{StatusCode: http.StatusTooManyRequests}
+
+	// Single key channel has no alternative keys, 429 should immediately skip same-channel retry
+	assert.False(t, transformer.CanRetry(rateLimitErr))
+}
+
+func TestPersistentOutboundTransformer_SingleKeyTransientRetryKeepsKey(t *testing.T) {
+	ch := newRetryTestChannel(t, "test-single-key-transient", objects.ChannelCredentials{
+		APIKeys: []string{"single-key"},
+	})
+	candidate := &ChannelModelsCandidate{
+		Channel: ch,
+		Models:  []biz.ChannelModelEntry{{RequestModel: "gpt-4", ActualModel: "gpt-4"}},
+	}
+	state := &PersistenceState{
+		ChannelModelsCandidates: []*ChannelModelsCandidate{candidate},
+		CurrentCandidate:        candidate,
+		CurrentModelIndex:       0,
+		CurrentAPIKey:           "single-key",
+	}
+	transformer := &PersistentOutboundTransformer{state: state}
+	ctx := contexts.EnsureContainer(context.Background())
+	contexts.WithChannelAPIKey(ctx, "single-key")
+
+	transientErr := &httpclient.Error{StatusCode: http.StatusInternalServerError}
+	assert.True(t, transformer.CanRetry(transientErr))
+	require.NoError(t, transformer.PrepareForRetry(ctx))
+	assert.Empty(t, state.FailedAPIKeys)
+
+	text := "Hello"
+	request := &llm.Request{
+		Model: "gpt-4",
+		Messages: []llm.Message{{
+			Role:    "user",
+			Content: llm.MessageContent{Content: &text},
+		}},
+	}
+	transformed, err := transformer.TransformRequest(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, transformed.Auth)
+	assert.Equal(t, "single-key", transformed.Auth.APIKey)
+}
+
+func TestPersistentOutboundTransformer_MultiKeyRetryOn401(t *testing.T) {
+	ctx := contexts.EnsureContainer(t.Context())
+
+	ch := newRetryTestChannel(t, "test-401-key", objects.ChannelCredentials{
+		APIKeys: []string{"key-1", "key-2"},
+	})
+
+	candidate := &ChannelModelsCandidate{
+		Channel: ch,
+		Models: []biz.ChannelModelEntry{
+			{RequestModel: "gpt-4", ActualModel: "gpt-4"},
+		},
+	}
+
+	state := &PersistenceState{
+		ChannelModelsCandidates: []*ChannelModelsCandidate{candidate},
+		CurrentCandidateIndex:   0,
+		CurrentCandidate:        candidate,
+		CurrentModelIndex:       0,
+		CurrentAPIKey:           "key-1",
+		OriginalModel:           "gpt-4",
+	}
+
+	transformer := &PersistentOutboundTransformer{
+		state: state,
+	}
+
+	unauthErr := &httpclient.Error{StatusCode: http.StatusUnauthorized}
+
+	// With key-2 available, 401 allows same-channel retry
+	assert.True(t, transformer.CanRetry(unauthErr))
+
+	err := transformer.PrepareForRetry(ctx)
+	assert.NoError(t, err)
+
+	// Now key-2 fails with 401 and no more keys remain
+	state.CurrentAPIKey = "key-2"
+	contexts.WithChannelAPIKey(ctx, "key-2")
+	assert.False(t, transformer.CanRetry(unauthErr), "should reject 401 retry when no more keys remain")
+}
+
+func TestPersistentOutboundTransformer_PerKeyModelsFilteringOnRetry(t *testing.T) {
+	ctx := contexts.EnsureContainer(t.Context())
+
+	ch := newRetryTestChannel(t, "test-per-key-models", objects.ChannelCredentials{
+		APIKeys: []string{"key-1", "key-2", "key-3"},
+		APIKeyModels: []objects.APIKeyModels{
+			{APIKey: "key-1", Models: []string{"gpt-4"}},
+			{APIKey: "key-2", Models: []string{"gpt-3.5"}}, // Does not support gpt-4
+			{APIKey: "key-3", Models: []string{"gpt-4"}},
+		},
+	})
+
+	candidate := &ChannelModelsCandidate{
+		Channel: ch,
+		Models: []biz.ChannelModelEntry{
+			{RequestModel: "gpt-4", ActualModel: "gpt-4"},
+		},
+	}
+
+	state := &PersistenceState{
+		ChannelModelsCandidates: []*ChannelModelsCandidate{candidate},
+		CurrentCandidateIndex:   0,
+		CurrentCandidate:        candidate,
+		CurrentModelIndex:       0,
+		CurrentAPIKey:           "key-1",
+		OriginalModel:           "gpt-4",
+	}
+
+	transformer := &PersistentOutboundTransformer{
+		state: state,
+	}
+
+	rateLimitErr := &httpclient.Error{StatusCode: http.StatusTooManyRequests}
+
+	// key-1 fails: key-3 supports gpt-4 (even though key-2 does not), so retry is allowed
+	assert.True(t, transformer.CanRetry(rateLimitErr))
+
+	err := transformer.PrepareForRetry(ctx)
+	assert.NoError(t, err)
+
+	// key-3 fails: key-2 does not support gpt-4, so no more keys remain for gpt-4
+	state.CurrentAPIKey = "key-3"
+	contexts.WithChannelAPIKey(ctx, "key-3")
+	assert.False(t, transformer.CanRetry(rateLimitErr), "key-2 does not support gpt-4, retry should be rejected")
 }

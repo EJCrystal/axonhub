@@ -48,7 +48,7 @@ func TestTraceStickyKeyProvider_SelectsOnlyKeysSupportingRequestModel(t *testing
 func TestTraceStickyKeyProvider_SameTraceDifferentModelsUseDifferentKeys(t *testing.T) {
 	keys := []string{"key-a", "key-b"}
 	ch := &Channel{
-		Channel:               &ent.Channel{Credentials: objects.ChannelCredentials{APIKeys: keys}},
+		Channel:              &ent.Channel{Credentials: objects.ChannelCredentials{APIKeys: keys}},
 		cachedEnabledAPIKeys: keys,
 		cachedAPIKeyModels:   map[string][]string{"key-a": {"model-a"}, "key-b": {"model-b"}},
 	}
@@ -65,7 +65,7 @@ func TestTraceStickyKeyProvider_SameTraceDifferentModelsUseDifferentKeys(t *test
 
 func TestTraceStickyKeyProvider_NoMatchingKeyReturnsEmpty(t *testing.T) {
 	ch := &Channel{
-		Channel: &ent.Channel{Credentials: objects.ChannelCredentials{APIKeys: []string{"key-a", "key-b"}}},
+		Channel:              &ent.Channel{Credentials: objects.ChannelCredentials{APIKeys: []string{"key-a", "key-b"}}},
 		cachedEnabledAPIKeys: []string{"key-a", "key-b"},
 		cachedAPIKeyModels:   map[string][]string{"key-a": {"model-a"}, "key-b": {"model-b"}},
 	}
@@ -983,4 +983,95 @@ func TestCleanupExpiredDisabledAPIKeysKeepsManualDisable(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, channel.StatusDisabled, updated.Status)
 	require.Empty(t, updated.DisabledAPIKeys)
+}
+
+func TestTraceStickyKeyProvider_SwitchOnFailedKey(t *testing.T) {
+	keys := []string{"key-1", "key-2", "key-3"}
+	ch := &Channel{
+		Channel: &ent.Channel{
+			ID: 101,
+			Credentials: objects.ChannelCredentials{
+				APIKeys: keys,
+			},
+		},
+		cachedEnabledAPIKeys: keys,
+		cachedAPIKeyModels: map[string][]string{
+			"key-1": {"model-A", "model-B"},
+			"key-2": {"model-B"}, // does not support model-A
+			"key-3": {"model-A"},
+		},
+	}
+
+	provider := NewTraceStickyKeyProvider(ch)
+
+	ctx := contexts.EnsureContainer(context.Background())
+	ctx = contexts.WithTrace(ctx, &ent.Trace{TraceID: "test-trace"})
+	ctx = contexts.WithChannelRequestModel(ctx, "model-A")
+
+	// 1. Initial selection: only key-1 and key-3 support model-A.
+	firstKey := provider.Get(ctx)
+	require.Contains(t, []string{"key-1", "key-3"}, firstKey)
+
+	// Consistent sticky selection before failure
+	repeatKey := provider.Get(ctx)
+	require.Equal(t, firstKey, repeatKey)
+
+	// 2. Mark firstKey as failed in the request context
+	contexts.RecordFailedChannelAPIKey(ctx, ch.ID, firstKey)
+
+	// Next selection must switch to the remaining key supporting model-A (the other one of key-1/key-3)
+	secondKey := provider.Get(ctx)
+	expectedSecond := "key-3"
+	if firstKey == "key-3" {
+		expectedSecond = "key-1"
+	}
+	require.Equal(t, expectedSecond, secondKey)
+
+	// Consistent sticky selection for the new key
+	require.Equal(t, secondKey, provider.Get(ctx))
+
+	// 3. Mark secondKey as also failed
+	contexts.RecordFailedChannelAPIKey(ctx, ch.ID, secondKey)
+
+	// All keys supporting model-A are now exhausted (key-2 does not support model-A)
+	thirdKey := provider.Get(ctx)
+	require.Empty(t, thirdKey)
+}
+
+func TestChannel_EnabledAPIKeysForModel(t *testing.T) {
+	keys := []string{"key-1", "key-2", "key-3"}
+	ch := &Channel{
+		Channel: &ent.Channel{
+			ID: 202,
+			Credentials: objects.ChannelCredentials{
+				APIKeys: keys,
+			},
+		},
+		cachedEnabledAPIKeys: keys,
+		cachedAPIKeyModels: map[string][]string{
+			"key-1": {"model-A"},
+			"key-2": {"model-A", "model-B"},
+			"key-3": {"model-B"},
+		},
+	}
+
+	ctx := contexts.EnsureContainer(context.Background())
+
+	// For model-A, keys 1 and 2 support it
+	availA := ch.EnabledAPIKeysForModel(ctx, "model-A")
+	require.ElementsMatch(t, []string{"key-1", "key-2"}, availA)
+
+	// Exclude key-1 explicitly via argument
+	availAEx1 := ch.EnabledAPIKeysForModel(ctx, "model-A", "key-1")
+	require.ElementsMatch(t, []string{"key-2"}, availAEx1)
+
+	// Mark key-1 failed in context
+	contexts.RecordFailedChannelAPIKey(ctx, ch.ID, "key-1")
+	availAContextEx := ch.EnabledAPIKeysForModel(ctx, "model-A")
+	require.ElementsMatch(t, []string{"key-2"}, availAContextEx)
+
+	// Mark key-2 failed in context -> all exhausted
+	contexts.RecordFailedChannelAPIKey(ctx, ch.ID, "key-2")
+	availAAllFailed := ch.EnabledAPIKeysForModel(ctx, "model-A")
+	require.Empty(t, availAAllFailed)
 }
