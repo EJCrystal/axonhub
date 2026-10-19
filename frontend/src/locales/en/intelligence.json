@@ -114,5 +114,6 @@
   "intelligence.settings.dragKey": "Drag to reorder {{key}}",
   "intelligence.settings.dragHint": "Drag the handle to reorder the keys within a channel.",
   "intelligence.interval.300": "Every 5 hours",
-  "intelligence.interval.1440": "Every day"
+  "intelligence.interval.1440": "Every day",
+  "intelligence.settings.keyMissing": "The channel replaced this key; this row points at a key that no longer exists. Pick the current one."
 }
