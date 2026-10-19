@@ -27,6 +27,9 @@ type contextContainer struct {
 
 	// ChannelRequestModel stores the upstream model selected for the current channel attempt.
 	ChannelRequestModel *string
+
+	// FailedChannelAPIKeys tracks API keys that failed during the current request, mapped by channel ID.
+	FailedChannelAPIKeys map[int][]string
 }
 
 // getContainer retrieves the existing container from context, or creates a new one and stores it in the context if it doesn't exist.

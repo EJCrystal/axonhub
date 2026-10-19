@@ -62,6 +62,11 @@ type PersistenceState struct {
 	// CurrentModelIndex is the current model index in CurrentCandidate.Models
 	CurrentModelIndex int
 
+	// CurrentAPIKey is the channel API key selected for the current attempt.
+	CurrentAPIKey string
+	// FailedAPIKeys tracks API keys that failed during the current request, mapped by channel ID.
+	FailedAPIKeys map[int][]string
+
 	// Perf records channel health and latency for the current request. For stream
 	// terminals, incomplete (token limit or content filtering) counts as channel
 	// success: it must not trigger channel failure counts or auto-disable rules.

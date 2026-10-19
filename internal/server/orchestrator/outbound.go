@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -794,9 +795,19 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 	if err != nil {
 		return nil, err
 	}
+	if key, ok := contexts.GetChannelAPIKey(ctx); ok && key != "" {
+		if p.state != nil {
+			p.state.CurrentAPIKey = key
+		}
+	} else if httpRequest.Auth != nil && httpRequest.Auth.APIKey != "" {
+		if p.state != nil {
+			p.state.CurrentAPIKey = httpRequest.Auth.APIKey
+		}
+		contexts.WithChannelAPIKey(ctx, httpRequest.Auth.APIKey)
+	}
+
 	if (httpRequest.Auth == nil || strings.TrimSpace(httpRequest.Auth.APIKey) == "") &&
-		len(candidate.Channel.Credentials.GetAllAPIKeys()) > 0 &&
-		candidate.Channel.Credentials.HasExplicitAPIKeyModels() {
+		len(candidate.Channel.Credentials.GetAllAPIKeys()) > 0 {
 		return nil, fmt.Errorf("%w: no api key supports model %s", errNoAPIKeySupportsModel, entry.ActualModel)
 	}
 
@@ -976,6 +987,8 @@ func (p *PersistentOutboundTransformer) NextChannel(ctx context.Context) error {
 	// Reset request execution for the new candidate
 	p.state.RequestExec = nil
 	p.state.PassThroughApplied = false
+	p.state.CurrentAPIKey = ""
+	contexts.ClearChannelAPIKey(ctx)
 
 	candidate := p.state.ChannelModelsCandidates[p.state.CurrentCandidateIndex]
 	p.state.CurrentCandidate = candidate
@@ -997,6 +1010,43 @@ func (p *PersistentOutboundTransformer) NextChannel(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (p *PersistentOutboundTransformer) hasMoreAPIKeysForCurrentCandidate() bool {
+	if p.state == nil || p.state.CurrentCandidate == nil || p.state.CurrentCandidate.Channel == nil {
+		return false
+	}
+
+	ch := p.state.CurrentCandidate.Channel
+	currentModel := p.GetCurrentModelID()
+	currentKey := p.state.CurrentAPIKey
+	if currentKey == "" && p.state.Perf != nil {
+		currentKey = p.state.Perf.APIKey
+	}
+
+	var excluded []string
+	if currentKey != "" {
+		excluded = append(excluded, currentKey)
+	}
+	if p.state.FailedAPIKeys != nil {
+		excluded = append(excluded, p.state.FailedAPIKeys[ch.ID]...)
+	}
+
+	remaining := ch.EnabledAPIKeysForModel(context.Background(), currentModel, excluded...)
+	return len(remaining) > 0
+}
+
+func (p *PersistentOutboundTransformer) recordFailedAPIKey(ctx context.Context, channelID int, key string) {
+	if channelID == 0 || key == "" || p.state == nil {
+		return
+	}
+	if p.state.FailedAPIKeys == nil {
+		p.state.FailedAPIKeys = make(map[int][]string)
+	}
+	if !slices.Contains(p.state.FailedAPIKeys[channelID], key) {
+		p.state.FailedAPIKeys[channelID] = append(p.state.FailedAPIKeys[channelID], key)
+	}
+	contexts.RecordFailedChannelAPIKey(ctx, channelID, key)
 }
 
 // CanRetry returns true if the current channel can be retried.
@@ -1029,15 +1079,33 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 		return true
 	}
 
-	// 429 Too Many Requests: always skip same-channel retry.
+	hasMoreKeys := p.hasMoreAPIKeysForCurrentCandidate()
+	statusCode := ExtractStatusCodeFromError(err)
+	isKeyLevelError := httpclient.IsRateLimitErr(err) ||
+		statusCode == http.StatusTooManyRequests ||
+		statusCode == http.StatusUnauthorized ||
+		statusCode == http.StatusForbidden
+
+	// If there are other enabled API keys supporting this model in the current channel,
+	// allow same-channel retry so the next attempt can switch to another key.
+	if hasMoreKeys && isKeyLevelError {
+		log.Debug(context.Background(), "key-level failure detected with alternative keys available, allowing same-channel retry",
+			log.Int("channel_id", p.state.CurrentCandidate.Channel.ID),
+			log.Int("status_code", statusCode),
+		)
+
+		return true
+	}
+
+	// 429 Too Many Requests: when no other keys are available in this channel, skip same-channel retry.
 	// The upstream is explicitly rate-limiting this channel, so retrying the same
 	// channel would just burn a retry attempt without any chance of success.
 	// Instead, force a channel switch so the next candidate (e.g. a backup channel)
 	// is tried immediately. The load balancer (e.g. ErrorAware strategy) will
 	// deprioritize this channel for subsequent requests and it will naturally
 	// recover as the rate-limit window resets.
-	if httpclient.IsRateLimitErr(err) || ExtractStatusCodeFromError(err) == http.StatusTooManyRequests {
-		log.Debug(context.Background(), "429 rate limit, skipping same-channel retry to switch to next channel",
+	if httpclient.IsRateLimitErr(err) || statusCode == http.StatusTooManyRequests {
+		log.Debug(context.Background(), "429 rate limit with no more keys, skipping same-channel retry to switch to next channel",
 			log.Int("channel_id", p.state.CurrentCandidate.Channel.ID),
 		)
 
@@ -1071,16 +1139,59 @@ func (p *PersistentOutboundTransformer) PrepareForRetry(ctx context.Context) err
 
 	candidate := p.state.CurrentCandidate
 
+	// Identify the key used by the failed attempt before clearing it for the next
+	// transformation.
+	failedKey := currentRetryCredentialRef(ctx, p)
+	if failedKey == "" && p.state != nil {
+		failedKey = p.state.CurrentAPIKey
+	}
+
+	// Only exclude a failed key when this channel has another key that supports
+	// the current model. Channel-level retries such as a transient 500 must keep
+	// using the only available key.
+	currentModel := candidate.Models[p.state.CurrentModelIndex].ActualModel
+	var excluded []string
+	if candidate.Channel != nil {
+		excluded = slices.Clone(p.state.FailedAPIKeys[candidate.Channel.ID])
+	}
+	if failedKey != "" {
+		excluded = append(excluded, failedKey)
+	}
+	remainingKeys := candidate.Channel.EnabledAPIKeysForModel(ctx, currentModel, excluded...)
+	hasAlternativeKey := failedKey != "" && len(remainingKeys) > 0
+	if hasAlternativeKey && candidate.Channel != nil {
+		p.recordFailedAPIKey(ctx, candidate.Channel.ID, failedKey)
+	}
+
 	// Reset request execution for the same channel.
 	p.state.RequestExec = nil
 	p.state.PassThroughApplied = false
 	p.state.CleanEOFCompletionEvidence = false
 	p.state.StreamCompleted = false
 	p.state.OutboundStreamTerminal = streamTerminalNone
+	p.state.CurrentAPIKey = ""
+	contexts.ClearChannelAPIKey(ctx)
 
 	// Cancel any in-flight pass-through stream goroutine from the previous attempt
 	// so it exits promptly and releases its upstream HTTP connection.
 	p.resetPassThroughStreamState()
+
+	if hasAlternativeKey {
+		// Stay on the current model and let the key provider select the next available key.
+		p.trackCurrentChannelSelection()
+
+		if log.DebugEnabled(ctx) {
+			log.Debug(ctx, "prepared same channel retry for next API key on same model",
+				log.Any("channel", candidate.Channel.Name),
+				log.Any("model", currentModel),
+				log.Int("remaining_keys", len(remainingKeys)),
+				log.Int("current_candidate_index", p.state.CurrentCandidateIndex),
+				log.Int("current_entry_index", p.state.CurrentModelIndex),
+			)
+		}
+
+		return nil
+	}
 
 	// If there's another model in the list, advance to it.
 	if p.state.CurrentModelIndex+1 < len(candidate.Models) {
