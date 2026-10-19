@@ -294,8 +294,14 @@ test('channel columns have minimum widths and are not hidden by responsive displ
     const idIndex = columnsSource.indexOf("id: '" + columnId + "'");
     const keyIndex = idIndex === -1 ? columnsSource.indexOf("accessorKey: '" + columnId + "'") : idIndex;
     assert.notEqual(keyIndex, -1, columnId + ' column should exist');
+    const columnEnd = columnsSource.indexOf('\n    },', keyIndex);
+    assert.notEqual(columnEnd, -1, columnId + ' column boundary should be found');
     const metaIndex = columnsSource.indexOf('meta: {', keyIndex);
+    assert.notEqual(metaIndex, -1, columnId + ' column should define meta');
+    assert.ok(metaIndex < columnEnd, columnId + ' meta should belong to the column');
     const classNameIndex = columnsSource.indexOf('className:', metaIndex);
+    assert.notEqual(classNameIndex, -1, columnId + ' column should define meta.className');
+    assert.ok(classNameIndex < columnEnd, columnId + ' className should belong to the column');
     const end = columnsSource.indexOf('\n', classNameIndex);
     return columnsSource.slice(classNameIndex, end);
   };
@@ -339,4 +345,13 @@ test('column headers truncate gracefully and the sort icon yields first', () => 
   assert.ok(iconWrapper, 'sort icon should be wrapped so it can shrink independently');
   assert.match(iconWrapper[0], /shrink-\[[0-9]+\]/, 'sort icon wrapper must shrink before the label does');
   assert.doesNotMatch(headerSource, /h-4 w-4 shrink-0/, 'a shrink-0 icon would starve the label at narrow widths');
+});
+
+test('supported models cell bounds badge container width to prevent horizontal stretching', () => {
+  const columnsSource = read('features/channels/components/channels-columns.tsx');
+  assert.match(
+    columnsSource,
+    /max-w-(?:72|80|xs|sm)[^']*flex-wrap/,
+    'supported models badge container must have a max-width wrapper so badges wrap instead of stretching the table'
+  );
 });
