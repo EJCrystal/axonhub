@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { IconGripVertical, IconPlayerPlay, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconGripVertical, IconPlayerPlay, IconPlus, IconTrash } from '@tabler/icons-react';
 import { toString as describeCron } from 'cronstrue/i18n';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -432,6 +432,7 @@ export function IntelligenceSettings({ config, loading, readOnly, canRun }: Prop
                       isSavedRow={isRowSaved}
                       modelsFor={modelsFor}
                       freeKeysFor={freeKeysFor}
+                      channelKeysFor={keysFor}
                       onUpdate={updateTarget}
                       onRemoveRow={removeTargetRow}
                       onRemoveGroup={() => removeGroup(group)}
@@ -486,6 +487,8 @@ interface ChannelCardProps {
   isSavedRow: (index: number) => boolean;
   modelsFor: (channelID: string, apiKey: string) => string[];
   freeKeysFor: (channelID: string, skipIndex: number) => string[];
+  // Every key the channel holds, so a row can tell that its own key is gone.
+  channelKeysFor: (channelID: string) => string[];
   onUpdate: (index: number, patch: Partial<DraftTarget>) => void;
   onRemoveRow: (index: number) => void;
   onRemoveGroup: () => void;
@@ -536,6 +539,7 @@ function ChannelTargetCard({
   isSavedRow,
   modelsFor,
   freeKeysFor,
+  channelKeysFor,
   onUpdate,
   onRemoveRow,
   onRemoveGroup,
@@ -622,6 +626,7 @@ function ChannelTargetCard({
                       canRun={canRun}
                       runPending={runPending}
                       saved={isSavedRow(index)}
+                      channelKeys={channelKeysFor(target.channelID)}
                       keys={(() => {
                         const keys = freeKeysFor(target.channelID, index);
                         // Keep the row's own key selectable even when it is the
@@ -658,6 +663,9 @@ interface SortableRowProps {
   canRun: boolean;
   runPending: boolean;
   saved: boolean;
+  // The keys the channel currently holds. A target whose own key is absent from
+  // this list pins a credential the channel no longer has.
+  channelKeys: string[];
   keys: string[];
   models: string[];
   modelsFor: (channelID: string, apiKey: string) => string[];
@@ -680,6 +688,7 @@ function SortableTargetRow({
   canRun,
   runPending,
   saved,
+  channelKeys,
   keys,
   models,
   modelsFor,
@@ -692,6 +701,10 @@ function SortableTargetRow({
     id,
     disabled: readOnly,
   });
+
+  // A key the channel no longer holds cannot be exercised: the run fails to load
+  // the channel credential, so surface it on the row rather than at run time.
+  const keyMissing = Boolean(target.apiKey) && channelKeys.length > 0 && !channelKeys.includes(target.apiKey);
 
   return (
     <div
@@ -713,24 +726,43 @@ function SortableTargetRow({
         <IconGripVertical size={16} />
       </button>
 
-      <Select
-        value={target.apiKey}
-        onValueChange={(value) => onUpdate(index, { apiKey: value, modelID: modelsFor(target.channelID, value)[0] ?? '' })}
-        disabled={readOnly || keys.length === 0}
-      >
-        <KeyRemarkTooltip className='block min-w-0' content={apiKeyRemark(credentials, target.apiKey)}>
-          <SelectTrigger className='h-8 w-full' data-testid='intelligence-target-key'>
-            <SelectValue placeholder={t('intelligence.settings.keyPlaceholder')} />
-          </SelectTrigger>
-        </KeyRemarkTooltip>
-        <SelectContent>
-          {keys.map((key) => (
-            <SelectItem key={key} value={key}>
-              <span className='font-mono text-xs'>{maskAPIKey(key)}</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* A target stores the exact key it exercises, so replacing the key on the
+          channel leaves this row pointing at a credential that no longer exists
+          and the check fails to build the channel. Naming the mismatch here is
+          what turns that failure into something the reader can fix. */}
+      <div className='flex min-w-0 items-center gap-1'>
+        <Select
+          value={target.apiKey}
+          onValueChange={(value) => onUpdate(index, { apiKey: value, modelID: modelsFor(target.channelID, value)[0] ?? '' })}
+          disabled={readOnly || keys.length === 0}
+        >
+          <KeyRemarkTooltip className='block min-w-0 flex-1' content={apiKeyRemark(credentials, target.apiKey)}>
+            <SelectTrigger
+              className='h-8 w-full'
+              data-testid='intelligence-target-key'
+              aria-invalid={keyMissing || undefined}
+              title={keyMissing ? t('intelligence.settings.keyMissing') : undefined}
+            >
+              <SelectValue placeholder={t('intelligence.settings.keyPlaceholder')} />
+            </SelectTrigger>
+          </KeyRemarkTooltip>
+          <SelectContent>
+            {keys.map((key) => (
+              <SelectItem key={key} value={key}>
+                <span className='font-mono text-xs'>{maskAPIKey(key)}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {keyMissing && (
+          <IconAlertTriangle
+            size={16}
+            className='text-destructive shrink-0'
+            aria-label={t('intelligence.settings.keyMissing')}
+            data-testid='intelligence-target-key-missing'
+          />
+        )}
+      </div>
 
       <Select
         value={target.modelID}

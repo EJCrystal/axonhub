@@ -177,6 +177,10 @@ type ChannelService struct {
 	// its provider identity. Optional for direct service construction in tests.
 	providerQuotaInvalidator ChannelProviderQuotaInvalidator
 
+	// apiKeyRotator keeps per-channel key consumers aligned when a credential is
+	// replaced in place. Optional for direct service construction in tests.
+	apiKeyRotator ChannelAPIKeyRotator
+
 	// perfWindowSeconds is the configurable sliding window size for performance metrics (in seconds)
 	// If not set (0), uses defaultPerformanceWindowSize (600 seconds = 10 minutes)
 	perfWindowSeconds int64
@@ -1101,6 +1105,9 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 
 	var updated *ent.Channel
 	providerIdentityChanged := false
+	// rotations maps each credential this update replaced to its successor, so
+	// the per-key stores can follow the swap after commit.
+	var rotations map[string]string
 	clearStaleQuotaSettings := input.Settings == nil && input.Type != nil &&
 		!isCommandCodeChannelType(*input.Type)
 	err = svc.RunInTransaction(ctx, func(ctx context.Context) error {
@@ -1160,6 +1167,9 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 			if err != nil {
 				return fmt.Errorf("failed to load existing channel credentials: %w", err)
 			}
+			// A key replaced in place is still referenced by name elsewhere, so
+			// record the swap now and let it propagate once the new set is stored.
+			rotations = rotatedAPIKeys(existing.Credentials.GetAllAPIKeys(), credentials.GetAllAPIKeys())
 			effectiveType := existing.Type
 			if input.Type != nil {
 				effectiveType = *input.Type
@@ -1223,6 +1233,15 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 	if providerIdentityChanged || quotaCookieCleared {
 		runAfterCommit(ctx, func(ctx context.Context) {
 			svc.invalidateProviderQuota(ctx, id)
+		})
+	}
+
+	// The stored key set is committed here, so anything that pinned an old key can
+	// move to the new one. This runs after commit because those stores read the
+	// configuration back through their own queries.
+	if len(rotations) > 0 {
+		runAfterCommit(ctx, func(ctx context.Context) {
+			svc.rotateAPIKeys(ctx, id, rotations)
 		})
 	}
 

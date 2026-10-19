@@ -18,6 +18,8 @@ import (
 	"github.com/looplj/axonhub/internal/ent/enttest"
 	"github.com/looplj/axonhub/internal/ent/intelligencerun"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/xcache"
+	"github.com/looplj/axonhub/internal/server/biz"
 )
 
 func TestDefaultIntelligenceConfig(t *testing.T) {
@@ -844,4 +846,98 @@ func TestScheduledRunSurvivesMissingEntClient(t *testing.T) {
 	require.NotPanics(t, func() {
 		_, _ = ent.FromContext(attached).DataStorage.Get(attached, 1)
 	})
+}
+
+// TestRotateAPIKeysFollowsReplacedChannelKey covers the mismatch that happens
+// when a channel swaps a credential: the target pins the old key by name, so
+// the check can no longer build the channel. The rotation must move the target
+// onto the new key and leave the rest of its settings alone.
+func TestRotateAPIKeysFollowsReplacedChannelKey(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:rotate-keys?mode=memory&_fk=1")
+	defer client.Close()
+
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	sysSvc := biz.NewSystemService(biz.SystemServiceParams{
+		CacheConfig: xcache.Config{Mode: xcache.ModeMemory},
+		Ent:         client,
+	})
+	service := &IntelligenceService{ent: client, systemService: sysSvc}
+
+	require.NoError(t, service.SetIntelligenceConfig(ctx, &objects.IntelligenceConfig{
+		Enabled:        true,
+		CronExpression: "0 */5 * * *",
+		Targets: []objects.IntelligenceTarget{
+			{ChannelID: 7, APIKey: "sk-old", ModelID: "gpt-6.1-sol", ReasoningEffort: "medium", TimeoutMinutes: 15, Benchmark: IntelligenceBenchmarkCandy},
+			{ChannelID: 7, APIKey: "sk-kept", ModelID: "gpt-6-astra"},
+			{ChannelID: 9, APIKey: "sk-old", ModelID: "other"},
+		},
+	}))
+
+	service.RotateAPIKeys(ctx, 7, map[string]string{"sk-old": "sk-new"})
+
+	config, err := service.IntelligenceConfig(ctx)
+	require.NoError(t, err)
+	require.Len(t, config.Targets, 3)
+
+	rotated := config.Targets[0]
+	require.Equal(t, "sk-new", rotated.APIKey)
+	require.Equal(t, "gpt-6.1-sol", rotated.ModelID, "the model stays with the row")
+	require.Equal(t, "medium", rotated.ReasoningEffort)
+	require.Equal(t, 15, rotated.TimeoutMinutes)
+	require.Equal(t, IntelligenceBenchmarkCandy, rotated.Benchmark)
+
+	require.Equal(t, "sk-kept", config.Targets[1].APIKey, "an untouched key is left alone")
+	require.Equal(t, "sk-old", config.Targets[2].APIKey, "another channel's identical key is not rotated")
+	require.NotNil(t, NextIntelligenceExecutionAt(config, time.Now()), "the schedule survives a rotation")
+}
+
+// TestRotateAPIKeysDropsDuplicateTargets covers a rotation that makes two rows
+// name the same key. The save path rejects duplicates, and failing the channel
+// update over a redundant row would be worse than dropping it.
+func TestRotateAPIKeysDropsDuplicateTargets(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:rotate-dup?mode=memory&_fk=1")
+	defer client.Close()
+
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	sysSvc := biz.NewSystemService(biz.SystemServiceParams{
+		CacheConfig: xcache.Config{Mode: xcache.ModeMemory},
+		Ent:         client,
+	})
+	service := &IntelligenceService{ent: client, systemService: sysSvc}
+
+	require.NoError(t, service.SetIntelligenceConfig(ctx, &objects.IntelligenceConfig{
+		CronExpression: "0 */5 * * *",
+		Targets: []objects.IntelligenceTarget{
+			{ChannelID: 7, APIKey: "sk-old", ModelID: "m"},
+			{ChannelID: 7, APIKey: "sk-new", ModelID: "m"},
+		},
+	}))
+
+	service.RotateAPIKeys(ctx, 7, map[string]string{"sk-old": "sk-new"})
+
+	config, err := service.IntelligenceConfig(ctx)
+	require.NoError(t, err)
+	require.Len(t, config.Targets, 1)
+	require.Equal(t, "sk-new", config.Targets[0].APIKey)
+}
+
+// TestRotateAPIKeysWithoutStoredConfigIsaNoop keeps a channel edit working when
+// the intelligence check was never configured.
+func TestRotateAPIKeysWithoutStoredConfigIsNoop(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:rotate-empty?mode=memory&_fk=1")
+	defer client.Close()
+
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	sysSvc := biz.NewSystemService(biz.SystemServiceParams{
+		CacheConfig: xcache.Config{Mode: xcache.ModeMemory},
+		Ent:         client,
+	})
+	service := &IntelligenceService{ent: client, systemService: sysSvc}
+
+	require.NotPanics(t, func() {
+		service.RotateAPIKeys(ctx, 7, map[string]string{"sk-old": "sk-new"})
+	})
+
+	_, err := sysSvc.SystemValue(ctx, IntelligenceConfigKey)
+	require.True(t, ent.IsNotFound(err), "a rotation must not create a configuration")
 }
