@@ -298,6 +298,13 @@ func (s *IntelligenceService) RegisterScheduledTasks(ctx context.Context, sched 
 		log.Warn(ctx, "intelligence check: failed to close interrupted runs", log.Cause(err))
 	}
 
+	// A channel can disappear before this process started, or be removed outside
+	// the channel service. Drop the targets and history that still point at it so
+	// the admin console never renders a bare channel ID.
+	if err := s.pruneDeletedChannelState(ctx); err != nil {
+		log.Warn(ctx, "intelligence check: failed to prune deleted channels", log.Cause(err))
+	}
+
 	config, err := s.IntelligenceConfig(ctx)
 	if err != nil {
 		log.Warn(ctx, "intelligence check: falling back to the default cron", log.Cause(err))
@@ -317,8 +324,6 @@ func (s *IntelligenceService) RegisterScheduledTasks(ctx context.Context, sched 
 
 	return nil
 }
-
-
 
 // startConfigWatcher runs syncIntelligenceCron on a ticker until the service
 // stops. Starting twice replaces nothing: the previous loop is left alone and
@@ -380,7 +385,6 @@ func (s *IntelligenceService) watchIntelligenceConfig(ctx context.Context) {
 		}
 	}
 }
-
 
 // intelligenceConfigExact reads the stored configuration without substituting a
 // default. It answers (nil, nil) when nothing is stored or the stored value does
@@ -609,7 +613,6 @@ func (s *IntelligenceService) reschedule(ctx context.Context, cronExpression str
 		log.Warn(ctx, "intelligence check: failed to reschedule task", log.Cause(err))
 	}
 }
-
 
 // intelligenceChannel loads the channel a run evaluates, forcing the given key
 // when one was configured for the target.
@@ -901,7 +904,6 @@ func (s *IntelligenceService) runOneChannel(ctx context.Context, target objects.
 
 	return nil
 }
-
 
 // firstEvaluatedKey names the credential a result set was produced with. The key
 // is only used to build the channel, so the first one is enough and an empty

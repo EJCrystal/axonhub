@@ -183,6 +183,10 @@ type ChannelService struct {
 	// replaced in place. Optional for direct service construction in tests.
 	apiKeyRotator ChannelAPIKeyRotator
 
+	// deletionHook removes per-channel state owned by other services when a
+	// channel is deleted. Optional for direct service construction in tests.
+	deletionHook ChannelDeletionHook
+
 	// perfWindowSeconds is the configurable sliding window size for performance metrics (in seconds)
 	// If not set (0), uses defaultPerformanceWindowSize (600 seconds = 10 minutes)
 	perfWindowSeconds int64
@@ -1328,8 +1332,18 @@ func (svc *ChannelService) SaveChannelEndpoints(ctx context.Context, input SaveC
 
 // DeleteChannel deletes a channel by ID.
 func (svc *ChannelService) DeleteChannel(ctx context.Context, id int) error {
-	if err := svc.entFromContext(ctx).Channel.DeleteOneID(id).Exec(ctx); err != nil {
-		return fmt.Errorf("failed to delete channel: %w", err)
+	if err := svc.RunInTransaction(ctx, func(txCtx context.Context) error {
+		if err := svc.entFromContext(txCtx).Channel.DeleteOneID(id).Exec(txCtx); err != nil {
+			return fmt.Errorf("failed to delete channel: %w", err)
+		}
+
+		if err := svc.notifyChannelsDeleted(txCtx, []int{id}); err != nil {
+			return fmt.Errorf("failed to clean up deleted channel state: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	svc.forgetLimiter(id)
