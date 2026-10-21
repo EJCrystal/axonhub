@@ -23,6 +23,7 @@ import {
   IconGauge,
   IconHistory,
   IconPlugConnected,
+  IconClock,
   IconClockPlay,
 } from '@tabler/icons-react';
 import { Google } from '@lobehub/icons';
@@ -120,12 +121,14 @@ const clampWeight = (value: number) => formatWeight(Math.min(MAX_WEIGHT, Math.ma
 
 // Status Switch Cell Component to handle status toggle with confirmation dialog
 const StatusSwitchCell = memo(({ row }: { row: Row<Channel> }) => {
+  const { t } = useTranslation();
   const channel = row.original;
   const [dialogOpen, setDialogOpen] = useState(false);
   const { channelPermissions } = usePermissions();
 
   const isEnabled = channel.status === 'enabled';
   const isArchived = channel.status === 'archived';
+  const outsideWorkTime = isEnabled && channel.workTimeActive === false;
 
   const handleSwitchClick = useCallback(() => {
     if (!isArchived) {
@@ -134,12 +137,26 @@ const StatusSwitchCell = memo(({ row }: { row: Row<Channel> }) => {
   }, [isArchived]);
 
   if (!channelPermissions.canWrite) {
-    return <Badge variant='outline'>{channel.status}</Badge>;
+    return (
+      <div className='flex flex-col items-center gap-1'>
+        <Badge variant='outline'>{channel.status}</Badge>
+        {outsideWorkTime && (
+          <Badge variant='outline' className='text-amber-600'>
+            {t('channels.dialogs.workTime.status.closedShort')}
+          </Badge>
+        )}
+      </div>
+    );
   }
 
   return (
-    <div className='flex justify-center'>
+    <div className='flex flex-col items-center gap-1'>
       <Switch checked={isEnabled} onCheckedChange={handleSwitchClick} disabled={isArchived} data-testid='channel-status-switch' />
+      {outsideWorkTime && (
+        <Badge variant='outline' className='text-amber-600'>
+          {t('channels.dialogs.workTime.status.closedShort')}
+        </Badge>
+      )}
       {dialogOpen && <ChannelsStatusDialog open={dialogOpen} onOpenChange={setDialogOpen} currentRow={channel} />}
     </div>
   );
@@ -289,6 +306,20 @@ const ActionCell = memo(({ row }: { row: Row<Channel> }) => {
             >
               <IconKey size={16} className='mr-2' />
               {t('channels.actions.keyManagement')}
+            </DropdownMenuItem>
+          )}
+          {channelPermissions.canWrite && (
+            <DropdownMenuItem
+              onClick={() => {
+                setCurrentRow(channel);
+                setOpen('workTime');
+              }}
+            >
+              <IconClock size={16} className='mr-2' />
+              {t('channels.dialogs.workTime.action')}
+              {channel.workTimeActive === false && (
+                <span className='ml-auto text-xs text-amber-600'>{t('channels.dialogs.workTime.status.closedShort')}</span>
+              )}
             </DropdownMenuItem>
           )}
           {channelPermissions.canWrite && (

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"entgo.io/contrib/entgql"
 	"github.com/looplj/axonhub/internal/authz"
@@ -126,6 +127,34 @@ func (r *channelResolver) DisabledAPIKeys(ctx context.Context, obj *ent.Channel)
 	}
 
 	return lo.ToSlicePtr(obj.DisabledAPIKeys), nil
+}
+
+// APIKeyWorkTimes is the resolver for the apiKeyWorkTimes field.
+func (r *channelResolver) APIKeyWorkTimes(ctx context.Context, obj *ent.Channel) ([]*objects.APIKeyWorkTime, error) {
+	if !scopes.UserHasScope(ctx, scopes.ScopeWriteChannels) {
+		return nil, nil
+	}
+
+	if obj == nil || len(obj.APIKeyWorkTimes) == 0 {
+		return []*objects.APIKeyWorkTime{}, nil
+	}
+
+	return lo.ToSlicePtr(obj.APIKeyWorkTimes), nil
+}
+
+// WorkTimeActive is the resolver for the workTimeActive field.
+func (r *channelResolver) WorkTimeActive(ctx context.Context, obj *ent.Channel) (bool, error) {
+	return r.channelService.ChannelAvailableAt(ctx, obj, time.Now()), nil
+}
+
+// NextWorkTimeStart is the resolver for the nextWorkTimeStart field.
+func (r *channelResolver) NextWorkTimeStart(ctx context.Context, obj *ent.Channel) (*time.Time, error) {
+	next, ok := r.channelService.ChannelNextWorkTimeStart(ctx, obj, time.Now())
+	if !ok {
+		return nil, nil
+	}
+
+	return &next, nil
 }
 
 // LiveLimiterStats is the resolver for the liveLimiterStats field.
@@ -568,6 +597,15 @@ func (r *mutationResolver) DisableChannelAPIKey(ctx context.Context, channelID o
 func (r *mutationResolver) EnableChannelAPIKey(ctx context.Context, channelID objects.GUID, key string) (bool, error) {
 	if err := r.channelService.EnableAPIKey(ctx, channelID.ID, key); err != nil {
 		return false, fmt.Errorf("failed to enable channel API key: %w", err)
+	}
+
+	return true, nil
+}
+
+// UpdateChannelAPIKeyWorkTime is the resolver for the updateChannelAPIKeyWorkTime field.
+func (r *mutationResolver) UpdateChannelAPIKeyWorkTime(ctx context.Context, channelID objects.GUID, key string, workTime *objects.WorkTimeSchedule) (bool, error) {
+	if err := r.channelService.SetChannelAPIKeyWorkTime(ctx, channelID.ID, key, workTime); err != nil {
+		return false, fmt.Errorf("failed to update channel API key work time: %w", err)
 	}
 
 	return true, nil

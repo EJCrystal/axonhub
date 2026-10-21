@@ -344,6 +344,26 @@ export const channelProviderQuotaSettingsSchema = z.object({
 });
 export type ChannelProviderQuotaSettings = z.infer<typeof channelProviderQuotaSettingsSchema>;
 
+// Work Time
+export const workTimeWindowSchema = z.object({
+  days: z.array(z.number().int().min(1).max(7)),
+  start: z.string(),
+  end: z.string(),
+});
+export type WorkTimeWindow = z.infer<typeof workTimeWindowSchema>;
+
+export const workTimeScheduleSchema = z.object({
+  timezone: z.string().optional().nullable(),
+  windows: z.array(workTimeWindowSchema),
+});
+export type WorkTimeSchedule = z.infer<typeof workTimeScheduleSchema>;
+
+export const apiKeyWorkTimeSchema = z.object({
+  key: z.string(),
+  workTime: workTimeScheduleSchema.optional().nullable(),
+});
+export type APIKeyWorkTime = z.infer<typeof apiKeyWorkTimeSchema>;
+
 // Channel Settings
 export const channelSettingsSchema = z.object({
   extraModelPrefix: z.string().optional(),
@@ -364,6 +384,7 @@ export const channelSettingsSchema = z.object({
   modelProtocols: z.array(modelProtocolSchema).optional().nullable(),
   providerQuota: channelProviderQuotaSettingsSchema.optional().nullable(),
   quotaRoutingMode: z.enum(['INHERIT', 'IGNORE_QUOTA', 'REMOVE_ON_EXHAUSTED', 'BACKPRESSURE']).optional(),
+  workTime: workTimeScheduleSchema.optional().nullable(),
 });
 
 export type ChannelSettings = z.infer<typeof channelSettingsSchema>;
@@ -477,6 +498,9 @@ export const channelSchema = z.object({
   credentials: channelCredentialsSchema.optional().nullable(),
   providerQuotaStatus: providerQuotaStatusSchema.optional().nullable(),
   disabledAPIKeys: z.array(disabledAPIKeySchema).optional().nullable(),
+  apiKeyWorkTimes: z.array(apiKeyWorkTimeSchema).optional().nullable(),
+  workTimeActive: z.boolean().optional(),
+  nextWorkTimeStart: z.string().optional().nullable(),
   supportedModels: z.array(z.string()).default([]),
   autoSyncSupportedModels: z.boolean().default(false),
   autoSyncModelPattern: z.string().optional().default(''),

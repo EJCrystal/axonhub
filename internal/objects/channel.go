@@ -253,6 +253,10 @@ type ChannelSettings struct {
 	ProviderQuota *ChannelProviderQuotaSettings `json:"providerQuota,omitempty"`
 
 	QuotaRoutingMode QuotaRoutingMode `json:"quotaRoutingMode,omitempty"`
+
+	// WorkTime restricts when this channel can serve requests. Nil or an empty
+	// schedule means the channel is always available.
+	WorkTime *WorkTimeSchedule `json:"workTime,omitempty"`
 }
 
 // ChannelProviderQuotaSettings groups per-provider quota collection settings.
@@ -339,6 +343,14 @@ func (dk DisabledAPIKey) IsExpired() bool {
 type APIKeyModels struct {
 	APIKey string   `json:"apiKey"`
 	Models []string `json:"models,omitempty"`
+}
+
+// APIKeyWorkTime binds a work-time schedule to one credential reference. The
+// reference is the same identity DisabledAPIKey uses: the API key itself, or
+// the OAuth sentinel for OAuth channels.
+type APIKeyWorkTime struct {
+	Key      string            `json:"key"`
+	WorkTime *WorkTimeSchedule `json:"workTime,omitempty"`
 }
 
 type ChannelCredentials struct {

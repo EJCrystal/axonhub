@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"time"
 
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
@@ -16,6 +17,12 @@ import (
 // the pipeline switches to the next candidate instead, or ends the request when
 // there is none.
 var errChannelUnavailableForRetry = errors.New("current channel is no longer available for retry")
+
+// errChannelOutsideWorkTime tells the pipeline that the current candidate cannot
+// serve traffic because its work-time window closed. Retrying the same channel
+// cannot help, so the pipeline switches to the next candidate or ends the
+// request.
+var errChannelOutsideWorkTime = errors.New("channel is outside its configured work time")
 
 // refreshChannelBeforeRetry re-reads the channel state from the database before a
 // same-channel retry.
@@ -57,6 +64,10 @@ func (p *PersistentOutboundTransformer) refreshChannelBeforeRetry(ctx context.Co
 	candidate := p.state.CurrentCandidate
 	if candidate == nil || candidate.Channel == nil || p.state.ChannelService == nil {
 		return nil
+	}
+
+	if !candidate.Channel.AvailableAt(ctx, time.Now()) {
+		return errChannelOutsideWorkTime
 	}
 
 	// Only a channel that was in service when this candidate was selected can

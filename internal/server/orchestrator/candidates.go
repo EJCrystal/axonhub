@@ -153,6 +153,8 @@ func (s *DefaultSelector) selectChannelCadidates(ctx context.Context, req *llm.R
 		})
 	}
 
+	candidates = filterCandidatesByWorkTime(ctx, candidates, time.Now())
+
 	if log.DebugEnabled(ctx) {
 		log.Debug(ctx, "selected channel candidates for model",
 			log.String("model", req.Model),

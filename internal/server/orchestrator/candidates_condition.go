@@ -32,7 +32,7 @@ func filterResolvedCandidatesForRequest(
 		candidates := aggregateChannelModelCandidates(resolvedCandidates)
 		candidates = populateAPIFormat(ctx, candidates, req)
 
-		return candidates
+		return filterCandidatesByWorkTime(ctx, candidates, time.Now())
 	}
 
 	promptTokens := estimatePromptTokens(req)
@@ -67,7 +67,7 @@ func filterResolvedCandidatesForRequest(
 
 	candidates = populateAPIFormat(ctx, candidates, req)
 
-	return candidates
+	return filterCandidatesByWorkTime(ctx, candidates, time.Now())
 }
 
 func populateAPIFormat(ctx context.Context, candidates []*ChannelModelsCandidate, req *llm.Request) []*ChannelModelsCandidate {
@@ -382,4 +382,31 @@ func estimateTokensPtr(value *string) int {
 	}
 
 	return estimateTokens(*value)
+}
+
+// filterCandidatesByWorkTime drops channels whose channel-level or per-key
+// work-time window is closed at now. The check runs per request even when the
+// candidate list comes from the association cache, so a cached snapshot cannot
+// keep serving a channel after its window ends.
+func filterCandidatesByWorkTime(ctx context.Context, candidates []*ChannelModelsCandidate, now time.Time) []*ChannelModelsCandidate {
+	filtered := make([]*ChannelModelsCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate == nil || candidate.Channel == nil {
+			continue
+		}
+		if !candidate.Channel.AvailableAt(ctx, now) {
+			continue
+		}
+
+		filtered = append(filtered, candidate)
+	}
+
+	if len(filtered) != len(candidates) && log.DebugEnabled(ctx) {
+		log.Debug(ctx, "filtered candidates outside work time",
+			log.Int("before", len(candidates)),
+			log.Int("after", len(filtered)),
+		)
+	}
+
+	return filtered
 }

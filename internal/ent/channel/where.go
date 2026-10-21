@@ -430,6 +430,16 @@ func DisabledAPIKeysNotNil() predicate.Channel {
 	return predicate.Channel(sql.FieldNotNull(FieldDisabledAPIKeys))
 }
 
+// APIKeyWorkTimesIsNil applies the IsNil predicate on the "api_key_work_times" field.
+func APIKeyWorkTimesIsNil() predicate.Channel {
+	return predicate.Channel(sql.FieldIsNull(FieldAPIKeyWorkTimes))
+}
+
+// APIKeyWorkTimesNotNil applies the NotNil predicate on the "api_key_work_times" field.
+func APIKeyWorkTimesNotNil() predicate.Channel {
+	return predicate.Channel(sql.FieldNotNull(FieldAPIKeyWorkTimes))
+}
+
 // ManualModelsIsNil applies the IsNil predicate on the "manual_models" field.
 func ManualModelsIsNil() predicate.Channel {
 	return predicate.Channel(sql.FieldIsNull(FieldManualModels))
