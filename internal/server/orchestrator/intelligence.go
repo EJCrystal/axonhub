@@ -71,6 +71,14 @@ const (
 	// fits comfortably while still leaving room for a complete document.
 	intelligenceGenerateMaxTokens = 8192
 
+	// intelligenceGenerateReasoningMaxTokens is the ceiling used when a reasoning
+	// model spends the default budget on hidden reasoning and stops with
+	// finish_reason=length before writing any visible content. A high-effort
+	// model can consume tens of thousands of tokens before the first visible
+	// character, so the retry needs a much larger budget while keeping the
+	// configured reasoning effort unchanged.
+	intelligenceGenerateReasoningMaxTokens = 65536
+
 	// intelligencePollInterval follows the service guidance of polling every
 	// 2-5 seconds until the task reaches a terminal state.
 	intelligencePollInterval = 3 * time.Second
@@ -629,6 +637,21 @@ func htmlForResult(html string) *string {
 	return lo.ToPtr(html)
 }
 
+// nextIntelligenceGenerationBudget reports whether a generation failure is a
+// reasoning model that exhausted its completion budget before writing visible
+// content. Only that case gets the larger ceiling, and only once.
+func nextIntelligenceGenerationBudget(current int64, err error, responsesWebSocket bool) (int64, bool) {
+	if responsesWebSocket || !errors.Is(err, errReasoningBudgetExhausted) {
+		return current, false
+	}
+
+	if current >= intelligenceGenerateReasoningMaxTokens {
+		return current, false
+	}
+
+	return intelligenceGenerateReasoningMaxTokens, true
+}
+
 // generateIntelligenceHTML asks the tested model to produce the pelican HTML
 // through the channel pipeline, forcing the supplied API key.
 func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
@@ -678,6 +701,7 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 	useStream := true
 	responsesWebSocket := usesResponsesWebSocket(channel)
 
+	maxCompletionTokens := int64(intelligenceGenerateMaxTokens)
 	var lastErr error
 	for attempt := 1; attempt <= intelligenceGenerateAttempts; attempt++ {
 		// Do not pass responsesWebSocket=true to buildChannelTestRequest here.
@@ -687,7 +711,7 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 		if responsesWebSocket {
 			llmRequest.Stream = lo.ToPtr(true)
 		} else {
-			llmRequest.MaxCompletionTokens = lo.ToPtr(int64(intelligenceGenerateMaxTokens))
+			llmRequest.MaxCompletionTokens = lo.ToPtr(maxCompletionTokens)
 		}
 
 		// The configured thinking level wins over whatever the model name or the
@@ -706,6 +730,19 @@ func (processor *TestChannelOrchestrator) generateIntelligenceHTML(
 			return html, nil
 		}
 		lastErr = err
+
+		if next, retry := nextIntelligenceGenerationBudget(maxCompletionTokens, err, responsesWebSocket); retry {
+			maxCompletionTokens = next
+			log.Warn(ctx, "intelligence check: reasoning exhausted the completion budget, retrying with a larger budget",
+				log.Int("channel_id", channel.ID),
+				log.String("model", model),
+				log.Int64("max_completion_tokens", maxCompletionTokens),
+			)
+
+			// This is deterministic, not a transient cut, so retry immediately
+			// instead of waiting for the transport backoff.
+			continue
+		}
 
 		// Only a transient cut is worth another try. A deadline the run spent on
 		// its own is not, and neither is a rejected request, which would fail the
@@ -762,6 +799,9 @@ func (processor *TestChannelOrchestrator) runIntelligenceGeneration(
 			return "", err
 		}
 		if !streamResult.Success {
+			if strings.EqualFold(streamResult.FinishReason, "length") && strings.TrimSpace(lo.FromPtr(streamResult.Message)) == "" {
+				return "", errReasoningBudgetExhausted
+			}
 			return "", fmt.Errorf("%s", lo.FromPtr(streamResult.Error))
 		}
 

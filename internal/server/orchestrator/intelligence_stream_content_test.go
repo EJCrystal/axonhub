@@ -110,3 +110,40 @@ func TestHandleStreamResponseTreatsWhitespaceAsEmpty(t *testing.T) {
 	require.NotNil(t, result)
 	require.False(t, result.Success, "whitespace is not an answer")
 }
+
+// A reasoning model can consume the whole completion budget before writing any
+// visible content. That is not an empty response: it has to be reported as a
+// budget exhaustion so the intelligence check can retry with a larger ceiling.
+func TestHandleStreamResponseReportsReasoningBudgetExhaustion(t *testing.T) {
+	processor := &TestChannelOrchestrator{}
+
+	stream := &failingStream{
+		items: []*httpclient.StreamEvent{
+			{Data: []byte(`{"choices":[{"delta":{"reasoning_content":"thinking"}}]}`)},
+			{Data: []byte(`{"choices":[{"delta":{},"finish_reason":"length"}]}`)},
+		},
+	}
+
+	result, err := processor.handleStreamResponse(context.Background(), stream, time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.False(t, result.Success)
+	require.Equal(t, "length", result.FinishReason)
+	require.NotNil(t, result.Error)
+	require.Equal(t, errReasoningBudgetExhausted.Error(), *result.Error)
+}
+
+func TestNextIntelligenceGenerationBudgetEscalatesOnce(t *testing.T) {
+	next, retry := nextIntelligenceGenerationBudget(intelligenceGenerateMaxTokens, errReasoningBudgetExhausted, false)
+	require.True(t, retry)
+	require.Equal(t, int64(intelligenceGenerateReasoningMaxTokens), next)
+
+	_, retry = nextIntelligenceGenerationBudget(next, errReasoningBudgetExhausted, false)
+	require.False(t, retry, "the larger budget is the last attempt")
+
+	_, retry = nextIntelligenceGenerationBudget(intelligenceGenerateMaxTokens, errors.New("stream reset"), false)
+	require.False(t, retry, "only budget exhaustion escalates")
+
+	_, retry = nextIntelligenceGenerationBudget(intelligenceGenerateMaxTokens, errReasoningBudgetExhausted, true)
+	require.False(t, retry, "websocket responses do not carry a completion budget")
+}

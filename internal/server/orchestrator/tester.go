@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -31,6 +32,12 @@ import (
 const testChannelAPIKeysMaxConcurrency = 8
 
 const responsesWebSocketTestPrompt = "ping"
+
+// errReasoningBudgetExhausted reports a stream that stopped because the model
+// spent its whole completion budget on reasoning and never wrote visible
+// content. Callers can retry with a larger budget instead of treating it as an
+// empty upstream response.
+var errReasoningBudgetExhausted = errors.New("reasoning budget exhausted: finish_reason=length with no content")
 
 // TestChannelOrchestrator handles channel testing functionality.
 // It is stateless and can be reused across multiple test requests.
@@ -268,6 +275,10 @@ type TestChannelResult struct {
 	Success bool
 	Message *string
 	Error   *string
+	// FinishReason is the last finish_reason seen in the stream. It explains an
+	// empty answer: "length" means the model hit its completion budget before
+	// writing any visible content.
+	FinishReason string
 }
 
 // TestChannel tests a specific channel with a simple request.
@@ -392,6 +403,7 @@ func (processor *TestChannelOrchestrator) handleStreamResponse(
 
 	// Accumulate stream chunks
 	var accumulatedContent string
+	var finishReason string
 	expectedChoices := 0
 	if expected, ok := stream.(interface{ ExpectedStreamChoices() int }); ok {
 		expectedChoices = expected.ExpectedStreamChoices()
@@ -431,9 +443,15 @@ func (processor *TestChannelOrchestrator) handleStreamResponse(
 			continue
 		}
 
-		// Accumulate content from the first choice
-		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta != nil && chunk.Choices[0].Delta.Content.Content != nil {
-			accumulatedContent += *chunk.Choices[0].Delta.Content.Content
+		// Accumulate content from the first choice. The finish reason can arrive
+		// in a chunk without a delta, so track it independently.
+		if len(chunk.Choices) > 0 {
+			if chunk.Choices[0].FinishReason != nil && *chunk.Choices[0].FinishReason != "" {
+				finishReason = *chunk.Choices[0].FinishReason
+			}
+			if chunk.Choices[0].Delta != nil && chunk.Choices[0].Delta.Content.Content != nil {
+				accumulatedContent += *chunk.Choices[0].Delta.Content.Content
+			}
 		}
 	}
 
@@ -446,6 +464,20 @@ func (processor *TestChannelOrchestrator) handleStreamResponse(
 			Success: false,
 			Message: lo.ToPtr(accumulatedContent),
 			Error:   lo.ToPtr(err.Error()),
+		}, nil
+	}
+
+	// A reasoning model can spend the entire completion budget on hidden
+	// reasoning and stop with finish_reason=length before writing any visible
+	// content. That is not an empty upstream response: the caller can retry with
+	// a larger budget, so report it separately.
+	if strings.TrimSpace(accumulatedContent) == "" && strings.EqualFold(finishReason, "length") {
+		return &TestChannelResult{
+			Latency:      latency,
+			Success:      false,
+			Message:      lo.ToPtr(""),
+			Error:        lo.ToPtr(errReasoningBudgetExhausted.Error()),
+			FinishReason: finishReason,
 		}, nil
 	}
 
