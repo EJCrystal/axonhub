@@ -20,6 +20,9 @@ var Module = fx.Module("orchestrator",
 		// A key replaced on a channel must not leave an intelligence target
 		// pinning a credential that no longer exists.
 		channels.SetChannelAPIKeyRotator(svc)
+		// A deleted channel must not leave its intelligence targets and history
+		// pointing at an ID the admin console can no longer resolve.
+		channels.SetChannelDeletionHook(svc)
 
 		lc.Append(fx.Hook{
 			OnStart: func(ctx context.Context) error {
