@@ -123,6 +123,12 @@ func (_c *ChannelCreate) SetDisabledAPIKeys(v []objects.DisabledAPIKey) *Channel
 	return _c
 }
 
+// SetAPIKeyWorkTimes sets the "api_key_work_times" field.
+func (_c *ChannelCreate) SetAPIKeyWorkTimes(v []objects.APIKeyWorkTime) *ChannelCreate {
+	_c.mutation.SetAPIKeyWorkTimes(v)
+	return _c
+}
+
 // SetSupportedModels sets the "supported_models" field.
 func (_c *ChannelCreate) SetSupportedModels(v []string) *ChannelCreate {
 	_c.mutation.SetSupportedModels(v)
@@ -428,6 +434,10 @@ func (_c *ChannelCreate) defaults() error {
 		v := channel.DefaultDisabledAPIKeys
 		_c.mutation.SetDisabledAPIKeys(v)
 	}
+	if _, ok := _c.mutation.APIKeyWorkTimes(); !ok {
+		v := channel.DefaultAPIKeyWorkTimes
+		_c.mutation.SetAPIKeyWorkTimes(v)
+	}
 	if _, ok := _c.mutation.ManualModels(); !ok {
 		v := channel.DefaultManualModels
 		_c.mutation.SetManualModels(v)
@@ -564,6 +574,10 @@ func (_c *ChannelCreate) createSpec() (*Channel, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DisabledAPIKeys(); ok {
 		_spec.SetField(channel.FieldDisabledAPIKeys, field.TypeJSON, value)
 		_node.DisabledAPIKeys = value
+	}
+	if value, ok := _c.mutation.APIKeyWorkTimes(); ok {
+		_spec.SetField(channel.FieldAPIKeyWorkTimes, field.TypeJSON, value)
+		_node.APIKeyWorkTimes = value
 	}
 	if value, ok := _c.mutation.SupportedModels(); ok {
 		_spec.SetField(channel.FieldSupportedModels, field.TypeJSON, value)
@@ -880,6 +894,24 @@ func (u *ChannelUpsert) UpdateDisabledAPIKeys() *ChannelUpsert {
 // ClearDisabledAPIKeys clears the value of the "disabled_api_keys" field.
 func (u *ChannelUpsert) ClearDisabledAPIKeys() *ChannelUpsert {
 	u.SetNull(channel.FieldDisabledAPIKeys)
+	return u
+}
+
+// SetAPIKeyWorkTimes sets the "api_key_work_times" field.
+func (u *ChannelUpsert) SetAPIKeyWorkTimes(v []objects.APIKeyWorkTime) *ChannelUpsert {
+	u.Set(channel.FieldAPIKeyWorkTimes, v)
+	return u
+}
+
+// UpdateAPIKeyWorkTimes sets the "api_key_work_times" field to the value that was provided on create.
+func (u *ChannelUpsert) UpdateAPIKeyWorkTimes() *ChannelUpsert {
+	u.SetExcluded(channel.FieldAPIKeyWorkTimes)
+	return u
+}
+
+// ClearAPIKeyWorkTimes clears the value of the "api_key_work_times" field.
+func (u *ChannelUpsert) ClearAPIKeyWorkTimes() *ChannelUpsert {
+	u.SetNull(channel.FieldAPIKeyWorkTimes)
 	return u
 }
 
@@ -1292,6 +1324,27 @@ func (u *ChannelUpsertOne) UpdateDisabledAPIKeys() *ChannelUpsertOne {
 func (u *ChannelUpsertOne) ClearDisabledAPIKeys() *ChannelUpsertOne {
 	return u.Update(func(s *ChannelUpsert) {
 		s.ClearDisabledAPIKeys()
+	})
+}
+
+// SetAPIKeyWorkTimes sets the "api_key_work_times" field.
+func (u *ChannelUpsertOne) SetAPIKeyWorkTimes(v []objects.APIKeyWorkTime) *ChannelUpsertOne {
+	return u.Update(func(s *ChannelUpsert) {
+		s.SetAPIKeyWorkTimes(v)
+	})
+}
+
+// UpdateAPIKeyWorkTimes sets the "api_key_work_times" field to the value that was provided on create.
+func (u *ChannelUpsertOne) UpdateAPIKeyWorkTimes() *ChannelUpsertOne {
+	return u.Update(func(s *ChannelUpsert) {
+		s.UpdateAPIKeyWorkTimes()
+	})
+}
+
+// ClearAPIKeyWorkTimes clears the value of the "api_key_work_times" field.
+func (u *ChannelUpsertOne) ClearAPIKeyWorkTimes() *ChannelUpsertOne {
+	return u.Update(func(s *ChannelUpsert) {
+		s.ClearAPIKeyWorkTimes()
 	})
 }
 
@@ -1909,6 +1962,27 @@ func (u *ChannelUpsertBulk) UpdateDisabledAPIKeys() *ChannelUpsertBulk {
 func (u *ChannelUpsertBulk) ClearDisabledAPIKeys() *ChannelUpsertBulk {
 	return u.Update(func(s *ChannelUpsert) {
 		s.ClearDisabledAPIKeys()
+	})
+}
+
+// SetAPIKeyWorkTimes sets the "api_key_work_times" field.
+func (u *ChannelUpsertBulk) SetAPIKeyWorkTimes(v []objects.APIKeyWorkTime) *ChannelUpsertBulk {
+	return u.Update(func(s *ChannelUpsert) {
+		s.SetAPIKeyWorkTimes(v)
+	})
+}
+
+// UpdateAPIKeyWorkTimes sets the "api_key_work_times" field to the value that was provided on create.
+func (u *ChannelUpsertBulk) UpdateAPIKeyWorkTimes() *ChannelUpsertBulk {
+	return u.Update(func(s *ChannelUpsert) {
+		s.UpdateAPIKeyWorkTimes()
+	})
+}
+
+// ClearAPIKeyWorkTimes clears the value of the "api_key_work_times" field.
+func (u *ChannelUpsertBulk) ClearAPIKeyWorkTimes() *ChannelUpsertBulk {
+	return u.Update(func(s *ChannelUpsert) {
+		s.ClearAPIKeyWorkTimes()
 	})
 }
 

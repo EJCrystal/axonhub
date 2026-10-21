@@ -214,6 +214,40 @@ type ChannelSettings {
   modelProtocols: [ModelProtocol!]
   providerQuota: ChannelProviderQuotaSettings @goField(forceResolver: true)
   quotaRoutingMode: ChannelQuotaRoutingMode
+  workTime: WorkTimeSchedule
+}
+
+type WorkTimeWindow {
+  days: [Int!]!
+  start: String!
+  end: String!
+}
+
+type WorkTimeSchedule {
+  timezone: String
+  windows: [WorkTimeWindow!]!
+}
+
+input WorkTimeWindowInput {
+  days: [Int!]!
+  start: String!
+  end: String!
+}
+
+input WorkTimeScheduleInput {
+  """
+  IANA timezone name, e.g. Asia/Shanghai. Empty inherits the system timezone from General Settings.
+  """
+  timezone: String
+  windows: [WorkTimeWindowInput!]!
+}
+
+"""
+A work-time schedule bound to one channel credential reference.
+"""
+type APIKeyWorkTime {
+  key: String!
+  workTime: WorkTimeSchedule
 }
 
 enum ChannelQuotaRoutingMode {
@@ -298,6 +332,7 @@ input ChannelSettingsInput {
   modelProtocols: [ModelProtocolInput!]
   providerQuota: ChannelProviderQuotaSettingsInput
   quotaRoutingMode: ChannelQuotaRoutingMode
+  workTime: WorkTimeScheduleInput
 }
 
 input ChannelRateLimitInput {
@@ -935,6 +970,22 @@ extend type Channel {
   disabledAPIKeys: [DisabledAPIKey!] @goField(forceResolver: true)
 
   """
+  Per-credential work-time schedules. Sensitive: will be null if user can not access.
+  """
+  apiKeyWorkTimes: [APIKeyWorkTime!] @goField(forceResolver: true)
+
+  """
+  Whether the channel is currently available under its work-time schedules and
+  has at least one usable credential. Always true when no schedule is configured.
+  """
+  workTimeActive: Boolean! @goField(forceResolver: true)
+
+  """
+  Next channel-level work-time window start, or null when no schedule is configured.
+  """
+  nextWorkTimeStart: Time @goField(forceResolver: true)
+
+  """
   Real-time per-channel concurrency limiter snapshot. Returns null when the channel
   has no MaxConcurrent configured (no admission control).
   """
@@ -1123,6 +1174,10 @@ type Mutation {
   # Channel API Key Management
   disableChannelAPIKey(channelID: ID!, key: String!): Boolean!
   enableChannelAPIKey(channelID: ID!, key: String!): Boolean!
+  """
+  Set or clear (workTime: null) the work-time schedule of one channel credential.
+  """
+  updateChannelAPIKeyWorkTime(channelID: ID!, key: String!, workTime: WorkTimeScheduleInput): Boolean!
   enableAllChannelAPIKeys(channelID: ID!): Boolean!
   enableSelectedChannelAPIKeys(channelID: ID!, keys: [String!]!): Boolean!
   deleteDisabledChannelAPIKeys(

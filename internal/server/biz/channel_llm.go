@@ -155,6 +155,11 @@ func buildChannel(c *ent.Channel, httpClient *httpclient.HttpClient) *Channel {
 		cachedAPIKeyModels:   apiKeyModels,
 	}
 
+	if c.Settings != nil {
+		ch.cachedWorkTime = c.Settings.WorkTime
+	}
+	ch.cachedAPIKeyWorkTimes = apiKeyWorkTimesFromEntity(c)
+
 	// Precompute other caches
 	entries := ch.GetModelEntries()
 	headers := ch.GetHeaderOverrideOperations()
@@ -191,7 +196,6 @@ func getAPIKeyProvider(ch *Channel) auth.APIKeyProvider {
 	if len(enabled) == 1 {
 		return NewChannelAPIKeyContextProvider(newModelFilteredKeyProvider(ch, enabled))
 	}
-
 	panic(fmt.Errorf("no enabled api key configured for channel %s", ch.Name))
 }
 
@@ -770,6 +774,9 @@ func (svc *ChannelService) buildChannelWithTransformer(c *ent.Channel, apiKeyOve
 		httpClient = httpClient.WithRejectHTTPSDowngrade()
 	}
 	ch := buildChannel(c, httpClient)
+	if svc.SystemService != nil {
+		ch.systemLocationFn = svc.SystemService.TimeLocation
+	}
 	if overrideAPIKey != "" {
 		ch.apiKeyOverride = overrideAPIKey
 	}

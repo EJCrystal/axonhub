@@ -4,6 +4,7 @@ import (
 	"context"
 	"hash/fnv"
 	"math/rand/v2"
+	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/samber/lo"
@@ -68,6 +69,7 @@ func newModelFilteredKeyProvider(channel *Channel, keys []string) *modelFiltered
 
 func (p *modelFilteredKeyProvider) Get(ctx context.Context) string {
 	keys := p.channel.filterAPIKeysForRequest(ctx, p.keys)
+	keys = p.channel.filterAPIKeysByWorkTime(ctx, keys, time.Now())
 	if len(keys) == 0 {
 		return ""
 	}
@@ -176,6 +178,7 @@ func (c *Channel) filterAPIKeysForRequest(ctx context.Context, keys []string) []
 
 func (p *TraceStickyKeyProvider) Get(ctx context.Context) string {
 	enabled := p.channel.enabledAPIKeysForRequest(ctx)
+	enabled = p.channel.filterAPIKeysByWorkTime(ctx, enabled, time.Now())
 	if len(enabled) == 0 {
 		channelID := 0
 		if p.channel != nil && p.channel.Channel != nil {
@@ -187,6 +190,11 @@ func (p *TraceStickyKeyProvider) Get(ctx context.Context) string {
 		if _, explicit := contexts.GetChannelRequestModel(ctx); explicit && len(p.channel.cachedAPIKeyModels) > 0 {
 			return ""
 		}
+		// A channel with work-time rules must not fall back to a key that is
+		// outside its window.
+		if p.channel.hasWorkTimeRestriction() {
+			return ""
+		}
 		if len(p.channel.Credentials.APIKeys) == 0 {
 			return ""
 		}
@@ -195,7 +203,6 @@ func (p *TraceStickyKeyProvider) Get(ctx context.Context) string {
 	}
 
 	if len(enabled) == 1 {
-		contexts.WithChannelAPIKey(ctx, enabled[0])
 		return enabled[0]
 	}
 

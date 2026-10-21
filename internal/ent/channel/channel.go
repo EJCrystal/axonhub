@@ -37,6 +37,8 @@ const (
 	FieldCredentials = "credentials"
 	// FieldDisabledAPIKeys holds the string denoting the disabled_api_keys field in the database.
 	FieldDisabledAPIKeys = "disabled_api_keys"
+	// FieldAPIKeyWorkTimes holds the string denoting the api_key_work_times field in the database.
+	FieldAPIKeyWorkTimes = "api_key_work_times"
 	// FieldSupportedModels holds the string denoting the supported_models field in the database.
 	FieldSupportedModels = "supported_models"
 	// FieldManualModels holds the string denoting the manual_models field in the database.
@@ -135,6 +137,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldCredentials,
 	FieldDisabledAPIKeys,
+	FieldAPIKeyWorkTimes,
 	FieldSupportedModels,
 	FieldManualModels,
 	FieldAutoSyncSupportedModels,
@@ -180,6 +183,8 @@ var (
 	DefaultDeletedAt int
 	// DefaultDisabledAPIKeys holds the default value on creation for the "disabled_api_keys" field.
 	DefaultDisabledAPIKeys []objects.DisabledAPIKey
+	// DefaultAPIKeyWorkTimes holds the default value on creation for the "api_key_work_times" field.
+	DefaultAPIKeyWorkTimes []objects.APIKeyWorkTime
 	// DefaultManualModels holds the default value on creation for the "manual_models" field.
 	DefaultManualModels []string
 	// DefaultAutoSyncSupportedModels holds the default value on creation for the "auto_sync_supported_models" field.

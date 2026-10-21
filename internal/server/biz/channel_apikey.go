@@ -405,6 +405,9 @@ func (svc *ChannelService) DeleteDisabledAPIKeys(ctx context.Context, channelID 
 	if modelsChanged {
 		update.SetSupportedModels(supportedModels)
 	}
+	if pruned := pruneAPIKeyWorkTimes(newCredentials, ch.APIKeyWorkTimes); len(pruned) != len(ch.APIKeyWorkTimes) {
+		update.SetAPIKeyWorkTimes(pruned)
+	}
 	update = applyRecoveredChannelStatus(ctx, update, ch, newCredentials, newDisabledKeys)
 
 	if _, err := update.Save(ctx); err != nil {

@@ -235,6 +235,11 @@ type ComplexityRoot struct {
 		TopModels       func(childComplexity int) int
 	}
 
+	APIKeyWorkTime struct {
+		Key      func(childComplexity int) int
+		WorkTime func(childComplexity int) int
+	}
+
 	AnalyticsDailyStat struct {
 		CachedInputTokens   func(childComplexity int) int
 		Cost                func(childComplexity int) int
@@ -353,6 +358,7 @@ type ComplexityRoot struct {
 	}
 
 	Channel struct {
+		APIKeyWorkTimes         func(childComplexity int) int
 		AllModelEntries         func(childComplexity int) int
 		AutoDisableExpiresAt    func(childComplexity int) int
 		AutoDisabledAt          func(childComplexity int) int
@@ -373,6 +379,7 @@ type ComplexityRoot struct {
 		LiveLimiterStats        func(childComplexity int) int
 		ManualModels            func(childComplexity int) int
 		Name                    func(childComplexity int) int
+		NextWorkTimeStart       func(childComplexity int) int
 		OrderingWeight          func(childComplexity int) int
 		Policies                func(childComplexity int) int
 		ProviderQuotaStatus     func(childComplexity int) int
@@ -385,6 +392,7 @@ type ComplexityRoot struct {
 		Type                    func(childComplexity int) int
 		UpdatedAt               func(childComplexity int) int
 		UsageLogs               func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UsageLogOrder, where *ent.UsageLogWhereInput) int
+		WorkTimeActive          func(childComplexity int) int
 	}
 
 	ChannelAPIKeyModels struct {
@@ -407,12 +415,6 @@ type ComplexityRoot struct {
 		GCP                 func(childComplexity int) int
 		OAuth               func(childComplexity int) int
 		VertexAPIKeys       func(childComplexity int) int
-	}
-
-	VertexAPIKey struct {
-		APIKey    func(childComplexity int) int
-		ProjectID func(childComplexity int) int
-		Region    func(childComplexity int) int
 	}
 
 	ChannelEdge struct {
@@ -604,6 +606,7 @@ type ComplexityRoot struct {
 		RetryableErrorPatterns   func(childComplexity int) int
 		RetryableStatusCodes     func(childComplexity int) int
 		TransformOptions         func(childComplexity int) int
+		WorkTime                 func(childComplexity int) int
 	}
 
 	ChannelSuccessRate struct {
@@ -1183,6 +1186,7 @@ type ComplexityRoot struct {
 		UpdateBrandSettings                   func(childComplexity int, input UpdateBrandSettingsInput) int
 		UpdateCatalogSettings                 func(childComplexity int, input UpdateCatalogSettingsInput) int
 		UpdateChannel                         func(childComplexity int, id objects.GUID, input ent.UpdateChannelInput) int
+		UpdateChannelAPIKeyWorkTime           func(childComplexity int, channelID objects.GUID, key string, workTime *objects.WorkTimeSchedule) int
 		UpdateChannelOverrideTemplate         func(childComplexity int, id objects.GUID, input ent.UpdateChannelOverrideTemplateInput) int
 		UpdateChannelStatus                   func(childComplexity int, id objects.GUID, status channel.Status) int
 		UpdateCodexCompatibilitySettings      func(childComplexity int, input biz.CodexCompatibilitySettings) int
@@ -2263,6 +2267,12 @@ type ComplexityRoot struct {
 		ReleaseURL     func(childComplexity int) int
 	}
 
+	VertexAPIKey struct {
+		APIKey    func(childComplexity int) int
+		ProjectID func(childComplexity int) int
+		Region    func(childComplexity int) int
+	}
+
 	VideoStorageSettings struct {
 		DataStorageID       func(childComplexity int) int
 		Enabled             func(childComplexity int) int
@@ -2297,6 +2307,17 @@ type ComplexityRoot struct {
 		TimeoutMs func(childComplexity int) int
 		URL       func(childComplexity int) int
 	}
+
+	WorkTimeSchedule struct {
+		Timezone func(childComplexity int) int
+		Windows  func(childComplexity int) int
+	}
+
+	WorkTimeWindow struct {
+		Days  func(childComplexity int) int
+		End   func(childComplexity int) int
+		Start func(childComplexity int) int
+	}
 }
 
 type APIKeyResolver interface {
@@ -2325,6 +2346,9 @@ type ChannelResolver interface {
 	AllModelEntries(ctx context.Context, obj *ent.Channel) ([]*biz.ChannelModelEntry, error)
 	Credentials(ctx context.Context, obj *ent.Channel) (*objects.ChannelCredentials, error)
 	DisabledAPIKeys(ctx context.Context, obj *ent.Channel) ([]*objects.DisabledAPIKey, error)
+	APIKeyWorkTimes(ctx context.Context, obj *ent.Channel) ([]*objects.APIKeyWorkTime, error)
+	WorkTimeActive(ctx context.Context, obj *ent.Channel) (bool, error)
+	NextWorkTimeStart(ctx context.Context, obj *ent.Channel) (*time.Time, error)
 	LiveLimiterStats(ctx context.Context, obj *ent.Channel) (*ChannelLimiterStats, error)
 }
 type ChannelModelPriceResolver interface {
@@ -2401,6 +2425,7 @@ type MutationResolver interface {
 	BulkUpdateChannelAutoDisable(ctx context.Context, input biz.BulkUpdateChannelAutoDisableInput) (*BulkUpdateChannelAutoDisablePayload, error)
 	DisableChannelAPIKey(ctx context.Context, channelID objects.GUID, key string) (bool, error)
 	EnableChannelAPIKey(ctx context.Context, channelID objects.GUID, key string) (bool, error)
+	UpdateChannelAPIKeyWorkTime(ctx context.Context, channelID objects.GUID, key string, workTime *objects.WorkTimeSchedule) (bool, error)
 	EnableAllChannelAPIKeys(ctx context.Context, channelID objects.GUID) (bool, error)
 	EnableSelectedChannelAPIKeys(ctx context.Context, channelID objects.GUID, keys []string) (bool, error)
 	DeleteDisabledChannelAPIKeys(ctx context.Context, channelID objects.GUID, keys []string) (*biz.DeleteDisabledAPIKeysResult, error)
@@ -3239,6 +3264,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.APIKeyTokenUsageStats.TopModels(childComplexity), true
 
+	case "APIKeyWorkTime.key":
+		if e.complexity.APIKeyWorkTime.Key == nil {
+			break
+		}
+
+		return e.complexity.APIKeyWorkTime.Key(childComplexity), true
+	case "APIKeyWorkTime.workTime":
+		if e.complexity.APIKeyWorkTime.WorkTime == nil {
+			break
+		}
+
+		return e.complexity.APIKeyWorkTime.WorkTime(childComplexity), true
+
 	case "AnalyticsDailyStat.cachedInputTokens":
 		if e.complexity.AnalyticsDailyStat.CachedInputTokens == nil {
 			break
@@ -3669,6 +3707,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.CatalogSettings.UpstreamURL(childComplexity), true
 
+	case "Channel.apiKeyWorkTimes":
+		if e.complexity.Channel.APIKeyWorkTimes == nil {
+			break
+		}
+
+		return e.complexity.Channel.APIKeyWorkTimes(childComplexity), true
 	case "Channel.allModelEntries":
 		if e.complexity.Channel.AllModelEntries == nil {
 			break
@@ -3794,6 +3838,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Channel.Name(childComplexity), true
+	case "Channel.nextWorkTimeStart":
+		if e.complexity.Channel.NextWorkTimeStart == nil {
+			break
+		}
+
+		return e.complexity.Channel.NextWorkTimeStart(childComplexity), true
 	case "Channel.orderingWeight":
 		if e.complexity.Channel.OrderingWeight == nil {
 			break
@@ -3876,6 +3926,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Channel.UsageLogs(childComplexity, args["after"].(*entgql.Cursor[int]), args["first"].(*int), args["before"].(*entgql.Cursor[int]), args["last"].(*int), args["orderBy"].(*ent.UsageLogOrder), args["where"].(*ent.UsageLogWhereInput)), true
+	case "Channel.workTimeActive":
+		if e.complexity.Channel.WorkTimeActive == nil {
+			break
+		}
+
+		return e.complexity.Channel.WorkTimeActive(childComplexity), true
 
 	case "ChannelAPIKeyModels.apiKey":
 		if e.complexity.ChannelAPIKeyModels.APIKey == nil {
@@ -3957,24 +4013,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelCredentials.VertexAPIKeys(childComplexity), true
-	case "VertexAPIKey.apiKey":
-		if e.complexity.VertexAPIKey.APIKey == nil {
-			break
-		}
-
-		return e.complexity.VertexAPIKey.APIKey(childComplexity), true
-	case "VertexAPIKey.projectID":
-		if e.complexity.VertexAPIKey.ProjectID == nil {
-			break
-		}
-
-		return e.complexity.VertexAPIKey.ProjectID(childComplexity), true
-	case "VertexAPIKey.region":
-		if e.complexity.VertexAPIKey.Region == nil {
-			break
-		}
-
-		return e.complexity.VertexAPIKey.Region(childComplexity), true
 
 	case "ChannelEdge.cursor":
 		if e.complexity.ChannelEdge.Cursor == nil {
@@ -4696,6 +4734,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.TransformOptions(childComplexity), true
+	case "ChannelSettings.workTime":
+		if e.complexity.ChannelSettings.WorkTime == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.WorkTime(childComplexity), true
 
 	case "ChannelSuccessRate.channelDisabled":
 		if e.complexity.ChannelSuccessRate.ChannelDisabled == nil {
@@ -7502,6 +7546,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateChannel(childComplexity, args["id"].(objects.GUID), args["input"].(ent.UpdateChannelInput)), true
+	case "Mutation.updateChannelAPIKeyWorkTime":
+		if e.complexity.Mutation.UpdateChannelAPIKeyWorkTime == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateChannelAPIKeyWorkTime_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateChannelAPIKeyWorkTime(childComplexity, args["channelID"].(objects.GUID), args["key"].(string), args["workTime"].(*objects.WorkTimeSchedule)), true
 	case "Mutation.updateChannelOverrideTemplate":
 		if e.complexity.Mutation.UpdateChannelOverrideTemplate == nil {
 			break
@@ -12395,6 +12450,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.VersionCheck.ReleaseURL(childComplexity), true
 
+	case "VertexAPIKey.apiKey":
+		if e.complexity.VertexAPIKey.APIKey == nil {
+			break
+		}
+
+		return e.complexity.VertexAPIKey.APIKey(childComplexity), true
+	case "VertexAPIKey.projectID":
+		if e.complexity.VertexAPIKey.ProjectID == nil {
+			break
+		}
+
+		return e.complexity.VertexAPIKey.ProjectID(childComplexity), true
+	case "VertexAPIKey.region":
+		if e.complexity.VertexAPIKey.Region == nil {
+			break
+		}
+
+		return e.complexity.VertexAPIKey.Region(childComplexity), true
+
 	case "VideoStorageSettings.dataStorageID":
 		if e.complexity.VideoStorageSettings.DataStorageID == nil {
 			break
@@ -12519,6 +12593,38 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.WebhookTarget.URL(childComplexity), true
+
+	case "WorkTimeSchedule.timezone":
+		if e.complexity.WorkTimeSchedule.Timezone == nil {
+			break
+		}
+
+		return e.complexity.WorkTimeSchedule.Timezone(childComplexity), true
+	case "WorkTimeSchedule.windows":
+		if e.complexity.WorkTimeSchedule.Windows == nil {
+			break
+		}
+
+		return e.complexity.WorkTimeSchedule.Windows(childComplexity), true
+
+	case "WorkTimeWindow.days":
+		if e.complexity.WorkTimeWindow.Days == nil {
+			break
+		}
+
+		return e.complexity.WorkTimeWindow.Days(childComplexity), true
+	case "WorkTimeWindow.end":
+		if e.complexity.WorkTimeWindow.End == nil {
+			break
+		}
+
+		return e.complexity.WorkTimeWindow.End(childComplexity), true
+	case "WorkTimeWindow.start":
+		if e.complexity.WorkTimeWindow.Start == nil {
+			break
+		}
+
+		return e.complexity.WorkTimeWindow.Start(childComplexity), true
 
 	}
 	return 0, false
@@ -12744,11 +12850,13 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUserRoleOrder,
 		ec.unmarshalInputUserRoleWhereInput,
 		ec.unmarshalInputUserWhereInput,
+		ec.unmarshalInputVertexAPIKeyInput,
 		ec.unmarshalInputWebDAVInput,
 		ec.unmarshalInputWebhookNotifierConfigInput,
 		ec.unmarshalInputWebhookSubscriptionInput,
 		ec.unmarshalInputWebhookTargetInput,
-		ec.unmarshalInputVertexAPIKeyInput,
+		ec.unmarshalInputWorkTimeScheduleInput,
+		ec.unmarshalInputWorkTimeWindowInput,
 	)
 	first := true
 
@@ -14280,6 +14388,27 @@ func (ec *executionContext) field_Mutation_updateCatalogSettings_args(ctx contex
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateChannelAPIKeyWorkTime_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "channelID", ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID)
+	if err != nil {
+		return nil, err
+	}
+	args["channelID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "key", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["key"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "workTime", ec.unmarshalOWorkTimeScheduleInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeSchedule)
+	if err != nil {
+		return nil, err
+	}
+	args["workTime"] = arg2
 	return args, nil
 }
 
@@ -19144,6 +19273,70 @@ func (ec *executionContext) fieldContext_APIKeyTokenUsageStats_topModels(_ conte
 	return fc, nil
 }
 
+func (ec *executionContext) _APIKeyWorkTime_key(ctx context.Context, field graphql.CollectedField, obj *objects.APIKeyWorkTime) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_APIKeyWorkTime_key,
+		func(ctx context.Context) (any, error) {
+			return obj.Key, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_APIKeyWorkTime_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "APIKeyWorkTime",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _APIKeyWorkTime_workTime(ctx context.Context, field graphql.CollectedField, obj *objects.APIKeyWorkTime) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_APIKeyWorkTime_workTime,
+		func(ctx context.Context) (any, error) {
+			return obj.WorkTime, nil
+		},
+		nil,
+		ec.marshalOWorkTimeSchedule2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeSchedule,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_APIKeyWorkTime_workTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "APIKeyWorkTime",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "timezone":
+				return ec.fieldContext_WorkTimeSchedule_timezone(ctx, field)
+			case "windows":
+				return ec.fieldContext_WorkTimeSchedule_windows(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WorkTimeSchedule", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AnalyticsDailyStat_date(ctx context.Context, field graphql.CollectedField, obj *AnalyticsDailyStat) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -20042,6 +20235,12 @@ func (ec *executionContext) fieldContext_ApplyChannelOverrideTemplatePayload_cha
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -21058,6 +21257,12 @@ func (ec *executionContext) fieldContext_BulkImportChannelsResult_channels(_ con
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -21211,6 +21416,12 @@ func (ec *executionContext) fieldContext_BulkUpdateChannelAutoDisablePayload_cha
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -21364,6 +21575,12 @@ func (ec *executionContext) fieldContext_BulkUpdateChannelOrderingResult_channel
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -21905,6 +22122,8 @@ func (ec *executionContext) fieldContext_Channel_settings(_ context.Context, fie
 				return ec.fieldContext_ChannelSettings_providerQuota(ctx, field)
 			case "quotaRoutingMode":
 				return ec.fieldContext_ChannelSettings_quotaRoutingMode(ctx, field)
+			case "workTime":
+				return ec.fieldContext_ChannelSettings_workTime(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ChannelSettings", field.Name)
 		},
@@ -22504,12 +22723,12 @@ func (ec *executionContext) fieldContext_Channel_credentials(_ context.Context, 
 				return ec.fieldContext_ChannelCredentials_apiKeyModels(ctx, field)
 			case "apiKeyFetchedModels":
 				return ec.fieldContext_ChannelCredentials_apiKeyFetchedModels(ctx, field)
+			case "vertexApiKeys":
+				return ec.fieldContext_ChannelCredentials_vertexApiKeys(ctx, field)
 			case "gcp":
 				return ec.fieldContext_ChannelCredentials_gcp(ctx, field)
 			case "oauth":
 				return ec.fieldContext_ChannelCredentials_oauth(ctx, field)
-			case "vertexApiKeys":
-				return ec.fieldContext_ChannelCredentials_vertexApiKeys(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ChannelCredentials", field.Name)
 		},
@@ -22553,6 +22772,99 @@ func (ec *executionContext) fieldContext_Channel_disabledAPIKeys(_ context.Conte
 				return ec.fieldContext_DisabledAPIKey_expiresAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DisabledAPIKey", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Channel_apiKeyWorkTimes(ctx context.Context, field graphql.CollectedField, obj *ent.Channel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Channel_apiKeyWorkTimes,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Channel().APIKeyWorkTimes(ctx, obj)
+		},
+		nil,
+		ec.marshalOAPIKeyWorkTime2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyWorkTimeᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Channel_apiKeyWorkTimes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Channel",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_APIKeyWorkTime_key(ctx, field)
+			case "workTime":
+				return ec.fieldContext_APIKeyWorkTime_workTime(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type APIKeyWorkTime", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Channel_workTimeActive(ctx context.Context, field graphql.CollectedField, obj *ent.Channel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Channel_workTimeActive,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Channel().WorkTimeActive(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Channel_workTimeActive(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Channel",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Channel_nextWorkTimeStart(ctx context.Context, field graphql.CollectedField, obj *ent.Channel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Channel_nextWorkTimeStart,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Channel().NextWorkTimeStart(ctx, obj)
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Channel_nextWorkTimeStart(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Channel",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
 		},
 	}
 	return fc, nil
@@ -22915,6 +23227,43 @@ func (ec *executionContext) fieldContext_ChannelCredentials_apiKeyFetchedModels(
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelCredentials_vertexApiKeys(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelCredentials_vertexApiKeys,
+		func(ctx context.Context) (any, error) {
+			return obj.VertexAPIKeys, nil
+		},
+		nil,
+		ec.marshalOVertexAPIKey2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelCredentials_vertexApiKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "projectID":
+				return ec.fieldContext_VertexAPIKey_projectID(ctx, field)
+			case "apiKey":
+				return ec.fieldContext_VertexAPIKey_apiKey(ctx, field)
+			case "region":
+				return ec.fieldContext_VertexAPIKey_region(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type VertexAPIKey", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelCredentials_gcp(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelCredentials) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -22966,130 +23315,6 @@ func (ec *executionContext) _ChannelCredentials_oauth(ctx context.Context, field
 		true,
 		false,
 	)
-}
-
-func (ec *executionContext) _ChannelCredentials_vertexApiKeys(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelCredentials) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_ChannelCredentials_vertexApiKeys,
-		func(ctx context.Context) (any, error) {
-			return obj.VertexAPIKeys, nil
-		},
-		nil,
-		ec.marshalOVertexAPIKey2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_ChannelCredentials_vertexApiKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ChannelCredentials",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "projectID":
-				return ec.fieldContext_VertexAPIKey_projectID(ctx, field)
-			case "apiKey":
-				return ec.fieldContext_VertexAPIKey_apiKey(ctx, field)
-			case "region":
-				return ec.fieldContext_VertexAPIKey_region(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type VertexAPIKey", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _VertexAPIKey_projectID(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_VertexAPIKey_projectID,
-		func(ctx context.Context) (any, error) {
-			return obj.ProjectID, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_VertexAPIKey_projectID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "VertexAPIKey",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _VertexAPIKey_apiKey(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_VertexAPIKey_apiKey,
-		func(ctx context.Context) (any, error) {
-			return obj.APIKey, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_VertexAPIKey_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "VertexAPIKey",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _VertexAPIKey_region(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_VertexAPIKey_region,
-		func(ctx context.Context) (any, error) {
-			return obj.Region, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_VertexAPIKey_region(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "VertexAPIKey",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
 }
 
 func (ec *executionContext) fieldContext_ChannelCredentials_oauth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -23205,6 +23430,12 @@ func (ec *executionContext) fieldContext_ChannelEdge_node(_ context.Context, fie
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -23944,6 +24175,12 @@ func (ec *executionContext) fieldContext_ChannelModelPrice_channel(_ context.Con
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -25904,6 +26141,12 @@ func (ec *executionContext) fieldContext_ChannelProbe_channel(_ context.Context,
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -27077,6 +27320,41 @@ func (ec *executionContext) fieldContext_ChannelSettings_quotaRoutingMode(_ cont
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelSettings_workTime(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_workTime,
+		func(ctx context.Context) (any, error) {
+			return obj.WorkTime, nil
+		},
+		nil,
+		ec.marshalOWorkTimeSchedule2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeSchedule,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_workTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "timezone":
+				return ec.fieldContext_WorkTimeSchedule_timezone(ctx, field)
+			case "windows":
+				return ec.fieldContext_WorkTimeSchedule_windows(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WorkTimeSchedule", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelSuccessRate_channelId(ctx context.Context, field graphql.CollectedField, obj *ChannelSuccessRate) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -27801,6 +28079,12 @@ func (ec *executionContext) fieldContext_ClearChannelOverrideTemplatesPayload_ch
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -34444,6 +34728,12 @@ func (ec *executionContext) fieldContext_ModelChannelConnection_channel(_ contex
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -35698,6 +35988,12 @@ func (ec *executionContext) fieldContext_Mutation_createChannel(ctx context.Cont
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -35805,6 +36101,12 @@ func (ec *executionContext) fieldContext_Mutation_duplicateChannel(ctx context.C
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -35912,6 +36214,12 @@ func (ec *executionContext) fieldContext_Mutation_bulkCreateChannels(ctx context
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -36019,6 +36327,12 @@ func (ec *executionContext) fieldContext_Mutation_updateChannel(ctx context.Cont
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -36126,6 +36440,12 @@ func (ec *executionContext) fieldContext_Mutation_saveChannelEndpoints(ctx conte
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -36278,6 +36598,12 @@ func (ec *executionContext) fieldContext_Mutation_updateChannelStatus(ctx contex
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -37273,6 +37599,47 @@ func (ec *executionContext) fieldContext_Mutation_enableChannelAPIKey(ctx contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_enableChannelAPIKey_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateChannelAPIKeyWorkTime(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateChannelAPIKeyWorkTime,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().UpdateChannelAPIKeyWorkTime(ctx, fc.Args["channelID"].(objects.GUID), fc.Args["key"].(string), fc.Args["workTime"].(*objects.WorkTimeSchedule))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateChannelAPIKeyWorkTime(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateChannelAPIKeyWorkTime_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -47644,6 +48011,12 @@ func (ec *executionContext) fieldContext_ProviderQuotaStatus_channel(_ context.C
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -49171,6 +49544,12 @@ func (ec *executionContext) fieldContext_Query_allChannelSummarys(ctx context.Co
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -53589,6 +53968,12 @@ func (ec *executionContext) fieldContext_Request_channel(_ context.Context, fiel
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -54883,6 +55268,12 @@ func (ec *executionContext) fieldContext_RequestExecution_channel(_ context.Cont
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -62622,6 +63013,12 @@ func (ec *executionContext) fieldContext_UnassociatedChannel_channel(_ context.C
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -63736,6 +64133,12 @@ func (ec *executionContext) fieldContext_UsageLog_channel(_ context.Context, fie
 				return ec.fieldContext_Channel_credentials(ctx, field)
 			case "disabledAPIKeys":
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "apiKeyWorkTimes":
+				return ec.fieldContext_Channel_apiKeyWorkTimes(ctx, field)
+			case "workTimeActive":
+				return ec.fieldContext_Channel_workTimeActive(ctx, field)
+			case "nextWorkTimeStart":
+				return ec.fieldContext_Channel_nextWorkTimeStart(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
 			}
@@ -66408,6 +66811,93 @@ func (ec *executionContext) fieldContext_VersionCheck_releaseUrl(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _VertexAPIKey_projectID(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VertexAPIKey_projectID,
+		func(ctx context.Context) (any, error) {
+			return obj.ProjectID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VertexAPIKey_projectID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VertexAPIKey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VertexAPIKey_apiKey(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VertexAPIKey_apiKey,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKey, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VertexAPIKey_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VertexAPIKey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VertexAPIKey_region(ctx context.Context, field graphql.CollectedField, obj *objects.VertexAPIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VertexAPIKey_region,
+		func(ctx context.Context) (any, error) {
+			return obj.Region, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VertexAPIKey_region(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VertexAPIKey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _VideoStorageSettings_enabled(ctx context.Context, field graphql.CollectedField, obj *biz.VideoStorageSettings) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -67018,6 +67508,159 @@ func (ec *executionContext) _WebhookTarget_body(ctx context.Context, field graph
 func (ec *executionContext) fieldContext_WebhookTarget_body(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "WebhookTarget",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WorkTimeSchedule_timezone(ctx context.Context, field graphql.CollectedField, obj *objects.WorkTimeSchedule) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WorkTimeSchedule_timezone,
+		func(ctx context.Context) (any, error) {
+			return obj.Timezone, nil
+		},
+		nil,
+		ec.marshalOString2string,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_WorkTimeSchedule_timezone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WorkTimeSchedule",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WorkTimeSchedule_windows(ctx context.Context, field graphql.CollectedField, obj *objects.WorkTimeSchedule) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WorkTimeSchedule_windows,
+		func(ctx context.Context) (any, error) {
+			return obj.Windows, nil
+		},
+		nil,
+		ec.marshalNWorkTimeWindow2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeWindowᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WorkTimeSchedule_windows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WorkTimeSchedule",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "days":
+				return ec.fieldContext_WorkTimeWindow_days(ctx, field)
+			case "start":
+				return ec.fieldContext_WorkTimeWindow_start(ctx, field)
+			case "end":
+				return ec.fieldContext_WorkTimeWindow_end(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WorkTimeWindow", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WorkTimeWindow_days(ctx context.Context, field graphql.CollectedField, obj *objects.WorkTimeWindow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WorkTimeWindow_days,
+		func(ctx context.Context) (any, error) {
+			return obj.Days, nil
+		},
+		nil,
+		ec.marshalNInt2ᚕintᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WorkTimeWindow_days(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WorkTimeWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WorkTimeWindow_start(ctx context.Context, field graphql.CollectedField, obj *objects.WorkTimeWindow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WorkTimeWindow_start,
+		func(ctx context.Context) (any, error) {
+			return obj.Start, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WorkTimeWindow_start(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WorkTimeWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WorkTimeWindow_end(ctx context.Context, field graphql.CollectedField, obj *objects.WorkTimeWindow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WorkTimeWindow_end,
+		func(ctx context.Context) (any, error) {
+			return obj.End, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WorkTimeWindow_end(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WorkTimeWindow",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -73398,7 +74041,7 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "providerQuota", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "providerQuota", "quotaRoutingMode", "workTime"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -73531,6 +74174,13 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 				return it, err
 			}
 			it.QuotaRoutingMode = data
+		case "workTime":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("workTime"))
+			data, err := ec.unmarshalOWorkTimeScheduleInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeSchedule(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WorkTime = data
 		}
 	}
 
@@ -77290,6 +77940,20 @@ func (ec *executionContext) unmarshalInputFetchModelsInput(ctx context.Context, 
 				return it, err
 			}
 			it.APIKey = data
+		case "projectID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "region":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("region"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Region = data
 		case "channelID":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelID"))
 			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
@@ -96669,6 +97333,47 @@ func (ec *executionContext) unmarshalInputUserWhereInput(ctx context.Context, ob
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputVertexAPIKeyInput(ctx context.Context, obj any) (objects.VertexAPIKey, error) {
+	var it objects.VertexAPIKey
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectID", "apiKey", "region"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectID"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "apiKey":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APIKey = data
+		case "region":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("region"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Region = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputWebDAVInput(ctx context.Context, obj any) (objects.WebDAV, error) {
 	var it objects.WebDAV
 	asMap := map[string]any{}
@@ -96861,41 +97566,75 @@ func (ec *executionContext) unmarshalInputWebhookTargetInput(ctx context.Context
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputVertexAPIKeyInput(ctx context.Context, obj any) (objects.VertexAPIKey, error) {
-	var it objects.VertexAPIKey
+func (ec *executionContext) unmarshalInputWorkTimeScheduleInput(ctx context.Context, obj any) (objects.WorkTimeSchedule, error) {
+	var it objects.WorkTimeSchedule
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectID", "apiKey", "region"}
+	fieldsInOrder := [...]string{"timezone", "windows"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "projectID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectID"))
+		case "timezone":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timezone"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Timezone = data
+		case "windows":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("windows"))
+			data, err := ec.unmarshalNWorkTimeWindowInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeWindowᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Windows = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputWorkTimeWindowInput(ctx context.Context, obj any) (objects.WorkTimeWindow, error) {
+	var it objects.WorkTimeWindow
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"days", "start", "end"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "days":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("days"))
+			data, err := ec.unmarshalNInt2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Days = data
+		case "start":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("start"))
 			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.ProjectID = data
-		case "apiKey":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
+			it.Start = data
+		case "end":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("end"))
 			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.APIKey = data
-		case "region":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("region"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Region = data
+			it.End = data
 		}
 	}
 
@@ -98205,6 +98944,47 @@ func (ec *executionContext) _APIKeyTokenUsageStats(ctx context.Context, sel ast.
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var aPIKeyWorkTimeImplementors = []string{"APIKeyWorkTime"}
+
+func (ec *executionContext) _APIKeyWorkTime(ctx context.Context, sel ast.SelectionSet, obj *objects.APIKeyWorkTime) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, aPIKeyWorkTimeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("APIKeyWorkTime")
+		case "key":
+			out.Values[i] = ec._APIKeyWorkTime_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "workTime":
+			out.Values[i] = ec._APIKeyWorkTime_workTime(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -99602,6 +100382,108 @@ func (ec *executionContext) _Channel(ctx context.Context, sel ast.SelectionSet, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "apiKeyWorkTimes":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Channel_apiKeyWorkTimes(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "workTimeActive":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Channel_workTimeActive(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "nextWorkTimeStart":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Channel_nextWorkTimeStart(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "liveLimiterStats":
 			field := field
 
@@ -99769,12 +100651,12 @@ func (ec *executionContext) _ChannelCredentials(ctx context.Context, sel ast.Sel
 			out.Values[i] = ec._ChannelCredentials_apiKeyModels(ctx, field, obj)
 		case "apiKeyFetchedModels":
 			out.Values[i] = ec._ChannelCredentials_apiKeyFetchedModels(ctx, field, obj)
+		case "vertexApiKeys":
+			out.Values[i] = ec._ChannelCredentials_vertexApiKeys(ctx, field, obj)
 		case "gcp":
 			out.Values[i] = ec._ChannelCredentials_gcp(ctx, field, obj)
 		case "oauth":
 			out.Values[i] = ec._ChannelCredentials_oauth(ctx, field, obj)
-		case "vertexApiKeys":
-			out.Values[i] = ec._ChannelCredentials_vertexApiKeys(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -101647,6 +102529,8 @@ func (ec *executionContext) _ChannelSettings(ctx context.Context, sel ast.Select
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "quotaRoutingMode":
 			out.Values[i] = ec._ChannelSettings_quotaRoutingMode(ctx, field, obj)
+		case "workTime":
+			out.Values[i] = ec._ChannelSettings_workTime(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -105574,6 +106458,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "enableChannelAPIKey":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_enableChannelAPIKey(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateChannelAPIKeyWorkTime":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateChannelAPIKeyWorkTime(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -117998,6 +118889,55 @@ func (ec *executionContext) _VersionCheck(ctx context.Context, sel ast.Selection
 	return out
 }
 
+var vertexAPIKeyImplementors = []string{"VertexAPIKey"}
+
+func (ec *executionContext) _VertexAPIKey(ctx context.Context, sel ast.SelectionSet, obj *objects.VertexAPIKey) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, vertexAPIKeyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VertexAPIKey")
+		case "projectID":
+			out.Values[i] = ec._VertexAPIKey_projectID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKey":
+			out.Values[i] = ec._VertexAPIKey_apiKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "region":
+			out.Values[i] = ec._VertexAPIKey_region(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var videoStorageSettingsImplementors = []string{"VideoStorageSettings"}
 
 func (ec *executionContext) _VideoStorageSettings(ctx context.Context, sel ast.SelectionSet, obj *biz.VideoStorageSettings) graphql.Marshaler {
@@ -118227,6 +119167,96 @@ func (ec *executionContext) _WebhookTarget(ctx context.Context, sel ast.Selectio
 			}
 		case "body":
 			out.Values[i] = ec._WebhookTarget_body(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var workTimeScheduleImplementors = []string{"WorkTimeSchedule"}
+
+func (ec *executionContext) _WorkTimeSchedule(ctx context.Context, sel ast.SelectionSet, obj *objects.WorkTimeSchedule) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, workTimeScheduleImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WorkTimeSchedule")
+		case "timezone":
+			out.Values[i] = ec._WorkTimeSchedule_timezone(ctx, field, obj)
+		case "windows":
+			out.Values[i] = ec._WorkTimeSchedule_windows(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var workTimeWindowImplementors = []string{"WorkTimeWindow"}
+
+func (ec *executionContext) _WorkTimeWindow(ctx context.Context, sel ast.SelectionSet, obj *objects.WorkTimeWindow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, workTimeWindowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WorkTimeWindow")
+		case "days":
+			out.Values[i] = ec._WorkTimeWindow_days(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "start":
+			out.Values[i] = ec._WorkTimeWindow_start(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "end":
+			out.Values[i] = ec._WorkTimeWindow_end(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -118981,6 +120011,16 @@ func (ec *executionContext) marshalNAPIKeyType2githubᚗcomᚋloopljᚋaxonhub�
 func (ec *executionContext) unmarshalNAPIKeyWhereInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐAPIKeyWhereInput(ctx context.Context, v any) (*ent.APIKeyWhereInput, error) {
 	res, err := ec.unmarshalInputAPIKeyWhereInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAPIKeyWorkTime2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyWorkTime(ctx context.Context, sel ast.SelectionSet, v *objects.APIKeyWorkTime) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._APIKeyWorkTime(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNAddUserToProjectInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐAddUserToProjectInput(ctx context.Context, v any) (AddUserToProjectInput, error) {
@@ -121459,6 +122499,36 @@ func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.Selec
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNInt2ᚕintᚄ(ctx context.Context, v any) ([]int, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]int, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNInt2int(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNInt2ᚕintᚄ(ctx context.Context, sel ast.SelectionSet, v []int) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNInt2int(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalNIntelligenceConfig2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIntelligenceConfig(ctx context.Context, sel ast.SelectionSet, v IntelligenceConfig) graphql.Marshaler {
@@ -125214,6 +126284,15 @@ func (ec *executionContext) marshalNVersionCheck2ᚖgithubᚗcomᚋloopljᚋaxon
 	return ec._VersionCheck(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNVertexAPIKey2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx context.Context, sel ast.SelectionSet, v objects.VertexAPIKey) graphql.Marshaler {
+	return ec._VertexAPIKey(ctx, sel, &v)
+}
+
+func (ec *executionContext) unmarshalNVertexAPIKeyInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx context.Context, v any) (objects.VertexAPIKey, error) {
+	res, err := ec.unmarshalInputVertexAPIKeyInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNVideoStorageSettings2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐVideoStorageSettings(ctx context.Context, sel ast.SelectionSet, v biz.VideoStorageSettings) graphql.Marshaler {
 	return ec._VideoStorageSettings(ctx, sel, &v)
 }
@@ -125351,6 +126430,74 @@ func (ec *executionContext) marshalNWebhookTarget2ᚕgithubᚗcomᚋloopljᚋaxo
 func (ec *executionContext) unmarshalNWebhookTargetInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐWebhookTarget(ctx context.Context, v any) (biz.WebhookTarget, error) {
 	res, err := ec.unmarshalInputWebhookTargetInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNWorkTimeWindow2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeWindow(ctx context.Context, sel ast.SelectionSet, v objects.WorkTimeWindow) graphql.Marshaler {
+	return ec._WorkTimeWindow(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNWorkTimeWindow2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeWindowᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.WorkTimeWindow) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNWorkTimeWindow2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeWindow(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNWorkTimeWindowInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeWindow(ctx context.Context, v any) (objects.WorkTimeWindow, error) {
+	res, err := ec.unmarshalInputWorkTimeWindowInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNWorkTimeWindowInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeWindowᚄ(ctx context.Context, v any) ([]objects.WorkTimeWindow, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]objects.WorkTimeWindow, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNWorkTimeWindowInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeWindow(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {
@@ -126161,6 +127308,53 @@ func (ec *executionContext) unmarshalOAPIKeyWhereInput2ᚖgithubᚗcomᚋlooplj�
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalOAPIKeyWorkTime2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyWorkTimeᚄ(ctx context.Context, sel ast.SelectionSet, v []*objects.APIKeyWorkTime) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNAPIKeyWorkTime2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyWorkTime(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalOAnalyticsFilter2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐAnalyticsFilter(ctx context.Context, v any) (*AnalyticsFilter, error) {
 	if v == nil {
 		return nil, nil
@@ -126373,129 +127567,6 @@ func (ec *executionContext) unmarshalOChannelAPIKeyModelsInput2ᚕgithubᚗcom�
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
 		res[i], err = ec.unmarshalNChannelAPIKeyModelsInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyModels(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-var vertexAPIKeyImplementors = []string{"VertexAPIKey"}
-
-func (ec *executionContext) _VertexAPIKey(ctx context.Context, sel ast.SelectionSet, obj *objects.VertexAPIKey) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, vertexAPIKeyImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("VertexAPIKey")
-		case "projectID":
-			out.Values[i] = ec._VertexAPIKey_projectID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "apiKey":
-			out.Values[i] = ec._VertexAPIKey_apiKey(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "region":
-			out.Values[i] = ec._VertexAPIKey_region(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-func (ec *executionContext) marshalNVertexAPIKey2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx context.Context, sel ast.SelectionSet, v objects.VertexAPIKey) graphql.Marshaler {
-	return ec._VertexAPIKey(ctx, sel, &v)
-}
-
-func (ec *executionContext) unmarshalNVertexAPIKeyInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx context.Context, v any) (objects.VertexAPIKey, error) {
-	res, err := ec.unmarshalInputVertexAPIKeyInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalOVertexAPIKey2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.VertexAPIKey) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNVertexAPIKey2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) unmarshalOVertexAPIKeyInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ(ctx context.Context, v any) ([]objects.VertexAPIKey, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]objects.VertexAPIKey, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNVertexAPIKeyInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -132713,6 +133784,71 @@ func (ec *executionContext) unmarshalOUserWhereInput2ᚖgithubᚗcomᚋloopljᚋ
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalOVertexAPIKey2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.VertexAPIKey) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNVertexAPIKey2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOVertexAPIKeyInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKeyᚄ(ctx context.Context, v any) ([]objects.VertexAPIKey, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]objects.VertexAPIKey, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNVertexAPIKeyInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐVertexAPIKey(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
 func (ec *executionContext) marshalOWebDAV2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWebDAV(ctx context.Context, sel ast.SelectionSet, v *objects.WebDAV) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -132762,6 +133898,21 @@ func (ec *executionContext) unmarshalOWebhookTargetInput2ᚕgithubᚗcomᚋloopl
 		}
 	}
 	return res, nil
+}
+
+func (ec *executionContext) marshalOWorkTimeSchedule2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeSchedule(ctx context.Context, sel ast.SelectionSet, v *objects.WorkTimeSchedule) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._WorkTimeSchedule(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOWorkTimeScheduleInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐWorkTimeSchedule(ctx context.Context, v any) (*objects.WorkTimeSchedule, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputWorkTimeScheduleInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

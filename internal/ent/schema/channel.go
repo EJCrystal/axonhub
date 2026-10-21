@@ -133,6 +133,14 @@ func (Channel) Fields() []ent.Field {
 			Annotations(
 				entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput),
 			),
+		field.JSON("api_key_work_times", []objects.APIKeyWorkTime{}).
+			Default([]objects.APIKeyWorkTime{}).
+			Optional().
+			Sensitive().
+			Comment("Per-credential work-time schedules (sensitive; requires channel write permission)").
+			Annotations(
+				entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput),
+			),
 		field.Strings("supported_models"),
 		field.Strings("manual_models").Optional().Default([]string{}),
 		field.Bool("auto_sync_supported_models").Default(false),

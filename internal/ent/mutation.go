@@ -2111,6 +2111,8 @@ type ChannelMutation struct {
 	credentials                  *objects.ChannelCredentials
 	disabled_api_keys            *[]objects.DisabledAPIKey
 	appenddisabled_api_keys      []objects.DisabledAPIKey
+	api_key_work_times           *[]objects.APIKeyWorkTime
+	appendapi_key_work_times     []objects.APIKeyWorkTime
 	supported_models             *[]string
 	appendsupported_models       []string
 	manual_models                *[]string
@@ -2635,6 +2637,71 @@ func (m *ChannelMutation) ResetDisabledAPIKeys() {
 	m.disabled_api_keys = nil
 	m.appenddisabled_api_keys = nil
 	delete(m.clearedFields, channel.FieldDisabledAPIKeys)
+}
+
+// SetAPIKeyWorkTimes sets the "api_key_work_times" field.
+func (m *ChannelMutation) SetAPIKeyWorkTimes(okwt []objects.APIKeyWorkTime) {
+	m.api_key_work_times = &okwt
+	m.appendapi_key_work_times = nil
+}
+
+// APIKeyWorkTimes returns the value of the "api_key_work_times" field in the mutation.
+func (m *ChannelMutation) APIKeyWorkTimes() (r []objects.APIKeyWorkTime, exists bool) {
+	v := m.api_key_work_times
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyWorkTimes returns the old "api_key_work_times" field's value of the Channel entity.
+// If the Channel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMutation) OldAPIKeyWorkTimes(ctx context.Context) (v []objects.APIKeyWorkTime, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyWorkTimes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyWorkTimes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyWorkTimes: %w", err)
+	}
+	return oldValue.APIKeyWorkTimes, nil
+}
+
+// AppendAPIKeyWorkTimes adds okwt to the "api_key_work_times" field.
+func (m *ChannelMutation) AppendAPIKeyWorkTimes(okwt []objects.APIKeyWorkTime) {
+	m.appendapi_key_work_times = append(m.appendapi_key_work_times, okwt...)
+}
+
+// AppendedAPIKeyWorkTimes returns the list of values that were appended to the "api_key_work_times" field in this mutation.
+func (m *ChannelMutation) AppendedAPIKeyWorkTimes() ([]objects.APIKeyWorkTime, bool) {
+	if len(m.appendapi_key_work_times) == 0 {
+		return nil, false
+	}
+	return m.appendapi_key_work_times, true
+}
+
+// ClearAPIKeyWorkTimes clears the value of the "api_key_work_times" field.
+func (m *ChannelMutation) ClearAPIKeyWorkTimes() {
+	m.api_key_work_times = nil
+	m.appendapi_key_work_times = nil
+	m.clearedFields[channel.FieldAPIKeyWorkTimes] = struct{}{}
+}
+
+// APIKeyWorkTimesCleared returns if the "api_key_work_times" field was cleared in this mutation.
+func (m *ChannelMutation) APIKeyWorkTimesCleared() bool {
+	_, ok := m.clearedFields[channel.FieldAPIKeyWorkTimes]
+	return ok
+}
+
+// ResetAPIKeyWorkTimes resets all changes to the "api_key_work_times" field.
+func (m *ChannelMutation) ResetAPIKeyWorkTimes() {
+	m.api_key_work_times = nil
+	m.appendapi_key_work_times = nil
+	delete(m.clearedFields, channel.FieldAPIKeyWorkTimes)
 }
 
 // SetSupportedModels sets the "supported_models" field.
@@ -3697,7 +3764,7 @@ func (m *ChannelMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 24)
 	if m.created_at != nil {
 		fields = append(fields, channel.FieldCreatedAt)
 	}
@@ -3724,6 +3791,9 @@ func (m *ChannelMutation) Fields() []string {
 	}
 	if m.disabled_api_keys != nil {
 		fields = append(fields, channel.FieldDisabledAPIKeys)
+	}
+	if m.api_key_work_times != nil {
+		fields = append(fields, channel.FieldAPIKeyWorkTimes)
 	}
 	if m.supported_models != nil {
 		fields = append(fields, channel.FieldSupportedModels)
@@ -3793,6 +3863,8 @@ func (m *ChannelMutation) Field(name string) (ent.Value, bool) {
 		return m.Credentials()
 	case channel.FieldDisabledAPIKeys:
 		return m.DisabledAPIKeys()
+	case channel.FieldAPIKeyWorkTimes:
+		return m.APIKeyWorkTimes()
 	case channel.FieldSupportedModels:
 		return m.SupportedModels()
 	case channel.FieldManualModels:
@@ -3848,6 +3920,8 @@ func (m *ChannelMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldCredentials(ctx)
 	case channel.FieldDisabledAPIKeys:
 		return m.OldDisabledAPIKeys(ctx)
+	case channel.FieldAPIKeyWorkTimes:
+		return m.OldAPIKeyWorkTimes(ctx)
 	case channel.FieldSupportedModels:
 		return m.OldSupportedModels(ctx)
 	case channel.FieldManualModels:
@@ -3947,6 +4021,13 @@ func (m *ChannelMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDisabledAPIKeys(v)
+		return nil
+	case channel.FieldAPIKeyWorkTimes:
+		v, ok := value.([]objects.APIKeyWorkTime)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyWorkTimes(v)
 		return nil
 	case channel.FieldSupportedModels:
 		v, ok := value.([]string)
@@ -4109,6 +4190,9 @@ func (m *ChannelMutation) ClearedFields() []string {
 	if m.FieldCleared(channel.FieldDisabledAPIKeys) {
 		fields = append(fields, channel.FieldDisabledAPIKeys)
 	}
+	if m.FieldCleared(channel.FieldAPIKeyWorkTimes) {
+		fields = append(fields, channel.FieldAPIKeyWorkTimes)
+	}
 	if m.FieldCleared(channel.FieldManualModels) {
 		fields = append(fields, channel.FieldManualModels)
 	}
@@ -4158,6 +4242,9 @@ func (m *ChannelMutation) ClearField(name string) error {
 		return nil
 	case channel.FieldDisabledAPIKeys:
 		m.ClearDisabledAPIKeys()
+		return nil
+	case channel.FieldAPIKeyWorkTimes:
+		m.ClearAPIKeyWorkTimes()
 		return nil
 	case channel.FieldManualModels:
 		m.ClearManualModels()
@@ -4223,6 +4310,9 @@ func (m *ChannelMutation) ResetField(name string) error {
 		return nil
 	case channel.FieldDisabledAPIKeys:
 		m.ResetDisabledAPIKeys()
+		return nil
+	case channel.FieldAPIKeyWorkTimes:
+		m.ResetAPIKeyWorkTimes()
 		return nil
 	case channel.FieldSupportedModels:
 		m.ResetSupportedModels()

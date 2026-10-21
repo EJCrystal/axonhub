@@ -175,36 +175,40 @@ func init() {
 	channelDescDisabledAPIKeys := channelFields[5].Descriptor()
 	// channel.DefaultDisabledAPIKeys holds the default value on creation for the disabled_api_keys field.
 	channel.DefaultDisabledAPIKeys = channelDescDisabledAPIKeys.Default.([]objects.DisabledAPIKey)
+	// channelDescAPIKeyWorkTimes is the schema descriptor for api_key_work_times field.
+	channelDescAPIKeyWorkTimes := channelFields[6].Descriptor()
+	// channel.DefaultAPIKeyWorkTimes holds the default value on creation for the api_key_work_times field.
+	channel.DefaultAPIKeyWorkTimes = channelDescAPIKeyWorkTimes.Default.([]objects.APIKeyWorkTime)
 	// channelDescManualModels is the schema descriptor for manual_models field.
-	channelDescManualModels := channelFields[7].Descriptor()
+	channelDescManualModels := channelFields[8].Descriptor()
 	// channel.DefaultManualModels holds the default value on creation for the manual_models field.
 	channel.DefaultManualModels = channelDescManualModels.Default.([]string)
 	// channelDescAutoSyncSupportedModels is the schema descriptor for auto_sync_supported_models field.
-	channelDescAutoSyncSupportedModels := channelFields[8].Descriptor()
+	channelDescAutoSyncSupportedModels := channelFields[9].Descriptor()
 	// channel.DefaultAutoSyncSupportedModels holds the default value on creation for the auto_sync_supported_models field.
 	channel.DefaultAutoSyncSupportedModels = channelDescAutoSyncSupportedModels.Default.(bool)
 	// channelDescAutoSyncModelPattern is the schema descriptor for auto_sync_model_pattern field.
-	channelDescAutoSyncModelPattern := channelFields[9].Descriptor()
+	channelDescAutoSyncModelPattern := channelFields[10].Descriptor()
 	// channel.DefaultAutoSyncModelPattern holds the default value on creation for the auto_sync_model_pattern field.
 	channel.DefaultAutoSyncModelPattern = channelDescAutoSyncModelPattern.Default.(string)
 	// channelDescTags is the schema descriptor for tags field.
-	channelDescTags := channelFields[10].Descriptor()
+	channelDescTags := channelFields[11].Descriptor()
 	// channel.DefaultTags holds the default value on creation for the tags field.
 	channel.DefaultTags = channelDescTags.Default.([]string)
 	// channelDescPolicies is the schema descriptor for policies field.
-	channelDescPolicies := channelFields[12].Descriptor()
+	channelDescPolicies := channelFields[13].Descriptor()
 	// channel.DefaultPolicies holds the default value on creation for the policies field.
 	channel.DefaultPolicies = channelDescPolicies.Default.(objects.ChannelPolicies)
 	// channelDescSettings is the schema descriptor for settings field.
-	channelDescSettings := channelFields[13].Descriptor()
+	channelDescSettings := channelFields[14].Descriptor()
 	// channel.DefaultSettings holds the default value on creation for the settings field.
 	channel.DefaultSettings = channelDescSettings.Default.(*objects.ChannelSettings)
 	// channelDescOrderingWeight is the schema descriptor for ordering_weight field.
-	channelDescOrderingWeight := channelFields[14].Descriptor()
+	channelDescOrderingWeight := channelFields[15].Descriptor()
 	// channel.DefaultOrderingWeight holds the default value on creation for the ordering_weight field.
 	channel.DefaultOrderingWeight = channelDescOrderingWeight.Default.(int)
 	// channelDescEndpoints is the schema descriptor for endpoints field.
-	channelDescEndpoints := channelFields[19].Descriptor()
+	channelDescEndpoints := channelFields[20].Descriptor()
 	// channel.DefaultEndpoints holds the default value on creation for the endpoints field.
 	channel.DefaultEndpoints = channelDescEndpoints.Default.([]objects.ChannelEndpoint)
 	channelmodelpriceMixin := schema.ChannelModelPrice{}.Mixin()

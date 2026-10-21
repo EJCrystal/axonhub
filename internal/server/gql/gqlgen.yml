@@ -155,6 +155,21 @@ models:
   APIKeyAutoDisableMode:
     model:
       - github.com/looplj/axonhub/internal/objects.APIKeyAutoDisableMode
+  WorkTimeWindow:
+    model:
+      - github.com/looplj/axonhub/internal/objects.WorkTimeWindow
+  WorkTimeWindowInput:
+    model:
+      - github.com/looplj/axonhub/internal/objects.WorkTimeWindow
+  WorkTimeSchedule:
+    model:
+      - github.com/looplj/axonhub/internal/objects.WorkTimeSchedule
+  WorkTimeScheduleInput:
+    model:
+      - github.com/looplj/axonhub/internal/objects.WorkTimeSchedule
+  APIKeyWorkTime:
+    model:
+      - github.com/looplj/axonhub/internal/objects.APIKeyWorkTime
   ChannelSettings:
     model:
       - github.com/looplj/axonhub/internal/objects.ChannelSettings

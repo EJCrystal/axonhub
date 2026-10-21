@@ -158,6 +158,24 @@ func (_u *ChannelUpdate) ClearDisabledAPIKeys() *ChannelUpdate {
 	return _u
 }
 
+// SetAPIKeyWorkTimes sets the "api_key_work_times" field.
+func (_u *ChannelUpdate) SetAPIKeyWorkTimes(v []objects.APIKeyWorkTime) *ChannelUpdate {
+	_u.mutation.SetAPIKeyWorkTimes(v)
+	return _u
+}
+
+// AppendAPIKeyWorkTimes appends value to the "api_key_work_times" field.
+func (_u *ChannelUpdate) AppendAPIKeyWorkTimes(v []objects.APIKeyWorkTime) *ChannelUpdate {
+	_u.mutation.AppendAPIKeyWorkTimes(v)
+	return _u
+}
+
+// ClearAPIKeyWorkTimes clears the value of the "api_key_work_times" field.
+func (_u *ChannelUpdate) ClearAPIKeyWorkTimes() *ChannelUpdate {
+	_u.mutation.ClearAPIKeyWorkTimes()
+	return _u
+}
+
 // SetSupportedModels sets the "supported_models" field.
 func (_u *ChannelUpdate) SetSupportedModels(v []string) *ChannelUpdate {
 	_u.mutation.SetSupportedModels(v)
@@ -728,6 +746,17 @@ func (_u *ChannelUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.DisabledAPIKeysCleared() {
 		_spec.ClearField(channel.FieldDisabledAPIKeys, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.APIKeyWorkTimes(); ok {
+		_spec.SetField(channel.FieldAPIKeyWorkTimes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedAPIKeyWorkTimes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, channel.FieldAPIKeyWorkTimes, value)
+		})
+	}
+	if _u.mutation.APIKeyWorkTimesCleared() {
+		_spec.ClearField(channel.FieldAPIKeyWorkTimes, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.SupportedModels(); ok {
 		_spec.SetField(channel.FieldSupportedModels, field.TypeJSON, value)
 	}
@@ -1217,6 +1246,24 @@ func (_u *ChannelUpdateOne) AppendDisabledAPIKeys(v []objects.DisabledAPIKey) *C
 // ClearDisabledAPIKeys clears the value of the "disabled_api_keys" field.
 func (_u *ChannelUpdateOne) ClearDisabledAPIKeys() *ChannelUpdateOne {
 	_u.mutation.ClearDisabledAPIKeys()
+	return _u
+}
+
+// SetAPIKeyWorkTimes sets the "api_key_work_times" field.
+func (_u *ChannelUpdateOne) SetAPIKeyWorkTimes(v []objects.APIKeyWorkTime) *ChannelUpdateOne {
+	_u.mutation.SetAPIKeyWorkTimes(v)
+	return _u
+}
+
+// AppendAPIKeyWorkTimes appends value to the "api_key_work_times" field.
+func (_u *ChannelUpdateOne) AppendAPIKeyWorkTimes(v []objects.APIKeyWorkTime) *ChannelUpdateOne {
+	_u.mutation.AppendAPIKeyWorkTimes(v)
+	return _u
+}
+
+// ClearAPIKeyWorkTimes clears the value of the "api_key_work_times" field.
+func (_u *ChannelUpdateOne) ClearAPIKeyWorkTimes() *ChannelUpdateOne {
+	_u.mutation.ClearAPIKeyWorkTimes()
 	return _u
 }
 
@@ -1819,6 +1866,17 @@ func (_u *ChannelUpdateOne) sqlSave(ctx context.Context) (_node *Channel, err er
 	}
 	if _u.mutation.DisabledAPIKeysCleared() {
 		_spec.ClearField(channel.FieldDisabledAPIKeys, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.APIKeyWorkTimes(); ok {
+		_spec.SetField(channel.FieldAPIKeyWorkTimes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedAPIKeyWorkTimes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, channel.FieldAPIKeyWorkTimes, value)
+		})
+	}
+	if _u.mutation.APIKeyWorkTimesCleared() {
+		_spec.ClearField(channel.FieldAPIKeyWorkTimes, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.SupportedModels(); ok {
 		_spec.SetField(channel.FieldSupportedModels, field.TypeJSON, value)

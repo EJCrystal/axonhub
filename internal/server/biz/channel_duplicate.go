@@ -47,6 +47,14 @@ func (svc *ChannelService) DuplicateChannel(ctx context.Context, sourceID int, i
 			return err
 		}
 
+		if workTimes := pruneAPIKeyWorkTimes(ch.Credentials, source.APIKeyWorkTimes); len(workTimes) > 0 {
+			updated, err := db.Channel.UpdateOneID(ch.ID).SetAPIKeyWorkTimes(workTimes).Save(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to copy channel API key work times: %w", err)
+			}
+			ch = updated
+		}
+
 		prices, err := db.ChannelModelPrice.Query().
 			Where(
 				channelmodelprice.ChannelID(sourceID),

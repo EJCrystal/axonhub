@@ -727,6 +727,9 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 	}
 
 	candidate := p.state.ChannelModelsCandidates[p.state.CurrentCandidateIndex]
+	if !candidate.Channel.AvailableAt(ctx, time.Now()) {
+		return nil, fmt.Errorf("%w: channel %s", errChannelOutsideWorkTime, candidate.Channel.Name)
+	}
 	entry := candidate.Models[p.state.CurrentModelIndex]
 
 	p.state.CurrentCandidate = candidate
@@ -1058,6 +1061,12 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 	}
 
 	if errors.Is(err, errSkipCandidateByCircuitBreaker) || errors.Is(err, errNoAPIKeySupportsModel) {
+		return false
+	}
+
+	// The channel work-time window closed between selection and execution; a
+	// same-channel retry cannot make progress.
+	if errors.Is(err, errChannelOutsideWorkTime) {
 		return false
 	}
 

@@ -89,6 +89,16 @@ type Channel struct {
 	// cachedDisabledKeySet caches disabled key lookup set for O(1) check
 	cachedDisabledKeySet map[string]struct{}
 
+	// cachedWorkTime holds the channel-level work-time schedule, if configured.
+	cachedWorkTime *objects.WorkTimeSchedule
+
+	// cachedAPIKeyWorkTimes holds per-credential schedules keyed by credential reference.
+	cachedAPIKeyWorkTimes map[string]*objects.WorkTimeSchedule
+
+	// systemLocationFn resolves the system timezone from General Settings at call
+	// time, so schedules without an explicit timezone follow setting changes.
+	systemLocationFn func(context.Context) *time.Location
+
 	// apiKeyOverride, if non-empty, forces all outbound transformers to use this key
 	// instead of the channel's normal key selection. Used by the channel key test flow.
 	apiKeyOverride string
@@ -610,6 +620,10 @@ func (svc *ChannelService) createChannel(ctx context.Context, input ent.CreateCh
 			return nil, err
 		}
 
+		if err := NormalizeWorkTimeSettings(input.Settings); err != nil {
+			return nil, err
+		}
+
 		if err := validateModelProtocols(input.Settings, &ent.Channel{Type: input.Type, BaseURL: baseURL, Endpoints: input.Endpoints}); err != nil {
 			return nil, fmt.Errorf("invalid model protocols: %w", err)
 		}
@@ -1043,6 +1057,10 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 		if err := NormalizeRetryableErrorPatterns(input.Settings); err != nil {
 			return nil, err
 		}
+
+		if err := NormalizeWorkTimeSettings(input.Settings); err != nil {
+			return nil, err
+		}
 	}
 
 	if input.Settings != nil || input.Endpoints != nil || input.Type != nil || input.BaseURL != nil {
@@ -1147,7 +1165,7 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 			credentials := *input.Credentials
 			existing, err := db.Channel.Query().
 				Where(channel.IDEQ(id)).
-				Select(channel.FieldType, channel.FieldCredentials).
+				Select(channel.FieldType, channel.FieldCredentials, channel.FieldAPIKeyWorkTimes).
 				Only(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to load existing channel credentials: %w", err)
@@ -1166,6 +1184,10 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 				return err
 			}
 			mut.SetCredentials(credentials)
+
+			if pruned := pruneAPIKeyWorkTimes(credentials, existing.APIKeyWorkTimes); len(pruned) != len(existing.APIKeyWorkTimes) {
+				mut.SetAPIKeyWorkTimes(pruned)
+			}
 		}
 
 		if input.Remark != nil {

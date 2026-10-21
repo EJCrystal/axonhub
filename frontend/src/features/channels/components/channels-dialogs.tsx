@@ -31,6 +31,7 @@ import { ChannelsTemplateManagerDialog } from './channels-template-manager-dialo
 import { ChannelsTestDialog } from './channels-test-dialog';
 import { ChannelsTestHistoryDrawer } from './channels-test-history-drawer';
 import { ChannelsTransformOptionsDialog } from './channels-transform-options-dialog';
+import { ChannelsWorkTimeDialog } from './channels-work-time-dialog';
 
 export function ChannelsDialogs() {
   const { open, setOpen, currentRow: partialCurrentRow, setCurrentRow, selectedChannels } = useChannels();
@@ -320,6 +321,22 @@ export function ChannelsDialogs() {
           {open === 'rateLimit' && (
             <ChannelsRateLimitDialog
               key={`channel-rate-limit-${currentRow.id}`}
+              open={true}
+              onOpenChange={(isOpen) => {
+                if (!isOpen) {
+                  setOpen(null);
+                  setTimeout(() => {
+                    setCurrentRow(null);
+                  }, 500);
+                }
+              }}
+              currentRow={currentRow}
+            />
+          )}
+
+          {open === 'workTime' && (
+            <ChannelsWorkTimeDialog
+              key={'channel-work-time-' + currentRow.id}
               open={true}
               onOpenChange={(isOpen) => {
                 if (!isOpen) {

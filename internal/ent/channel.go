@@ -38,6 +38,8 @@ type Channel struct {
 	Credentials objects.ChannelCredentials `json:"-"`
 	// Disabled API keys with metadata (sensitive; requires channel write permission)
 	DisabledAPIKeys []objects.DisabledAPIKey `json:"-"`
+	// Per-credential work-time schedules (sensitive; requires channel write permission)
+	APIKeyWorkTimes []objects.APIKeyWorkTime `json:"-"`
 	// SupportedModels holds the value of the "supported_models" field.
 	SupportedModels []string `json:"supported_models,omitempty"`
 	// ManualModels holds the value of the "manual_models" field.
@@ -160,7 +162,7 @@ func (*Channel) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case channel.FieldCredentials, channel.FieldDisabledAPIKeys, channel.FieldSupportedModels, channel.FieldManualModels, channel.FieldTags, channel.FieldPolicies, channel.FieldSettings, channel.FieldEndpoints:
+		case channel.FieldCredentials, channel.FieldDisabledAPIKeys, channel.FieldAPIKeyWorkTimes, channel.FieldSupportedModels, channel.FieldManualModels, channel.FieldTags, channel.FieldPolicies, channel.FieldSettings, channel.FieldEndpoints:
 			values[i] = new([]byte)
 		case channel.FieldAutoSyncSupportedModels:
 			values[i] = new(sql.NullBool)
@@ -247,6 +249,14 @@ func (_m *Channel) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.DisabledAPIKeys); err != nil {
 					return fmt.Errorf("unmarshal field disabled_api_keys: %w", err)
+				}
+			}
+		case channel.FieldAPIKeyWorkTimes:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field api_key_work_times", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.APIKeyWorkTimes); err != nil {
+					return fmt.Errorf("unmarshal field api_key_work_times: %w", err)
 				}
 			}
 		case channel.FieldSupportedModels:
@@ -439,6 +449,8 @@ func (_m *Channel) String() string {
 	builder.WriteString("credentials=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("disabled_api_keys=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("api_key_work_times=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("supported_models=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SupportedModels))

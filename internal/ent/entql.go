@@ -105,6 +105,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			channel.FieldStatus:                  {Type: field.TypeEnum, Column: channel.FieldStatus},
 			channel.FieldCredentials:             {Type: field.TypeJSON, Column: channel.FieldCredentials},
 			channel.FieldDisabledAPIKeys:         {Type: field.TypeJSON, Column: channel.FieldDisabledAPIKeys},
+			channel.FieldAPIKeyWorkTimes:         {Type: field.TypeJSON, Column: channel.FieldAPIKeyWorkTimes},
 			channel.FieldSupportedModels:         {Type: field.TypeJSON, Column: channel.FieldSupportedModels},
 			channel.FieldManualModels:            {Type: field.TypeJSON, Column: channel.FieldManualModels},
 			channel.FieldAutoSyncSupportedModels: {Type: field.TypeBool, Column: channel.FieldAutoSyncSupportedModels},
@@ -1761,6 +1762,11 @@ func (f *ChannelFilter) WhereCredentials(p entql.BytesP) {
 // WhereDisabledAPIKeys applies the entql json.RawMessage predicate on the disabled_api_keys field.
 func (f *ChannelFilter) WhereDisabledAPIKeys(p entql.BytesP) {
 	f.Where(p.Field(channel.FieldDisabledAPIKeys))
+}
+
+// WhereAPIKeyWorkTimes applies the entql json.RawMessage predicate on the api_key_work_times field.
+func (f *ChannelFilter) WhereAPIKeyWorkTimes(p entql.BytesP) {
+	f.Where(p.Field(channel.FieldAPIKeyWorkTimes))
 }
 
 // WhereSupportedModels applies the entql json.RawMessage predicate on the supported_models field.

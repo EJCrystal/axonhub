@@ -105,6 +105,7 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"enabled", "disabled", "archived"}, Default: "disabled"},
 		{Name: "credentials", Type: field.TypeJSON},
 		{Name: "disabled_api_keys", Type: field.TypeJSON, Nullable: true},
+		{Name: "api_key_work_times", Type: field.TypeJSON, Nullable: true},
 		{Name: "supported_models", Type: field.TypeJSON},
 		{Name: "manual_models", Type: field.TypeJSON, Nullable: true},
 		{Name: "auto_sync_supported_models", Type: field.TypeBool, Default: false},

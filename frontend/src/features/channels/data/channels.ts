@@ -682,6 +682,12 @@ const DELETE_DISABLED_CHANNEL_API_KEYS_MUTATION = `
   }
 `;
 
+const UPDATE_CHANNEL_API_KEY_WORK_TIME_MUTATION = `
+  mutation UpdateChannelAPIKeyWorkTime($channelID: ID!, $key: String!, $workTime: WorkTimeScheduleInput) {
+    updateChannelAPIKeyWorkTime(channelID: $channelID, key: $key, workTime: $workTime)
+  }
+`;
+
 const GET_CHANNEL_DISABLED_API_KEYS_QUERY = `
   query GetChannelDisabledAPIKeys($id: ID!) {
     node(id: $id) {
@@ -1089,6 +1095,14 @@ const CHANNEL_QUERY_FULL_NODE_SELECTION = `
             hideMappedModels
             lowercaseModelId
             quotaRoutingMode
+            workTime {
+              timezone
+              windows {
+                days
+                start
+                end
+              }
+            }
             bodyOverrideOperations {
               op
               path
@@ -1180,6 +1194,19 @@ const CHANNEL_QUERY_FULL_NODE_SELECTION = `
             reason
             expiresAt
           }
+          apiKeyWorkTimes {
+            key
+            workTime {
+              timezone
+              windows {
+                days
+                start
+                end
+              }
+            }
+          }
+          workTimeActive
+          nextWorkTimeStart
           liveLimiterStats {
             inFlight
             waiting
@@ -1213,6 +1240,7 @@ const CHANNEL_QUERY_LIST_NODE_BASE_SELECTION = `
             reason
             expiresAt
            }
+          workTimeActive
 `;
 
 const CHANNEL_QUERY_ROUTING_STATUS_SELECTION = `
@@ -2473,6 +2501,40 @@ export function useChannelDisabledAPIKeys(channelId: string, options?: { enabled
       }
     },
     enabled: !!channelId && options?.enabled !== false,
+  });
+}
+
+export function useUpdateChannelAPIKeyWorkTime() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { handleError } = useErrorHandler();
+
+  return useMutation({
+    mutationFn: async ({
+      channelID,
+      key,
+      workTime,
+    }: {
+      channelID: string;
+      key: string;
+      workTime: { timezone?: string | null; windows: Array<{ days: number[]; start: string; end: string }> } | null;
+    }) => {
+      try {
+        const data = await graphqlRequest<{ updateChannelAPIKeyWorkTime: boolean }>(UPDATE_CHANNEL_API_KEY_WORK_TIME_MUTATION, {
+          channelID,
+          key,
+          workTime,
+        });
+        return data.updateChannelAPIKeyWorkTime;
+      } catch (error) {
+        handleError(error, { context: t('channels.dialogs.workTime.title') });
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
+      queryClient.invalidateQueries({ queryKey: ['channel'] });
+    },
   });
 }
 
