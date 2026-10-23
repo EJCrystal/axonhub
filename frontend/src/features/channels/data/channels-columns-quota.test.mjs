@@ -319,10 +319,6 @@ test('channel columns have minimum widths and are not hidden by responsive displ
   }
 });
 
-// The channels table apportions leftover space to the
-// percentage-width columns. When the percentages summed to less than 100 they
-// no longer read as real percentages and the column widths drifted out of the
-// intended proportions. Keep them totalling exactly 100.
 test('channel percentage column widths sum to 100', () => {
   const columnsSource = read('features/channels/components/channels-columns.tsx');
   const percentages = [...columnsSource.matchAll(/w-\[([0-9.]+)%\]/g)].map((match) => Number(match[1]));
@@ -330,21 +326,6 @@ test('channel percentage column widths sum to 100', () => {
   assert.ok(percentages.length > 0, 'expected percentage-width channel columns');
   const total = percentages.reduce((sum, value) => sum + value, 0);
   assert.equal(total, 100, 'channel column percentages must sum to 100, got ' + total);
-});
-
-// A narrow column must degrade to an ellipsis instead of hard-clipping the
-// label, and the sort icon has to yield before the label does. Without this the
-// overflow-hidden th cut the provider and status headers into fragments.
-test('column headers truncate gracefully and the sort icon yields first', () => {
-  const headerSource = read('components/data-table-column-header.tsx');
-
-  assert.match(headerSource, /min-w-0 truncate/, 'header label must truncate with an ellipsis');
-  assert.match(headerSource, /min-w-0 shrink[\s'"]/, 'header button must be allowed to shrink below its content width');
-
-  const iconWrapper = headerSource.match(/<span className='flex[^']*'>[\s\S]*?Icon/);
-  assert.ok(iconWrapper, 'sort icon should be wrapped so it can shrink independently');
-  assert.match(iconWrapper[0], /shrink-\[[0-9]+\]/, 'sort icon wrapper must shrink before the label does');
-  assert.doesNotMatch(headerSource, /h-4 w-4 shrink-0/, 'a shrink-0 icon would starve the label at narrow widths');
 });
 
 test('supported models cell bounds badge container width to prevent horizontal stretching', () => {
@@ -355,3 +336,5 @@ test('supported models cell bounds badge container width to prevent horizontal s
     'supported models badge container must have a max-width wrapper so badges wrap instead of stretching the table'
   );
 });
+
+

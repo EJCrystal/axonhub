@@ -877,6 +877,7 @@ function QuotaRow({ channel, effectiveMode }: { channel: ProviderQuotaChannel; e
 
             return items;
           })()}
+
         </div>
       )}
 
@@ -2490,53 +2491,61 @@ interface QuotaCategory {
 }
 
 function getChannelCategory(channel: ProviderQuotaChannel, t: ReturnType<typeof useTranslation>['t']): QuotaCategory {
-  if (channel.type === 'antigravity') {
+  const channelType = channel.type as string;
+  if (channelType === 'antigravity') {
     return { key: 'antigravity', label: t('channels.types.antigravity') || 'Antigravity', order: 1 };
   }
-  if (channel.type === 'codex') {
+  if (channelType === 'codex') {
     return { key: 'codex', label: t('channels.types.codex') || 'Codex', order: 2 };
   }
-  if (channel.type === 'claudecode') {
+  if (channelType === 'claudecode') {
     return { key: 'claudecode', label: t('channels.types.claudecode') || 'Claude Code', order: 3 };
   }
-  if (channel.type === 'github_copilot') {
+  if (channelType === 'github_copilot') {
     return { key: 'github_copilot', label: t('channels.types.github_copilot') || 'GitHub Copilot', order: 4 };
   }
-  if (channel.type === 'cline') {
+  if (channelType === 'cline') {
     return { key: 'cline', label: t('channels.types.cline') || 'Cline', order: 5 };
   }
-  if (channel.type === 'xai_subscription') {
+  if (channelType === 'xai_subscription') {
     return { key: 'xai_subscription', label: t('channels.types.xai_subscription') || 'xAI', order: 6 };
   }
-  if (channel.type === 'nanogpt' || channel.type === 'nanogpt_responses') {
+  if (channelType === 'nanogpt' || channelType === 'nanogpt_responses') {
     return { key: 'nanogpt', label: 'NanoGPT', order: 7 };
   }
-  if (isOllamaType(channel.type)) {
+  if (isOllamaType(channelType)) {
     return { key: 'ollama', label: t('channels.types.ollama') || 'Ollama', order: 8 };
   }
-  if (isCommandCodeType(channel.type)) {
+  if (isCommandCodeType(channelType)) {
     return { key: 'commandcode', label: t('channels.types.commandcode') || 'Command Code', order: 9 };
   }
-  if (channel.type === 'moonshot_coding') {
+  if (channelType === 'moonshot_coding') {
     return { key: 'moonshot_coding', label: t('channels.types.moonshot_coding') || 'Kimi Coding', order: 10 };
   }
-  if (isMinimaxType(channel.type)) {
+  if (isMinimaxType(channelType)) {
     return { key: 'minimax', label: t('channels.types.minimax') || 'Minimax', order: 11 };
   }
-  if (channel.type === 'zhipu' || channel.type === 'zhipu_anthropic' || channel.type === 'zai' || channel.type === 'zai_anthropic') {
+  if (channelType === 'zhipu' || channelType === 'zhipu_anthropic' || channelType === 'zai' || channelType === 'zai_anthropic') {
     return { key: 'zhipu', label: t('channels.types.zhipu') || '智谱', order: 12 };
   }
-  if (isZenmuxType(channel.type)) {
+  if (isZenmuxType(channelType)) {
     return { key: 'zenmux', label: 'ZenMux', order: 13 };
   }
-  if (isOpenaiType(channel.type) && channel.providerType) {
-    const p = channel.providerType;
-    return { key: p, label: p.charAt(0).toUpperCase() + p.slice(1), order: 14 };
+  if (channelType === 'opencode_go' || channelType === 'opencode_go_anthropic') {
+    return { key: 'opencode_go', label: t('channels.types.opencode_go') || 'OpenCode Go', order: 14 };
   }
-  const typeKey = `channels.types.${channel.type}`;
+  if (isOpenaiType(channelType)) {
+    if (channel.providerType) {
+      const p = channel.providerType;
+      return { key: p, label: p.charAt(0).toUpperCase() + p.slice(1), order: 15 };
+    }
+    return { key: 'openai', label: t('channels.types.openai') || 'OpenAI', order: 16 };
+  }
+  const typeKey = `channels.types.${channelType}`;
   const translated = t(typeKey);
-  const label = translated !== typeKey ? translated : channel.type;
-  return { key: channel.type, label, order: 99 };
+  const label = translated !== typeKey ? translated : channelType;
+  return { key: channelType, label, order: 99 };
+
 }
 
 export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean; onRefresh: () => void }) {
@@ -2702,6 +2711,7 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
             <div className='flex flex-wrap items-center gap-1 border-b pt-0.5 pb-2'>
               <button
                 type='button'
+                aria-pressed={activeCategory === 'all'}
                 onClick={() => setSelectedCategory('all')}
                 className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
                   activeCategory === 'all'
@@ -2715,6 +2725,7 @@ export function QuotaBadges({ isRefreshing, onRefresh }: { isRefreshing: boolean
                 <button
                   key={cat.key}
                   type='button'
+                  aria-pressed={activeCategory === cat.key}
                   onClick={() => setSelectedCategory(cat.key)}
                   className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
                     activeCategory === cat.key

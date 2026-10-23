@@ -225,9 +225,18 @@ test('OpenCode Go renders its normalized limit windows', () => {
 // Extract the pure mode helpers from quota-badges.tsx without loading React.
 const badgesSource = read('components/quota-badges.tsx');
 const badgesAst = ts.createSourceFile('quota-badges.tsx', badgesSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-const modeHelperNames = ['resolveEffectiveRoutingMode', 'mostRestrictiveRoutingMode'];
+const modeHelperNames = [
+  'resolveEffectiveRoutingMode',
+  'mostRestrictiveRoutingMode',
+  'isOpenaiType',
+  'isCommandCodeType',
+  'isOllamaType',
+  'isMinimaxType',
+  'isZenmuxType',
+  'getChannelCategory',
+];
 const modeHelperNodes = badgesAst.statements.filter((node) => ts.isFunctionDeclaration(node) && modeHelperNames.includes(node.name?.text));
-assert.equal(modeHelperNodes.length, 2, 'mode helpers must stay in quota-badges.tsx');
+assert.equal(modeHelperNodes.length, 8, 'helpers must stay in quota-badges.tsx');
 const modeHelpers = modeHelperNodes.map((node) => `export ${node.getText(badgesAst).replace(/^export\s+/, '')}`).join('\n');
 
 function loadTsModule(sourceText) {
@@ -237,7 +246,7 @@ function loadTsModule(sourceText) {
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 }
 
-const { resolveEffectiveRoutingMode, mostRestrictiveRoutingMode } = await loadTsModule(modeHelpers);
+const { resolveEffectiveRoutingMode, mostRestrictiveRoutingMode, getChannelCategory } = await loadTsModule(modeHelpers);
 
 test('Antigravity API limits survive parsing and determine battery usage', async () => {
   const quotasAst = ts.createSourceFile('quotas.ts', read('features/system/data/quotas.ts'), ts.ScriptTarget.Latest, true);
@@ -371,6 +380,7 @@ test('channels in quota popover are categorized with filter pills and section he
   assert.match(badgesSource, /setSelectedCategory\('all'\)/, 'Popover should have an all categories filter pill');
   assert.match(badgesSource, /col-span-full[\s\S]*?uppercase/, 'Popover should render section header across full grid width');
   assert.match(badgesSource, /categoryCounts\[cat\.key\]/, 'Section header counter must read from categoryCounts');
+  assert.match(badgesSource, /activeCategory[\s\S]*?categories\.some/, 'Selection must fall back to all when selected category disappears');
   assert.match(badgesSource, /text-foreground truncate font-medium|truncate font-medium/, 'Channel name should be truncated with ellipsis');
   assert.match(badgesSource, /ml-2 flex shrink-0/, 'Badge container should not shrink and have left margin');
   assert.match(
@@ -378,6 +388,47 @@ test('channels in quota popover are categorized with filter pills and section he
     /sortedChannels\.length > 4 \? 'grid grid-cols-1 gap-x-4 sm:grid-cols-2'/,
     'Dual-column grid should be based on total sorted channels'
   );
+  assert.match(badgesSource, /aria-pressed=\{activeCategory === 'all'\}/, 'All button should expose aria-pressed state');
+  assert.match(badgesSource, /aria-pressed=\{activeCategory === cat\.key\}/, 'Category buttons should expose aria-pressed state');
+});
+
+test('channel categories order by priority and sort stably by name within groups', () => {
+  const t = (k) => k;
+  const sampleChannels = [
+    { id: '1', name: 'copilot-beta', type: 'github_copilot' },
+    { id: '2', name: 'antigravity-zeta', type: 'antigravity' },
+    { id: '3', name: 'copilot-alpha', type: 'github_copilot' },
+    { id: '4', name: 'antigravity-alpha', type: 'antigravity' },
+  ];
+
+  const sorted = [...sampleChannels].sort((a, b) => {
+    const catA = getChannelCategory(a, t);
+    const catB = getChannelCategory(b, t);
+    if (catA.order !== catB.order) return catA.order - catB.order;
+    if (catA.key !== catB.key) return catA.label.localeCompare(catB.label);
+    return a.name.localeCompare(b.name);
+  });
+
+  assert.deepEqual(
+    sorted.map((c) => c.name),
+    ['antigravity-alpha', 'antigravity-zeta', 'copilot-alpha', 'copilot-beta']
+  );
+
+  // Directly verify production category orders and shared keys across protocol variants
+  assert.equal(getChannelCategory({ type: 'antigravity' }, t).order, 1);
+  assert.equal(getChannelCategory({ type: 'codex' }, t).order, 2);
+  assert.equal(getChannelCategory({ type: 'claudecode' }, t).order, 3);
+  assert.equal(getChannelCategory({ type: 'github_copilot' }, t).order, 4);
+  assert.equal(getChannelCategory({ type: 'openai' }, t).key, 'openai');
+  assert.equal(getChannelCategory({ type: 'openai_responses' }, t).key, 'openai');
+  assert.equal(getChannelCategory({ type: 'opencode_go' }, t).key, 'opencode_go');
+  assert.equal(getChannelCategory({ type: 'opencode_go_anthropic' }, t).key, 'opencode_go');
+
+  // Active category falls back to all when category disappears
+  const activeCategories = [{ key: 'antigravity' }];
+  const getActive = (selected) => (selected !== 'all' && activeCategories.some((c) => c.key === selected) ? selected : 'all');
+  assert.equal(getActive('codex'), 'all');
+  assert.equal(getActive('antigravity'), 'antigravity');
 });
 
 test('mode badge labels are locale-complete and legacy enforcement keys are gone', () => {
