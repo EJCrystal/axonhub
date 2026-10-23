@@ -642,8 +642,6 @@ func (svc *ChannelService) createChannel(ctx context.Context, input ent.CreateCh
 		if err := NormalizeWorkTimeSettings(input.Settings); err != nil {
 			return nil, err
 		}
-			return nil, err
-		}
 
 		if err := validateModelProtocols(input.Settings, &ent.Channel{Type: input.Type, BaseURL: baseURL, Endpoints: input.Endpoints}); err != nil {
 			return nil, fmt.Errorf("invalid model protocols: %w", err)
