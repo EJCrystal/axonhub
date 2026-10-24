@@ -47,6 +47,7 @@ type UpdateChannelSettingsInput struct {
 	APIKeyRoundRobinSwitchAfter *int                                  `json:"apiKeyRoundRobinSwitchAfter"`
 	ProviderQuota               *objects.ChannelProviderQuotaSettings `json:"providerQuota"`
 	QuotaRoutingMode            *objects.QuotaRoutingMode             `json:"quotaRoutingMode"`
+	WorkTime                    *objects.WorkTimeSchedule             `json:"workTime"`
 }
 
 // Apply returns the settings that result from applying the patch to base.
@@ -121,6 +122,9 @@ func (i *UpdateChannelSettingsInput) Apply(base *objects.ChannelSettings) object
 	}
 	if i.QuotaRoutingMode != nil {
 		merged.QuotaRoutingMode = *i.QuotaRoutingMode
+	}
+	if i.WorkTime != nil {
+		merged.WorkTime = i.WorkTime
 	}
 
 	return merged
