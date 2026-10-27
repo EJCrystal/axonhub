@@ -3,6 +3,7 @@ package openai
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
@@ -783,6 +785,15 @@ func TestInboundTransformer_TransformError(t *testing.T) {
 			require.JSONEq(t, string(tt.expectedError.Body), string(httpErr.Body))
 		})
 	}
+}
+
+func TestInboundTransformer_TransformError_InvalidRequestReturnsBadRequest(t *testing.T) {
+	err := fmt.Errorf("%w: tool_call_id %q has no matching assistant tool call with a function name", transformer.ErrInvalidRequest, "call_0")
+
+	httpErr := NewInboundTransformer().TransformError(context.Background(), err)
+	require.Equal(t, http.StatusBadRequest, httpErr.StatusCode)
+	require.Contains(t, string(httpErr.Body), "invalid_request_error")
+	require.Contains(t, string(httpErr.Body), "call_0")
 }
 
 func TestMessageFromLLM_WithAnnotations(t *testing.T) {

@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"encoding/json"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/auth"
 	"github.com/looplj/axonhub/llm/httpclient"
+	"github.com/looplj/axonhub/llm/transformer"
 )
 
 func TestClenupConfig(t *testing.T) {
@@ -145,6 +147,43 @@ func TestOutboundTransformer_TransformRequest_OmitsMetadataWhenEmpty(t *testing.
 	hreq, err := outbound.TransformRequest(t.Context(), req)
 	require.NoError(t, err)
 	require.Nil(t, hreq.Metadata)
+}
+
+func TestOutboundTransformer_TransformRequest_UnknownToolCallIDReturnsBadRequest(t *testing.T) {
+	outbound, err := NewOutboundTransformer("https://generativelanguage.googleapis.com", "test-key")
+	require.NoError(t, err)
+
+	result, err := outbound.TransformRequest(t.Context(), &llm.Request{
+		Model: "gemini-2.5-flash",
+		Messages: []llm.Message{
+			{
+				Role: "assistant",
+				ToolCalls: []llm.ToolCall{
+					{
+						ID:   "call_1",
+						Type: "function",
+						Function: llm.FunctionCall{
+							Name:      "read_file",
+							Arguments: `{"path":"/tmp/a"}`,
+						},
+					},
+				},
+			},
+			{
+				Role:       "tool",
+				ToolCallID: lo.ToPtr("call_0"),
+				Content:    llm.MessageContent{Content: lo.ToPtr(`{"ok":true}`)},
+			},
+		},
+	})
+
+	require.Nil(t, result)
+	require.ErrorIs(t, err, transformer.ErrInvalidRequest)
+	require.ErrorContains(t, err, `tool_call_id "call_0"`)
+
+	httpErr := NewInboundTransformer().TransformError(t.Context(), err)
+	require.Equal(t, http.StatusBadRequest, httpErr.StatusCode)
+	require.Contains(t, string(httpErr.Body), "call_0")
 }
 
 func TestOutboundTransformer_buildFullRequestURL(t *testing.T) {

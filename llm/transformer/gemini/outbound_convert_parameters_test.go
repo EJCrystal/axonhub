@@ -50,7 +50,7 @@ func TestConvertLLMToGeminiRequest_UsesParametersJsonSchema(t *testing.T) {
 		},
 	}
 
-	result := convertLLMToGeminiRequest(req)
+	result := mustConvertLLMToGeminiRequest(t, req)
 
 	// Verify tools were converted
 	require.NotNil(t, result.Tools)

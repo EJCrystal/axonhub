@@ -67,7 +67,7 @@ func TestOutboundTransformer_DeveloperMessageBecomesSystemInstruction(t *testing
 // systemInstruction; only the resulting empty contents is invalid, which
 // TransformRequest rejects above.
 func TestConvertLLMToGeminiRequest_DeveloperOnlyMessageBecomesSystemInstruction(t *testing.T) {
-	result := convertLLMToGeminiRequest(&llm.Request{
+	result := mustConvertLLMToGeminiRequest(t, &llm.Request{
 		Model: "gemini-2.5-flash",
 		Messages: []llm.Message{
 			{

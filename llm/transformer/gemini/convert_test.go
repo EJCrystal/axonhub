@@ -344,7 +344,7 @@ func TestConvertLLMToGeminiRequest_WithDocuments(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertLLMToGeminiRequest(tt.input)
+			result := mustConvertLLMToGeminiRequest(t, tt.input)
 			tt.validate(t, result)
 		})
 	}
@@ -503,7 +503,7 @@ func TestConvertLLMToGeminiRequest_Gemini3ThinkingLevelvsBudget(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertLLMToGeminiRequest(tt.input)
+			result := mustConvertLLMToGeminiRequest(t, tt.input)
 			require.NotNil(t, result.GenerationConfig)
 			require.NotNil(t, result.GenerationConfig.ThinkingConfig)
 
