@@ -4086,7 +4086,6 @@ enum ProviderQuotaStatusProviderType @goModel(model: "github.com/looplj/axonhub/
   github_copilot
   nanogpt
   cline
-  wafer
   synthetic
   neuralwatt
   apertis
