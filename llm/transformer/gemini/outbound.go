@@ -138,7 +138,10 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 	}
 
 	// Convert to Gemini request format with config
-	geminiReq := convertLLMToGeminiRequestWithConfig(llmReq, &t.config)
+	geminiReq, err := convertLLMToGeminiRequestWithConfig(llmReq, &t.config)
+	if err != nil {
+		return nil, err
+	}
 
 	// System and developer messages become systemInstruction, so a request made
 	// up only of them leaves contents empty. Gemini requires at least one

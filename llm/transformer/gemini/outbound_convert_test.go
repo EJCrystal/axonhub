@@ -12,8 +12,18 @@ import (
 
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/internal/pkg/xmap"
+	"github.com/looplj/axonhub/llm/transformer"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
+
+func mustConvertLLMToGeminiRequest(t *testing.T, req *llm.Request) *GenerateContentRequest {
+	t.Helper()
+
+	result, err := convertLLMToGeminiRequest(req)
+	require.NoError(t, err)
+
+	return result
+}
 
 // =============================================================================
 // Basic Tests for convertLLMToGeminiRequest
@@ -530,7 +540,7 @@ func TestConvertLLMToGeminiRequest_Basic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertLLMToGeminiRequest(tt.input)
+			result := mustConvertLLMToGeminiRequest(t, tt.input)
 			tt.validate(t, result)
 		})
 	}
@@ -556,7 +566,7 @@ func TestConvertLLMToGeminiRequest_VideoURL(t *testing.T) {
 		},
 	}
 
-	result := convertLLMToGeminiRequest(req)
+	result := mustConvertLLMToGeminiRequest(t, req)
 	require.Len(t, result.Contents, 1)
 	require.Len(t, result.Contents[0].Parts, 1)
 	require.NotNil(t, result.Contents[0].Parts[0].FileData)
@@ -575,7 +585,7 @@ func TestConvertLLMToGeminiRequest_VideoURLWithoutKnownMIME(t *testing.T) {
 		}},
 	}
 
-	result := convertLLMToGeminiRequest(req)
+	result := mustConvertLLMToGeminiRequest(t, req)
 	require.Len(t, result.Contents, 1)
 	require.Len(t, result.Contents[0].Parts, 1)
 	require.NotNil(t, result.Contents[0].Parts[0].FileData)
@@ -596,7 +606,7 @@ func TestConvertLLMToGeminiRequest_RemoteAudio(t *testing.T) {
 		}},
 	}
 
-	result := convertLLMToGeminiRequest(req)
+	result := mustConvertLLMToGeminiRequest(t, req)
 	require.Len(t, result.Contents, 1)
 	require.Len(t, result.Contents[0].Parts, 1)
 	require.NotNil(t, result.Contents[0].Parts[0].FileData)
@@ -759,7 +769,7 @@ func TestConvertLLMToGeminiRequest_ResponseFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertLLMToGeminiRequest(tt.input)
+			result := mustConvertLLMToGeminiRequest(t, tt.input)
 			tt.validate(t, result)
 		})
 	}
@@ -1122,7 +1132,7 @@ func TestConvertLLMToGeminiRequest_Tools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertLLMToGeminiRequest(tt.input)
+			result := mustConvertLLMToGeminiRequest(t, tt.input)
 			tt.validate(t, result)
 		})
 	}
@@ -1298,6 +1308,7 @@ func TestConvertLLMToolMessageToGeminiContent(t *testing.T) {
 		name     string
 		input    *llm.Message
 		req      *GenerateContentRequest
+		wantErr  string
 		validate func(t *testing.T, result *Content)
 	}{
 		{
@@ -1309,13 +1320,29 @@ func TestConvertLLMToolMessageToGeminiContent(t *testing.T) {
 					Content: lo.ToPtr(`{"temperature": 72, "unit": "F"}`),
 				},
 			},
-			req: &GenerateContentRequest{},
+			req: &GenerateContentRequest{
+				Contents: []*Content{
+					{
+						Role: "model",
+						Parts: []*Part{
+							{
+								FunctionCall: &FunctionCall{
+									ID:   "call_123",
+									Name: "get_weather",
+									Args: map[string]any{},
+								},
+							},
+						},
+					},
+				},
+			},
 			validate: func(t *testing.T, result *Content) {
 				t.Helper()
 				require.Equal(t, "user", result.Role)
 				require.Len(t, result.Parts, 1)
 				require.NotNil(t, result.Parts[0].FunctionResponse)
 				require.Equal(t, "call_123", result.Parts[0].FunctionResponse.ID)
+				require.Equal(t, "get_weather", result.Parts[0].FunctionResponse.Name)
 				require.Equal(t, 72.0, result.Parts[0].FunctionResponse.Response["temperature"])
 			},
 		},
@@ -1328,32 +1355,42 @@ func TestConvertLLMToolMessageToGeminiContent(t *testing.T) {
 					Content: lo.ToPtr("Plain text result"),
 				},
 			},
-			req: &GenerateContentRequest{},
+			req: &GenerateContentRequest{
+				Contents: []*Content{
+					{
+						Role: "model",
+						Parts: []*Part{
+							{
+								FunctionCall: &FunctionCall{
+									ID:   "call_456",
+									Name: "echo",
+									Args: map[string]any{},
+								},
+							},
+						},
+					},
+				},
+			},
 			validate: func(t *testing.T, result *Content) {
 				t.Helper()
 				require.Equal(t, "user", result.Role)
 				require.Len(t, result.Parts, 1)
 				require.NotNil(t, result.Parts[0].FunctionResponse)
 				require.Equal(t, "call_456", result.Parts[0].FunctionResponse.ID)
+				require.Equal(t, "echo", result.Parts[0].FunctionResponse.Name)
 				require.Equal(t, "Plain text result", result.Parts[0].FunctionResponse.Response["result"])
 			},
 		},
 		{
-			name: "tool message without tool call ID",
+			name: "tool message without tool call ID or name returns invalid request",
 			input: &llm.Message{
 				Role: "tool",
 				Content: llm.MessageContent{
 					Content: lo.ToPtr(`{"result": "success"}`),
 				},
 			},
-			req: &GenerateContentRequest{},
-			validate: func(t *testing.T, result *Content) {
-				t.Helper()
-				require.Equal(t, "user", result.Role)
-				require.Len(t, result.Parts, 1)
-				require.NotNil(t, result.Parts[0].FunctionResponse)
-				require.Equal(t, "", result.Parts[0].FunctionResponse.ID)
-			},
+			req:     &GenerateContentRequest{},
+			wantErr: `tool_call_id "" has no matching assistant tool call with a function name`,
 		},
 		{
 			name: "tool message with name from ToolCallName",
@@ -1445,11 +1482,59 @@ func TestConvertLLMToolMessageToGeminiContent(t *testing.T) {
 				require.Equal(t, "explicit_name", result.Parts[0].FunctionResponse.Name)
 			},
 		},
+		{
+			name: "tool message with unknown tool call ID returns invalid request",
+			input: &llm.Message{
+				Role:       "tool",
+				ToolCallID: lo.ToPtr("call_missing"),
+				Content: llm.MessageContent{
+					Content: lo.ToPtr(`{"result": "missing"}`),
+				},
+			},
+			req:     &GenerateContentRequest{},
+			wantErr: `tool_call_id "call_missing" has no matching assistant tool call with a function name`,
+		},
+		{
+			name: "tool message with matched call without function name returns invalid request",
+			input: &llm.Message{
+				Role:       "tool",
+				ToolCallID: lo.ToPtr("call_empty"),
+				Content: llm.MessageContent{
+					Content: lo.ToPtr(`{"result": "empty"}`),
+				},
+			},
+			req: &GenerateContentRequest{
+				Contents: []*Content{
+					{
+						Role: "model",
+						Parts: []*Part{
+							{
+								FunctionCall: &FunctionCall{
+									ID:   "call_empty",
+									Args: map[string]any{},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: `tool_call_id "call_empty" has no matching assistant tool call with a function name`,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertLLMToolResultToGeminiContent(tt.input, tt.req.Contents)
+			result, err := convertLLMToolResultToGeminiContent(tt.input, tt.req.Contents)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorIs(t, err, transformer.ErrInvalidRequest)
+				require.ErrorContains(t, err, tt.wantErr)
+				require.Nil(t, result)
+
+				return
+			}
+
+			require.NoError(t, err)
 			tt.validate(t, result)
 		})
 	}
@@ -1485,7 +1570,8 @@ func TestConvertLLMToolResultToGeminiContent_VertexAI(t *testing.T) {
 	}
 
 	// Test conversion - ID should always be set for lookup purposes
-	result := convertLLMToolResultToGeminiContent(msg, req.Contents)
+	result, err := convertLLMToolResultToGeminiContent(msg, req.Contents)
+	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Len(t, result.Parts, 1)
 	require.NotNil(t, result.Parts[0].FunctionResponse)
@@ -1548,7 +1634,7 @@ func TestConvertLLMToGeminiRequest_MultipleToolMessages(t *testing.T) {
 		},
 	}
 
-	result := convertLLMToGeminiRequest(llmReq)
+	result := mustConvertLLMToGeminiRequest(t, llmReq)
 
 	// Should have: user message, assistant with function calls, user with grouped function responses
 	require.Len(t, result.Contents, 3)
@@ -1561,6 +1647,37 @@ func TestConvertLLMToGeminiRequest_MultipleToolMessages(t *testing.T) {
 	require.NotNil(t, lastContent.Parts[1].FunctionResponse)
 	require.Equal(t, "get_weather", lastContent.Parts[0].FunctionResponse.Name)
 	require.Equal(t, "get_news", lastContent.Parts[1].FunctionResponse.Name)
+}
+
+func TestConvertLLMToGeminiRequest_UnknownToolCallID(t *testing.T) {
+	result, err := convertLLMToGeminiRequest(&llm.Request{
+		Model: "gemini-2.5-flash",
+		Messages: []llm.Message{
+			{
+				Role: "assistant",
+				ToolCalls: []llm.ToolCall{
+					{
+						ID:   "call_1",
+						Type: "function",
+						Function: llm.FunctionCall{
+							Name:      "read_file",
+							Arguments: `{"path":"/tmp/a"}`,
+						},
+					},
+				},
+			},
+			{
+				Role:       "tool",
+				ToolCallID: lo.ToPtr("call_0"),
+				Content:    llm.MessageContent{Content: lo.ToPtr(`{"ok":true}`)},
+			},
+		},
+	})
+
+	require.Nil(t, result)
+	require.ErrorIs(t, err, transformer.ErrInvalidRequest)
+	require.ErrorContains(t, err, "messages[1]")
+	require.ErrorContains(t, err, `tool_call_id "call_0"`)
 }
 
 // =============================================================================
@@ -2243,7 +2360,7 @@ func TestConvertLLMToGeminiRequest_Testdata(t *testing.T) {
 			err = json.Unmarshal(data, &llmReq)
 			require.NoError(t, err)
 
-			result := convertLLMToGeminiRequest(&llmReq)
+			result := mustConvertLLMToGeminiRequest(t, &llmReq)
 			tc.validateFunc(t, result)
 		})
 	}
@@ -2436,7 +2553,7 @@ func TestConvertLLMToGeminiRequest_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertLLMToGeminiRequest(tt.input)
+			result := mustConvertLLMToGeminiRequest(t, tt.input)
 			tt.validate(t, result)
 		})
 	}
@@ -3442,7 +3559,7 @@ func TestConvertLLMToGeminiRequest_SafetySettings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertLLMToGeminiRequest(tt.input)
+			result := mustConvertLLMToGeminiRequest(t, tt.input)
 			tt.validate(t, result)
 		})
 	}
@@ -3660,7 +3777,8 @@ func TestConvertLLMToGeminiRequest_ImageConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertLLMToGeminiRequestWithConfig(tt.input, nil)
+			result, err := convertLLMToGeminiRequestWithConfig(tt.input, nil)
+			require.NoError(t, err)
 			tt.validate(t, result)
 		})
 	}

@@ -1869,7 +1869,7 @@ func TestRoundTrip_GeminiRequest_ToLLM_BackToGemini(t *testing.T) {
 			require.NoError(t, err)
 
 			// Convert LLM -> Gemini
-			convertedGemini := convertLLMToGeminiRequest(llmReq)
+			convertedGemini := mustConvertLLMToGeminiRequest(t, llmReq)
 
 			// Verify key fields are preserved
 			require.Equal(t, len(originalGemini.Contents), len(convertedGemini.Contents))
@@ -2001,7 +2001,7 @@ func TestRoundTrip_LLMRequest_ToGemini_BackToLLM(t *testing.T) {
 			require.NoError(t, err)
 
 			// Convert LLM -> Gemini
-			geminiReq := convertLLMToGeminiRequest(&originalLLM)
+			geminiReq := mustConvertLLMToGeminiRequest(t, &originalLLM)
 
 			// Convert Gemini -> LLM
 			convertedLLM, err := convertGeminiToLLMRequest(geminiReq)

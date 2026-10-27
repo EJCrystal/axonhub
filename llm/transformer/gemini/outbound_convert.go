@@ -11,17 +11,18 @@ import (
 
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/internal/pkg/xurl"
+	"github.com/looplj/axonhub/llm/transformer"
 	geminioai "github.com/looplj/axonhub/llm/transformer/gemini/openai"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 // convertLLMToGeminiRequest converts unified Request to Gemini GenerateContentRequest.
-func convertLLMToGeminiRequest(chatReq *llm.Request) *GenerateContentRequest {
+func convertLLMToGeminiRequest(chatReq *llm.Request) (*GenerateContentRequest, error) {
 	return convertLLMToGeminiRequestWithConfig(chatReq, nil)
 }
 
 //nolint:maintidx // Checked.
-func convertLLMToGeminiRequestWithConfig(chatReq *llm.Request, config *Config) *GenerateContentRequest {
+func convertLLMToGeminiRequestWithConfig(chatReq *llm.Request, config *Config) (*GenerateContentRequest, error) {
 	req := &GenerateContentRequest{}
 
 	// Convert generation config
@@ -196,7 +197,7 @@ func convertLLMToGeminiRequestWithConfig(chatReq *llm.Request, config *Config) *
 
 	contents := make([]*Content, 0)
 
-	for _, msg := range chatReq.Messages {
+	for i, msg := range chatReq.Messages {
 		switch msg.Role {
 		case "system", "developer":
 			// Collect system and developer messages into system instruction
@@ -215,7 +216,10 @@ func convertLLMToGeminiRequestWithConfig(chatReq *llm.Request, config *Config) *
 		case "tool":
 			// Tool response - need to find the corresponding function call
 			// Group consecutive tool messages into a single Content entry
-			toolContent := convertLLMToolResultToGeminiContent(&msg, contents)
+			toolContent, err := convertLLMToolResultToGeminiContent(&msg, contents)
+			if err != nil {
+				return nil, fmt.Errorf("messages[%d]: %w", i, err)
+			}
 			if isPreviousContentToolResponse(contents) {
 				contents[len(contents)-1].Parts = append(contents[len(contents)-1].Parts, toolContent.Parts...)
 			} else {
@@ -317,7 +321,7 @@ func convertLLMToGeminiRequestWithConfig(chatReq *llm.Request, config *Config) *
 		req.GenerationConfig.ImageConfig = imageConfig
 	}
 
-	return req
+	return req, nil
 }
 
 func hasStrictFunctionTool(tools []llm.Tool) bool {
@@ -482,7 +486,9 @@ func convertLLMMessageToGeminiContent(msg *llm.Message) *Content {
 }
 
 // convertLLMToolResultToGeminiContent converts an LLM tool message to Gemini Content.
-func convertLLMToolResultToGeminiContent(msg *llm.Message, contents []*Content) *Content {
+// Gemini requires a non-empty functionResponse.name, so an unmatched tool_call_id
+// is rejected instead of forwarding an invalid request upstream.
+func convertLLMToolResultToGeminiContent(msg *llm.Message, contents []*Content) (*Content, error) {
 	content := &Content{
 		Role: "user", // Function responses come from user role in Gemini
 	}
@@ -503,6 +509,9 @@ func convertLLMToolResultToGeminiContent(msg *llm.Message, contents []*Content) 
 	if toolCallName == "" {
 		toolCallName = findToolNameByToolCallID(contents, toolCallID)
 	}
+	if toolCallName == "" {
+		return nil, fmt.Errorf("%w: tool_call_id %q has no matching assistant tool call with a function name", transformer.ErrInvalidRequest, toolCallID)
+	}
 
 	fp := &FunctionResponse{
 		ID:       toolCallID,
@@ -514,7 +523,7 @@ func convertLLMToolResultToGeminiContent(msg *llm.Message, contents []*Content) 
 		{FunctionResponse: fp},
 	}
 
-	return content
+	return content, nil
 }
 
 func findToolNameByToolCallID(contents []*Content, id string) string {

@@ -38,7 +38,7 @@ func TestStrictFunctionToolChoice(t *testing.T) {
 				}}
 
 				// When the request is converted for Gemini.
-				result := convertLLMToGeminiRequest(req)
+				result := mustConvertLLMToGeminiRequest(t, req)
 
 				// Then optional, required, disabled, and named selection remain distinct.
 				require.NotNil(t, result.ToolConfig)
@@ -66,7 +66,7 @@ func TestNonStrictToolsPreserveDefaultMode(t *testing.T) {
 			}
 
 			// When converting the request.
-			result := convertLLMToGeminiRequest(req)
+			result := mustConvertLLMToGeminiRequest(t, req)
 
 			// Then no schema-enforcing mode is introduced.
 			if explicitAuto {
@@ -89,7 +89,7 @@ func TestRequiredFunctionNamesSurviveRoundTrip(t *testing.T) {
 			var restored llm.ToolChoice
 			require.NoError(t, json.Unmarshal(body, &restored))
 			for _, strict := range []bool{false, true} {
-				result := convertLLMToGeminiRequest(&llm.Request{ToolChoice: &restored, Tools: []llm.Tool{
+				result := mustConvertLLMToGeminiRequest(t, &llm.Request{ToolChoice: &restored, Tools: []llm.Tool{
 					{Type: llm.ToolTypeFunction, Function: llm.Function{Name: "weather", Strict: lo.ToPtr(strict)}},
 				}})
 				require.Equal(t, "ANY", result.ToolConfig.FunctionCallingConfig.Mode)
