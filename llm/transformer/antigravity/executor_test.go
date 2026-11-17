@@ -80,7 +80,7 @@ func TestExecutor_DoWithEndpointFallback(t *testing.T) {
 
 		request := &httpclient.Request{
 			Method: http.MethodPost,
-			URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+			URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 			Metadata: map[string]string{
 				"antigravity_model": "gemini-2.5-pro", // Gemini CLI quota
 			},
@@ -92,7 +92,7 @@ func TestExecutor_DoWithEndpointFallback(t *testing.T) {
 		assert.Equal(t, 200, resp.StatusCode)
 		assert.Equal(t, 1, mockClient.callCount)
 		// All models now start with Daily for better quota distribution
-		assert.Equal(t, EndpointDaily, mockClient.endpoints[0])
+		assert.Equal(t, EndpointDailyDirect, mockClient.endpoints[0])
 	})
 
 	t.Run("succeeds on first endpoint for antigravity model", func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestExecutor_DoWithEndpointFallback(t *testing.T) {
 		assert.Equal(t, 200, resp.StatusCode)
 		assert.Equal(t, 1, mockClient.callCount)
 		// Should try daily first for antigravity models
-		assert.Equal(t, EndpointDaily, mockClient.endpoints[0])
+		assert.Equal(t, EndpointDailyDirect, mockClient.endpoints[0])
 	})
 
 	t.Run("retries on 403 error", func(t *testing.T) {
@@ -148,7 +148,7 @@ func TestExecutor_DoWithEndpointFallback(t *testing.T) {
 
 		request := &httpclient.Request{
 			Method: http.MethodPost,
-			URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+			URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 			Metadata: map[string]string{
 				"antigravity_model": "claude-sonnet-4-5",
 			},
@@ -160,7 +160,7 @@ func TestExecutor_DoWithEndpointFallback(t *testing.T) {
 		assert.Equal(t, 200, resp.StatusCode)
 		assert.Equal(t, 2, mockClient.callCount)
 		// Should try daily, then autopush
-		assert.Equal(t, EndpointDaily, mockClient.endpoints[0])
+		assert.Equal(t, EndpointDailyDirect, mockClient.endpoints[0])
 		assert.Equal(t, EndpointAutopush, mockClient.endpoints[1])
 	})
 
@@ -188,7 +188,7 @@ func TestExecutor_DoWithEndpointFallback(t *testing.T) {
 
 		request := &httpclient.Request{
 			Method: http.MethodPost,
-			URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+			URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 			Metadata: map[string]string{
 				"antigravity_model": "claude-sonnet-4-5",
 			},
@@ -200,7 +200,7 @@ func TestExecutor_DoWithEndpointFallback(t *testing.T) {
 		assert.Equal(t, 200, resp.StatusCode)
 		assert.Equal(t, 3, mockClient.callCount)
 		// Should try all three endpoints
-		assert.Equal(t, EndpointDaily, mockClient.endpoints[0])
+		assert.Equal(t, EndpointDailyDirect, mockClient.endpoints[0])
 		assert.Equal(t, EndpointAutopush, mockClient.endpoints[1])
 		assert.Equal(t, EndpointProd, mockClient.endpoints[2])
 	})
@@ -229,7 +229,7 @@ func TestExecutor_DoWithEndpointFallback(t *testing.T) {
 
 		request := &httpclient.Request{
 			Method: http.MethodPost,
-			URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+			URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 			Metadata: map[string]string{
 				"antigravity_model": "claude-sonnet-4-5",
 			},
@@ -256,7 +256,7 @@ func TestExecutor_DoWithEndpointFallback(t *testing.T) {
 
 		request := &httpclient.Request{
 			Method: http.MethodPost,
-			URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+			URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 			Metadata: map[string]string{
 				"antigravity_model": "claude-sonnet-4-5",
 			},
@@ -283,7 +283,7 @@ func TestExecutor_DoWithEndpointFallback(t *testing.T) {
 
 		request := &httpclient.Request{
 			Method: http.MethodPost,
-			URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+			URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 			Metadata: map[string]string{
 				"antigravity_model": "claude-sonnet-4-5",
 			},
@@ -316,7 +316,7 @@ func TestExecutor_DoWithEndpointFallback(t *testing.T) {
 
 		request := &httpclient.Request{
 			Method: http.MethodPost,
-			URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+			URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 			Metadata: map[string]string{
 				"antigravity_model": "claude-sonnet-4-5",
 			},
@@ -340,7 +340,7 @@ func TestExecutor_ReplaceBaseURL(t *testing.T) {
 	}{
 		{
 			name:        "replace daily with prod",
-			originalURL: "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+			originalURL: "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 			newBase:     "https://cloudcode-pa.googleapis.com",
 			expected:    "https://cloudcode-pa.googleapis.com/v1internal:generateContent",
 		},
@@ -373,7 +373,7 @@ func TestExecutor_GetEndpointsInOrder(t *testing.T) {
 		// All models now start with Daily for better quota distribution (matches reference)
 		endpoints := executor.getEndpointsInOrder("gemini-2.5-pro")
 		require.Len(t, endpoints, 3)
-		assert.Equal(t, EndpointDaily, endpoints[0])
+		assert.Equal(t, EndpointDailyDirect, endpoints[0])
 		assert.Contains(t, endpoints, EndpointProd)
 		assert.Contains(t, endpoints, EndpointAutopush)
 	})
@@ -381,7 +381,7 @@ func TestExecutor_GetEndpointsInOrder(t *testing.T) {
 	t.Run("antigravity model starts with daily", func(t *testing.T) {
 		endpoints := executor.getEndpointsInOrder("claude-sonnet-4-5")
 		require.Len(t, endpoints, 3)
-		assert.Equal(t, EndpointDaily, endpoints[0])
+		assert.Equal(t, EndpointDailyDirect, endpoints[0])
 		assert.Contains(t, endpoints, EndpointProd)
 		assert.Contains(t, endpoints, EndpointAutopush)
 	})
@@ -390,13 +390,13 @@ func TestExecutor_GetEndpointsInOrder(t *testing.T) {
 		// All models start with Daily regardless of suffix (quota preference)
 		endpoints := executor.getEndpointsInOrder("gemini-2.5-pro:antigravity")
 		require.Len(t, endpoints, 3)
-		assert.Equal(t, EndpointDaily, endpoints[0])
+		assert.Equal(t, EndpointDailyDirect, endpoints[0])
 	})
 
 	t.Run("no model uses default fallback order", func(t *testing.T) {
 		endpoints := executor.getEndpointsInOrder("")
 		require.Len(t, endpoints, 3)
-		assert.Equal(t, EndpointDaily, endpoints[0])
+		assert.Equal(t, EndpointDailyDirect, endpoints[0])
 		assert.Equal(t, EndpointAutopush, endpoints[1])
 		assert.Equal(t, EndpointProd, endpoints[2])
 	})
@@ -407,7 +407,7 @@ func TestExecutor_GetEndpointsInOrder(t *testing.T) {
 		endpoints := customExec.getEndpointsInOrder("gemini-2.5-pro")
 		require.Len(t, endpoints, 3)
 		assert.Equal(t, EndpointProd, endpoints[0])
-		assert.Contains(t, endpoints, EndpointDaily)
+		assert.Contains(t, endpoints, EndpointDailyDirect)
 		assert.Contains(t, endpoints, EndpointAutopush)
 	})
 }
@@ -424,7 +424,7 @@ func TestExecutor_DoWithCooldown_SkipsFailedEndpoint(t *testing.T) {
 			lastEndpoint = endpoint
 
 			// Daily always fails with 429
-			if endpoint == EndpointDaily {
+			if endpoint == EndpointDailyDirect {
 				return &httpclient.Response{
 					StatusCode: 429,
 					Body:       []byte(`{"error": "rate limit exceeded"}`),
@@ -443,7 +443,7 @@ func TestExecutor_DoWithCooldown_SkipsFailedEndpoint(t *testing.T) {
 
 	request := &httpclient.Request{
 		Method: http.MethodPost,
-		URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+		URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 		Metadata: map[string]string{
 			"antigravity_model": "claude-sonnet-4-5",
 		},
@@ -480,7 +480,7 @@ func TestExecutor_DoWithCooldown_FailsFastWhenAllInCooldown(t *testing.T) {
 
 	request := &httpclient.Request{
 		Method: http.MethodPost,
-		URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+		URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 		Metadata: map[string]string{
 			"antigravity_model": "claude-sonnet-4-5",
 		},
@@ -506,7 +506,7 @@ func TestExecutor_DoWithCooldown_PerModelIsolation(t *testing.T) {
 			callsByModel[model]++
 			endpoint := extractEndpoint(request.URL)
 
-			if model == "claude-sonnet-4-5" && endpoint == EndpointDaily {
+			if model == "claude-sonnet-4-5" && endpoint == EndpointDailyDirect {
 				// Claude fails on Daily
 				return &httpclient.Response{
 					StatusCode: 429,
@@ -526,7 +526,7 @@ func TestExecutor_DoWithCooldown_PerModelIsolation(t *testing.T) {
 
 	claudeRequest := &httpclient.Request{
 		Method: http.MethodPost,
-		URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+		URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 		Metadata: map[string]string{
 			"antigravity_model": "claude-sonnet-4-5",
 		},
@@ -565,7 +565,7 @@ func TestExecutor_DoWithCooldown_RecoveryAfterSuccess(t *testing.T) {
 			callCount++
 			endpoint := extractEndpoint(request.URL)
 
-			if callCount == 1 && endpoint == EndpointDaily {
+			if callCount == 1 && endpoint == EndpointDailyDirect {
 				// First call to Daily fails
 				return &httpclient.Response{
 					StatusCode: 503,
@@ -585,7 +585,7 @@ func TestExecutor_DoWithCooldown_RecoveryAfterSuccess(t *testing.T) {
 
 	request := &httpclient.Request{
 		Method: http.MethodPost,
-		URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+		URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 		Metadata: map[string]string{
 			"antigravity_model": "claude-sonnet-4-5",
 		},
@@ -620,7 +620,7 @@ func TestExecutor_DoStreamWithCooldown_SkipsFailedEndpoint(t *testing.T) {
 			lastEndpoint = endpoint
 
 			// Daily always fails
-			if endpoint == EndpointDaily {
+			if endpoint == EndpointDailyDirect {
 				return nil, fmt.Errorf("connection error")
 			}
 
@@ -633,7 +633,7 @@ func TestExecutor_DoStreamWithCooldown_SkipsFailedEndpoint(t *testing.T) {
 
 	request := &httpclient.Request{
 		Method: http.MethodPost,
-		URL:    "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:streamGenerateContent?alt=sse",
+		URL:    "https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse",
 		Metadata: map[string]string{
 			"antigravity_model": "claude-sonnet-4-5",
 		},

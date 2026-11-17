@@ -51,7 +51,7 @@ func TestExecutor_RetryOnNilResponseWithError(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, 2, mockClient.callCount)
 	// Should have tried Daily (failed) then Autopush (succeeded)
-	assert.Equal(t, EndpointDaily, mockClient.endpoints[0])
+	assert.Equal(t, EndpointDailyDirect, mockClient.endpoints[0])
 	assert.Equal(t, EndpointAutopush, mockClient.endpoints[1])
 }
 

@@ -1562,7 +1562,8 @@ func TestConvertLLMToolResultToGeminiContent_JSONSchemaRef(t *testing.T) {
 		},
 	}
 
-	result := convertLLMToolResultToGeminiContent(msg, nil)
+	result, convErr := convertLLMToolResultToGeminiContent(msg, nil)
+	require.NoError(t, convErr)
 	require.NotNil(t, result)
 	require.NotNil(t, result.Parts[0].FunctionResponse)
 
@@ -1579,14 +1580,16 @@ func TestConvertLLMToolResultToGeminiContent_JSONSchemaRef(t *testing.T) {
 
 func TestConvertLLMToolResultToGeminiContent_DefsWithoutRefStayStructured(t *testing.T) {
 	msg := &llm.Message{
-		Role:       "tool",
-		ToolCallID: lo.ToPtr("call_defs"),
+		Role:         "tool",
+		ToolCallID:   lo.ToPtr("call_defs"),
+		ToolCallName: lo.ToPtr("lookup"),
 		Content: llm.MessageContent{
 			Content: lo.ToPtr(`{"$defs":{"TerminalOpenSource":{"type":"string"}},"temperature":72}`),
 		},
 	}
 
-	result := convertLLMToolResultToGeminiContent(msg, nil)
+	result, convErr := convertLLMToolResultToGeminiContent(msg, nil)
+	require.NoError(t, convErr)
 	require.NotNil(t, result)
 
 	response := result.Parts[0].FunctionResponse.Response

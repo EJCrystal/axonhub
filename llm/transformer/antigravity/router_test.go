@@ -164,12 +164,12 @@ func TestGetInitialEndpoint(t *testing.T) {
 		{
 			name:       "antigravity quota uses daily endpoint",
 			preference: QuotaAntigravity,
-			expected:   EndpointDaily,
+			expected:   EndpointDailyDirect,
 		},
 		{
 			name:       "gemini-cli quota uses daily endpoint",
 			preference: QuotaGeminiCLI,
-			expected:   EndpointDaily, // All models now start with Daily
+			expected:   EndpointDailyDirect, // All models now start with Daily
 		},
 	}
 
@@ -184,7 +184,7 @@ func TestGetInitialEndpoint(t *testing.T) {
 func TestGetFallbackEndpoints(t *testing.T) {
 	endpoints := GetFallbackEndpoints()
 	expected := []string{
-		EndpointDaily,
+		EndpointDailyDirect,
 		EndpointAutopush,
 		EndpointProd,
 	}
