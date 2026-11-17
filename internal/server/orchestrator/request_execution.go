@@ -318,8 +318,12 @@ func ExtractErrorMessage(err error) string {
 	httpErr, ok := xerrors.As[*httpclient.Error](err)
 	if !ok {
 		// Prefer the structured message over ResponseError.Error(), which also
-		// concatenates the status text, code and type.
+		// concatenates the status text, code and type. Error() has a value
+		// receiver, so fmt-wrapped value copies only match the value form.
 		if respErr, ok := xerrors.As[*llm.ResponseError](err); ok && respErr.Detail.Message != "" {
+			return respErr.Detail.Message
+		}
+		if respErr, ok := xerrors.As[llm.ResponseError](err); ok && respErr.Detail.Message != "" {
 			return respErr.Detail.Message
 		}
 

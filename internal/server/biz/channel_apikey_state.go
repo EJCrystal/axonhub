@@ -167,10 +167,13 @@ func (st *apiKeySelectionState) nextRoundRobinKey(ch *Channel, per int) string {
 // provider it used to live in, so a remembered key is only reused while it is
 // still in the enabled set: once it is disabled or removed, the trace moves to a
 // key that can actually serve.
-func (st *apiKeySelectionState) stickyKeyFor(ch *Channel, traceID string) string {
-	enabled := ch.cachedEnabledAPIKeys
+func (st *apiKeySelectionState) stickyKeyFor(ch *Channel, traceID string, selectable []string) string {
+	enabled := selectable
+	if enabled == nil {
+		enabled = ch.cachedEnabledAPIKeys
+	}
 	if len(enabled) == 0 {
-		return ch.Credentials.APIKeys[0]
+		return ""
 	}
 
 	if len(enabled) == 1 {

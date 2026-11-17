@@ -61,7 +61,7 @@ func TestExtractErrorCode(t *testing.T) {
 		},
 		{
 			name: "fmt wrapped llm response error",
-			err: fmt.Errorf("upstream: %w", &llm.ResponseError{
+			err: fmt.Errorf("upstream: %w", llm.ResponseError{
 				StatusCode: 502,
 				Detail:     llm.ErrorDetail{Message: "Our servers are currently overloaded"},
 				Cause:      llm.ErrEmptyResponse,
@@ -108,7 +108,7 @@ func TestPerformanceRecording_OnOutboundRawError_WrappedResponseErrorDrivesAutoD
 	}{
 		{
 			name: "wrapped 401 response error matches the 401 rule",
-			err: fmt.Errorf("upstream: %w", &llm.ResponseError{
+			err: fmt.Errorf("upstream: %w", llm.ResponseError{
 				StatusCode: 401,
 				Detail:     llm.ErrorDetail{Message: "invalid api key"},
 				Cause:      llm.ErrEmptyResponse,
@@ -119,7 +119,7 @@ func TestPerformanceRecording_OnOutboundRawError_WrappedResponseErrorDrivesAutoD
 		},
 		{
 			name: "wrapped 502 response error is not counted as 500",
-			err: fmt.Errorf("upstream: %w", &llm.ResponseError{
+			err: fmt.Errorf("upstream: %w", llm.ResponseError{
 				StatusCode: 502,
 				Detail:     llm.ErrorDetail{Message: "Our servers are currently overloaded"},
 				Cause:      llm.ErrEmptyResponse,

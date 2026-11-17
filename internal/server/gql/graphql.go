@@ -120,42 +120,7 @@ type GraphqlHandler struct {
 const maxBackupUploadSize = 128 << 20 // 128 MiB
 
 func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
-	gqlSrv := handler.New(
-		NewSchema(
-			deps.Ent,
-			deps.AuthService,
-			deps.APIKeyService,
-			deps.UserService,
-			deps.SystemService,
-			deps.ChannelService,
-			deps.RequestService,
-			deps.QuotaService,
-			deps.ProjectService,
-			deps.DataStorageService,
-			deps.RoleService,
-			deps.TraceService,
-			deps.ThreadService,
-			deps.UsageLogService,
-			deps.ChannelOverrideTemplateService,
-			deps.APIKeyProfileTemplateService,
-			deps.ModelService,
-			deps.BackupService,
-			deps.ChannelProbeService,
-			deps.PromptService,
-			deps.PromptProtectionRuleService,
-			deps.ProviderQuotaService,
-			deps.Scheduler,
-			deps.DefaultSelector,
-			deps.CandidateSelectorDiagnostics,
-			deps.ChannelLimiterManager,
-			deps.HttpClient,
-			deps.TestChannelOrchestrator,
-			deps.IntelligenceService,
-			deps.GCWorker,
-			deps.VideoWorker,
-			deps.CatalogService,
-		),
-	)	schema := newSchemaFromDeps(deps)
+	schema := newSchemaFromDeps(deps)
 	gqlSrv := handler.New(schema)
 
 	gqlSrv.AddTransport(transport.Options{})
@@ -174,44 +139,7 @@ func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
 	})
 	gqlSrv.Use(&loggingTracer{})
 	gqlSrv.AroundOperations(apiKeyReadOnly)
-	// TestChannel, TestChannelAPIKeys and evaluateChannelIntelligence fan out to
-	// upstream providers for minutes and persist their request records through
-	// the orchestrator, which manages its own connections. Pinning the GraphQL
-	// transaction open for the whole run would hold a database connection and
-	// roll the work back when the transaction times out. The intelligence check
-	// is matched by field name so it skips regardless of the operation name a
-	// client picks.
 	gqlSrv.Use(entgql.Transactioner{
-		TxOpener:   deps.Ent,
-		SkipTxFunc: skipGraphQLTransaction,
-	})
-
-	// Set error presenter to handle CodedError and add extensions.code
-	gqlSrv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
-		// Check if it's a CodedError
-		var codedErr *xerrors.CodedError
-		if errors.As(err, &codedErr) {
-			return &gqlerror.Error{
-				Message: codedErr.Message,
-				Extensions: map[string]any{
-					"code":     codedErr.Code,
-					"resource": codedErr.Extensions["resource"],
-					"field":    codedErr.Extensions["field"],
-					"value":    codedErr.Extensions["value"],
-				},
-			}
-		}
-		// Convert ent privacy deny errors to FORBIDDEN
-		if errors.Is(err, privacy.Deny) {
-			return &gqlerror.Error{
-				Message: "permission denied",
-				Extensions: map[string]any{
-					"code": xerrors.ErrCodeForbidden,
-				},
-			}
-		}
-		// Return default error presentation
-		return graphql.DefaultErrorPresenter(ctx, err)	gqlSrv.Use(entgql.Transactioner{
 		TxOpener: deps.Ent,
 		// TestChannel performs long-running parallel provider requests whose database
 		// operations do not require one transaction. BulkImportChannels manages one
@@ -258,6 +186,8 @@ func newSchemaFromDeps(deps Dependencies) graphql.ExecutableSchema {
 		deps.CandidateSelectorDiagnostics,
 		deps.ChannelLimiterManager,
 		deps.HttpClient,
+		deps.TestChannelOrchestrator,
+		deps.IntelligenceService,
 		deps.GCWorker,
 		deps.VideoWorker,
 		deps.CatalogService,
@@ -274,10 +204,15 @@ var (
 	// client, so matching the selected fields keeps a client-chosen operation
 	// name from opting unrelated mutations in or out.
 	skipQuotaMutationsTransaction = entgql.SkipIfHasFields("checkProviderQuotas", "resetChannelQuotaNow")
+	// The synchronous per-channel intelligence check and the async dashboard
+	// trigger both outlive a request-scoped transaction: the latter detaches
+	// its context to keep running, which leaves the transaction unusable.
+	skipIntelligenceTransaction = entgql.SkipIfHasFields("evaluateChannelIntelligence", "runIntelligenceCheckNow")
 )
 
 func skipGraphqlTransaction(op *ast.OperationDefinition) bool {
-	return skipTestChannelTransaction(op) || skipBulkImportTransaction(op) || skipQuotaMutationsTransaction(op)
+	return skipTestChannelTransaction(op) || skipBulkImportTransaction(op) ||
+		skipQuotaMutationsTransaction(op) || skipIntelligenceTransaction(op)
 }
 
 func presentGraphqlError(ctx context.Context, err error) *gqlerror.Error {
@@ -419,33 +354,4 @@ func getNilableUser(ctx context.Context, client *ent.Client, userID int) (*ent.U
 	}
 
 	return u, nil
-}
-
-// skippedTransactionOperations are the admin mutations that must not run inside
-// the GraphQL transaction, matched by operation name. TestChannel and
-// TestChannelAPIKeys fan out to upstream providers for minutes and persist
-// their request records through the orchestrator, which manages its own
-// connections. Pinning the GraphQL transaction open for the whole run would
-// hold a database connection and roll the work back when the transaction times
-// out.
-var skippedTransactionOperations = entgql.SkipOperations("TestChannel", "TestChannelAPIKeys")
-
-// skippedTransactionFields are mutations matched by root field name, which is
-// independent of the operation name a client picks.
-// evaluateChannelIntelligence runs for minutes for the same reason as
-// TestChannel. bulkImportChannels instead manages one transaction per row to
-// preserve its partial-success behavior.
-var skippedTransactionFields = entgql.SkipIfHasFields(
-	// The synchronous per-channel check and the async dashboard trigger both
-	// outlive a request-scoped transaction: the latter detaches its context to
-	// keep running, which leaves the transaction unusable.
-	"evaluateChannelIntelligence",
-	"runIntelligenceCheckNow",
-	"bulkImportChannels",
-)
-
-// skipGraphQLTransaction reports whether an operation opts out of the ent
-// transaction wrapper.
-func skipGraphQLTransaction(op *ast.OperationDefinition) bool {
-	return skippedTransactionOperations(op) || skippedTransactionFields(op)
 }

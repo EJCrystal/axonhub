@@ -1066,6 +1066,7 @@ func (s *SystemService) SystemValue(ctx context.Context, key string) (string, er
 // of setSystemValue.
 func (s *SystemService) SetSystemValue(ctx context.Context, key, value string) error {
 	return s.setSystemValue(ctx, key, value)
+}
 
 // querySystemRow reads a setting row from the database, bypassing the caches, as a host read that
 // keeps the caller's transaction client.

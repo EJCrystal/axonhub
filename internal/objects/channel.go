@@ -492,7 +492,6 @@ func (dk DisabledAPIKey) IsExpired() bool {
 	return dk.ExpiresAt != nil && time.Now().After(*dk.ExpiresAt)
 }
 
-// APIKeyModels records the upstream models accepted by one channel API key.
 type APIKeyModels struct {
 	APIKey string   `json:"apiKey"`
 	Models []string `json:"models,omitempty"`

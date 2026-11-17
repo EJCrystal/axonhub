@@ -264,7 +264,15 @@ func ExtractErrorCode(err error) int {
 		return code
 	}
 
-	var llmErr *llm.ResponseError
+	// ResponseError.Error() has a value receiver: a stored *ResponseError still
+	// satisfies error, but fmt-wrapped value copies only match errors.As through
+	// the value form, so both shapes must be probed.
+	var llmErrPtr *llm.ResponseError
+	if errors.As(err, &llmErrPtr) && llmErrPtr != nil && llmErrPtr.StatusCode > 0 {
+		return llmErrPtr.StatusCode
+	}
+
+	var llmErr llm.ResponseError
 	if errors.As(err, &llmErr) && llmErr.StatusCode > 0 {
 		return llmErr.StatusCode
 	}

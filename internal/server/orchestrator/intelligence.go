@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xjson"
+	"github.com/looplj/axonhub/internal/pkg/xsecret"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -531,7 +532,7 @@ func (processor *TestChannelOrchestrator) evaluateIntelligenceKey(
 	evaluator *intelligenceEvaluator,
 	reasoningEffort string,
 ) *IntelligenceKeyResult {
-	result := &IntelligenceKeyResult{KeyPrefix: maskAPIKey(key), APIKey: key}
+	result := &IntelligenceKeyResult{KeyPrefix: xsecret.MaskAPIKey(key), APIKey: key}
 	startedAt := time.Now()
 
 	html, err := processor.generateIntelligenceHTML(ctx, channel, key, model, prompt, reasoningEffort)
@@ -590,7 +591,7 @@ func (processor *TestChannelOrchestrator) evaluateCandyKey(
 	prompt string,
 	reasoningEffort string,
 ) *IntelligenceKeyResult {
-	result := &IntelligenceKeyResult{KeyPrefix: maskAPIKey(key), APIKey: key}
+	result := &IntelligenceKeyResult{KeyPrefix: xsecret.MaskAPIKey(key), APIKey: key}
 	startedAt := time.Now()
 
 	answer, err := processor.generateIntelligenceHTML(ctx, channel, key, model, prompt, reasoningEffort)

@@ -57,8 +57,12 @@ func TestSkipGraphQLTransaction(t *testing.T) {
 				t.Fatalf("parsing query: %v", err)
 			}
 
-			if got := skipGraphQLTransaction(doc.Operations[0]); got != tt.skip {
-				t.Fatalf("skipGraphQLTransaction() = %v, want %v", got, tt.skip))
+			if got := skipGraphqlTransaction(doc.Operations[0]); got != tt.skip {
+				t.Fatalf("skipGraphqlTransaction() = %v, want %v", got, tt.skip)
+			}
+		})
+	}
+}
 
 func mutationOp(name string, fields ...string) *ast.OperationDefinition {
 	op := &ast.OperationDefinition{

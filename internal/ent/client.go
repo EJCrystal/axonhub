@@ -358,8 +358,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.APIKey, c.APIKeyProfileTemplate, c.Channel, c.ChannelModelPrice,
 		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
 		c.DataStorage, c.IntelligenceRun, c.Invitation, c.Model, c.OIDCIdentity,
-		c.Project, c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,		c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity, c.Plugin,
-		c.PluginStorage, c.Project, c.Prompt, c.PromptProtectionRule,
+		c.Plugin, c.PluginStorage, c.Project, c.Prompt, c.PromptProtectionRule,
 		c.ProviderQuotaStatus, c.Request, c.RequestBodyChunk, c.RequestBodyChunkRef,
 		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User,
 		c.UserProject, c.UserRole,
@@ -375,8 +374,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.APIKey, c.APIKeyProfileTemplate, c.Channel, c.ChannelModelPrice,
 		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
 		c.DataStorage, c.IntelligenceRun, c.Invitation, c.Model, c.OIDCIdentity,
-		c.Project, c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,		c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity, c.Plugin,
-		c.PluginStorage, c.Project, c.Prompt, c.PromptProtectionRule,
+		c.Plugin, c.PluginStorage, c.Project, c.Prompt, c.PromptProtectionRule,
 		c.ProviderQuotaStatus, c.Request, c.RequestBodyChunk, c.RequestBodyChunkRef,
 		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User,
 		c.UserProject, c.UserRole,
@@ -5613,21 +5611,17 @@ type (
 	hooks struct {
 		APIKey, APIKeyProfileTemplate, Channel, ChannelModelPrice,
 		ChannelModelPriceVersion, ChannelOverrideTemplate, ChannelProbe, DataStorage,
-		IntelligenceRun, Invitation, Model, OIDCIdentity, Project, Prompt,
-		PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution, Role,
-		System, Thread, Trace, UsageLog, User, UserProject, UserRole []ent.Hook		Invitation, Model, OIDCIdentity, Plugin, PluginStorage, Project, Prompt,
-		PromptProtectionRule, ProviderQuotaStatus, Request, RequestBodyChunk,
-		RequestBodyChunkRef, RequestExecution, Role, System, Thread, Trace, UsageLog,
-		User, UserProject, UserRole []ent.Hook
+		IntelligenceRun, Invitation, Model, OIDCIdentity, Plugin, PluginStorage,
+		Project, Prompt, PromptProtectionRule, ProviderQuotaStatus, Request,
+		RequestBodyChunk, RequestBodyChunkRef, RequestExecution, Role, System, Thread,
+		Trace, UsageLog, User, UserProject, UserRole []ent.Hook
 	}
 	inters struct {
 		APIKey, APIKeyProfileTemplate, Channel, ChannelModelPrice,
 		ChannelModelPriceVersion, ChannelOverrideTemplate, ChannelProbe, DataStorage,
-		IntelligenceRun, Invitation, Model, OIDCIdentity, Project, Prompt,
-		PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution, Role,
-		System, Thread, Trace, UsageLog, User, UserProject, UserRole []ent.Interceptor		Invitation, Model, OIDCIdentity, Plugin, PluginStorage, Project, Prompt,
-		PromptProtectionRule, ProviderQuotaStatus, Request, RequestBodyChunk,
-		RequestBodyChunkRef, RequestExecution, Role, System, Thread, Trace, UsageLog,
-		User, UserProject, UserRole []ent.Interceptor
+		IntelligenceRun, Invitation, Model, OIDCIdentity, Plugin, PluginStorage,
+		Project, Prompt, PromptProtectionRule, ProviderQuotaStatus, Request,
+		RequestBodyChunk, RequestBodyChunkRef, RequestExecution, Role, System, Thread,
+		Trace, UsageLog, User, UserProject, UserRole []ent.Interceptor
 	}
 )

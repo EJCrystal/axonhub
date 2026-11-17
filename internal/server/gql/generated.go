@@ -1183,7 +1183,8 @@ type ComplexityRoot struct {
 		EnableChannelAPIKey                   func(childComplexity int, channelID objects.GUID, key string) int
 		EnablePlugin                          func(childComplexity int, id objects.GUID, grantedPermissions []string, grantedNetwork []string) int
 		EnableSelectedChannelAPIKeys          func(childComplexity int, channelID objects.GUID, keys []string) int
-		EvaluateChannelIntelligence           func(childComplexity int, input IntelligenceEvaluateInput) int		InstallPlugin                         func(childComplexity int, file graphql.Upload, grantedPermissions []string, grantedNetwork []string) int
+		EvaluateChannelIntelligence           func(childComplexity int, input IntelligenceEvaluateInput) int
+		InstallPlugin                         func(childComplexity int, file graphql.Upload, grantedPermissions []string, grantedNetwork []string) int
 		InstallPluginFromMarket               func(childComplexity int, pluginID string, version string, grantedPermissions []string, grantedNetwork []string) int
 		LoadAPIKeyProfileTemplate             func(childComplexity int, input LoadAPIKeyProfileTemplateInput) int
 		PreviewPromptProtectionRule           func(childComplexity int, input PromptProtectionRulePreviewInput) int
@@ -1199,7 +1200,8 @@ type ComplexityRoot struct {
 		SaveChannelModelPrices                func(childComplexity int, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput) int
 		SaveProxyPreset                       func(childComplexity int, input biz.ProxyPreset) int
 		SetIntelligenceConfig                 func(childComplexity int, input IntelligenceConfigInput) int
-		SetIntelligenceRunVerdict             func(childComplexity int, input SetIntelligenceRunVerdictInput) int		SetPluginKv                           func(childComplexity int, namespace *string, key string, value string, ttlSeconds *int) int
+		SetIntelligenceRunVerdict             func(childComplexity int, input SetIntelligenceRunVerdictInput) int
+		SetPluginKv                           func(childComplexity int, namespace *string, key string, value string, ttlSeconds *int) int
 		SyncChannelModels                     func(childComplexity int, channelID objects.GUID, pattern *string) int
 		TestChannel                           func(childComplexity int, input TestChannelInput) int
 		TestChannelAPIKey                     func(childComplexity int, channelID objects.GUID, key string, modelID *string) int
@@ -7529,7 +7531,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		args, err := ec.field_Mutation_evaluateChannelIntelligence_args(ctx, rawArgs)	case "Mutation.installPlugin":
+		args, err := ec.field_Mutation_evaluateChannelIntelligence_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.EvaluateChannelIntelligence(childComplexity, args["input"].(IntelligenceEvaluateInput)), true
+	case "Mutation.installPlugin":
 		if e.complexity.Mutation.InstallPlugin == nil {
 			break
 		}
@@ -7539,7 +7547,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.EvaluateChannelIntelligence(childComplexity, args["input"].(IntelligenceEvaluateInput)), true		return e.complexity.Mutation.InstallPlugin(childComplexity, args["file"].(graphql.Upload), args["grantedPermissions"].([]string), args["grantedNetwork"].([]string)), true
+		return e.complexity.Mutation.InstallPlugin(childComplexity, args["file"].(graphql.Upload), args["grantedPermissions"].([]string), args["grantedNetwork"].([]string)), true
 	case "Mutation.installPluginFromMarket":
 		if e.complexity.Mutation.InstallPluginFromMarket == nil {
 			break
@@ -7694,12 +7702,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		args, err := ec.field_Mutation_setIntelligenceConfig_args(ctx, rawArgs)	case "Mutation.setPluginKV":
-		if e.complexity.Mutation.SetPluginKv == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_setPluginKV_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_setIntelligenceConfig_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
@@ -7715,7 +7718,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SetIntelligenceRunVerdict(childComplexity, args["input"].(SetIntelligenceRunVerdictInput)), true		return e.complexity.Mutation.SetPluginKv(childComplexity, args["namespace"].(*string), args["key"].(string), args["value"].(string), args["ttlSeconds"].(*int)), true
+		return e.complexity.Mutation.SetIntelligenceRunVerdict(childComplexity, args["input"].(SetIntelligenceRunVerdictInput)), true
+	case "Mutation.setPluginKV":
+		if e.complexity.Mutation.SetPluginKv == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setPluginKV_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SetPluginKv(childComplexity, args["namespace"].(*string), args["key"].(string), args["value"].(string), args["ttlSeconds"].(*int)), true
 	case "Mutation.syncChannelModels":
 		if e.complexity.Mutation.SyncChannelModels == nil {
 			break
@@ -15062,7 +15076,11 @@ func (ec *executionContext) field_Mutation_evaluateChannelIntelligence_args(ctx 
 	if err != nil {
 		return nil, err
 	}
-	args["input"] = arg0func (ec *executionContext) field_Mutation_installPluginFromMarket_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_installPluginFromMarket_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "pluginID", ec.unmarshalNString2string)
@@ -15279,7 +15297,11 @@ func (ec *executionContext) field_Mutation_setIntelligenceRunVerdict_args(ctx co
 	if err != nil {
 		return nil, err
 	}
-	args["input"] = arg0func (ec *executionContext) field_Mutation_setPluginKV_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setPluginKV_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "namespace", ec.unmarshalOString2ᚖstring)
@@ -79568,7 +79590,7 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode", "workTime"}	fieldsInOrder := [...]string{"extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "responseTimeout", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "responseTimeout", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode", "workTime"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {

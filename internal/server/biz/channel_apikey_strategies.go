@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"slices"
 	"sync/atomic"
+	"time"
 
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/log"
@@ -172,9 +173,13 @@ func (p *sharedStickyKeyProvider) Get(ctx context.Context) string {
 
 	ch := p.channel
 
-	enabled := ch.cachedEnabledAPIKeys
+	// Filter out keys that already failed for this request and any key that
+	// explicitly does not support the selected upstream model, so a same-channel
+	// retry moves off the failed credential instead of sticking to it.
+	enabled := ch.enabledAPIKeysForRequest(ctx)
+	enabled = ch.filterAPIKeysByWorkTime(ctx, enabled, time.Now())
 	if len(enabled) == 0 {
-		return ch.Credentials.APIKeys[0]
+		return ""
 	}
 
 	if len(enabled) == 1 {
@@ -184,7 +189,7 @@ func (p *sharedStickyKeyProvider) Get(ctx context.Context) string {
 	var selectedKey string
 
 	if trace, ok := contexts.GetTrace(ctx); ok && trace != nil {
-		selectedKey = p.state.stickyKeyFor(ch, trace.TraceID)
+		selectedKey = p.state.stickyKeyFor(ch, trace.TraceID, enabled)
 
 		if log.DebugEnabled(ctx) {
 			log.Debug(ctx, "Trace sticky key selected",
