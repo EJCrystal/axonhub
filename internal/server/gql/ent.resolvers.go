@@ -12,6 +12,8 @@ import (
 	"entgo.io/contrib/entgql"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/providerquotastatus"
+	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
@@ -607,10 +609,6 @@ func (r *queryResolver) Traces(ctx context.Context, after *entgql.Cursor[int], f
 		return nil, err
 	}
 
-	if orderBy != nil && orderBy.Field.String() == "CREATED_AT" {
-		orderBy.Field = ent.DefaultTraceOrder.Field
-	}
-
 	return r.client.Trace.Query().Paginate(ctx, after, first, before, last,
 		ent.WithTraceOrder(orderBy),
 		ent.WithTraceFilter(where.Filter),
@@ -696,7 +694,13 @@ func (r *requestResolver) DataStorageID(ctx context.Context, obj *ent.Request) (
 
 // RequestBody is the resolver for the requestBody field.
 func (r *requestResolver) RequestBody(ctx context.Context, obj *ent.Request) (objects.JSONRawMessage, error) {
-	value, err := r.requestService.LoadRequestBody(ctx, obj)
+	// Field collection omits hidden storage metadata, so read it under the caller's permission.
+	metadata, err := r.client.Request.Query().Where(request.IDEQ(obj.ID)).
+		Select(request.FieldProjectID, request.FieldDataStorageID, request.FieldRequestBodyChunked, request.FieldRequestBody).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load request body metadata: %w", err)
+	}
+	value, err := r.requestService.LoadRequestBody(ctx, metadata)
 	if err != nil {
 		log.Error(ctx, "Failed to load request body", log.Cause(err), log.Int("request_id", obj.ID))
 		return nil, fmt.Errorf("failed to load request body: %w", err)
@@ -826,7 +830,12 @@ func (r *requestExecutionResolver) ChannelAPIKeySuffix(ctx context.Context, obj 
 
 // RequestBody is the resolver for the requestBody field.
 func (r *requestExecutionResolver) RequestBody(ctx context.Context, obj *ent.RequestExecution) (objects.JSONRawMessage, error) {
-	value, err := r.requestService.LoadRequestExecutionRequestBody(ctx, obj)
+	metadata, err := r.client.RequestExecution.Query().Where(requestexecution.IDEQ(obj.ID)).
+		Select(requestexecution.FieldProjectID, requestexecution.FieldRequestID, requestexecution.FieldDataStorageID, requestexecution.FieldRequestBodyChunked, requestexecution.FieldRequestBody).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load execution request body metadata: %w", err)
+	}
+	value, err := r.requestService.LoadRequestExecutionRequestBody(ctx, metadata)
 	if err != nil {
 		log.Error(ctx, "Failed to load execution request body", log.Cause(err), log.Int("request_execution_id", obj.ID))
 		return nil, fmt.Errorf("failed to load request body: %w", err)

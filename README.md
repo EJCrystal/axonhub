@@ -12,7 +12,7 @@
 [![测试状态](https://github.com/looplj/axonhub/actions/workflows/test.yml/badge.svg)](https://github.com/looplj/axonhub/actions/workflows/test.yml)
 [![Lint 状态](https://github.com/looplj/axonhub/actions/workflows/lint.yml/badge.svg)](https://github.com/looplj/axonhub/actions/workflows/lint.yml)
 [![Go 版本](https://img.shields.io/github/go-mod/go-version/looplj/axonhub?logo=go&logoColor=white)](https://golang.org/)
-[![Docker Ready](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](https://docker.com)
+[![Docker Ready](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/looplj/axonhub)
 [![Greptile: The War on Bugs](https://www.greptile.com/badge.svg)](https://www.greptile.com/?utm_source=oss_badge&utm_medium=readme&utm_campaign=greptile_for_open_source)
 
 [English](README.en-US.md) | [中文](README.md) | [日本語](README.ja-JP.md)
@@ -21,7 +21,9 @@
 
 ---
 
-## ❤️ 赞助商
+> 🚀 **试试我的新项目 [Reveric（幻界）](https://lj.s.gy/LDfOjx)**：Agent Native 创作工作台，从小说、剧本到自动生成视频、自动剪辑成片，让智能体参与创作全流程。
+
+## ❤️ 赞助
 
 <div align="center">
 
@@ -45,26 +47,20 @@
       </div>
     </td>
     <td width="50%" align="center" valign="top">
-      <a href="https://lj.s.gy/DUq59H" target="_blank">
-        <img src="https://www.infistar.cc/logo.png" alt="无限星河 Infistar.cc" height="50"/>
+      <a href="https://noonoo.ai/login?aff=Y3u6" target="_blank">
+        <img src="docs/sponsors/noonoo-logo.png" alt="noonoo.ai" height="50"/>
         <br/>
-        <strong>无限星河 Infistar.cc</strong>
+        <strong>noonoo.ai</strong>
       </a>
       <div align="center">
-        <a href="https://lj.s.gy/DUq59H" target="_blank">
-          <img src="docs/sponsors/infistar-banner.png" alt="Infistar.cc 无限星河" width="100%"/>
+        <a href="https://noonoo.ai/login?aff=Y3u6" target="_blank">
+          <img src="docs/sponsors/noonoo-banner.png" alt="noonoo.ai" width="100%"/>
         </a>
       </div>
       <div align="left">
-       <strong>AxonHub × Infistar.cc 无限星河｜高可用全模型 API</strong>
-      </div>
-      <div align="left">
-        ⚡ 企业级高并发稳定调度｜官方 1 折起 · 透明倍率 · 多节点冗余<br/>
-        🧠 全系模型支持｜ChatGPT · Claude · Gemini · DeepSeek<br/>
-        🎨 全模态接入｜文本 · 图像 · 视频 · Embedding / Rerank
-      </div>
-      <div align="left">
-        AxonHub 用户通过<a href="https://lj.s.gy/DUq59H" target="_blank">专属链接</a>注册，可享专属特惠。
+        noonoo.ai 提供高性价比、稳定可靠的 AI API 服务，一个账户即可接入 Claude、GPT、Gemini 等模型，覆盖文本、编程与图像生成场景。<br/>
+        兼容 OpenAI、Anthropic 与 Gemini API，方便接入现有应用与开发工作流，无需为不同模型分别订阅。<br/>
+        通过<a href="https://noonoo.ai/login?aff=Y3u6" target="_blank">专属链接注册</a>，开始使用一站式 AI API 服务。
       </div>
     </td>
   </tr>
@@ -77,7 +73,7 @@
 <table border="1" cellspacing="0" cellpadding="16">
   <thead>
     <tr>
-      <th align="center" width="220">赞助商</th>
+      <th align="center" width="220">赞助</th>
       <th align="left">详情</th>
     </tr>
   </thead>
@@ -175,9 +171,9 @@
 
 ## 🎯 演示 | Demo
 
-在我们的 [演示实例](https://axonhub.onrender.com) 上体验 AxonHub！
+在我们的 [演示实例](https://axonhub.reveric.app) 上体验 AxonHub！
 
-**注意**：演示网站目前配置了 Zhipu 和 OpenRouter 的免费模型。
+**注意**：演示实例已配置 OpenRouter 免费模型。
 
 ### 演示账号 | Demo Account
 - **邮箱 Email**: demo@example.com
@@ -357,8 +353,6 @@ print(response.choices[0].message.content)
 - 🌐 [gin-gonic/gin](https://github.com/gin-gonic/gin) - HTTP 框架
 - 🗄️ [ent/ent](https://github.com/ent/ent) - ORM 框架
 - 🔧 [air-verse/air](https://github.com/air-verse/air) - 自动重载 Go 服务
-- ☁️ [render](https://render.com) - 免费云部署平台，用于部署 demo
-- 🗄️ [tidbcloud](https://www.pingcap.com/tidb-cloud/) - Serverless 数据库平台，用于部署 demo
 
 ---
 

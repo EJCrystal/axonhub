@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -96,7 +97,12 @@ func TestSafeguardsHTTP(t *testing.T) {
 					<-ctx.Done()
 					return "", ctx.Err()
 				}
-				return `{"verdicts":{"tool1":{"flagged":false}}}`, nil
+				if req.Model == "backup" {
+					require.Contains(t, req.User, `"id":"tool1"`)
+					return `{"verdicts":{"tool1":{"flagged":false}}}`, nil
+				}
+				require.Contains(t, req.User, `"id":"t0"`)
+				return `{"verdicts":{"t0":{"flagged":false}}}`, nil
 			}
 			engine := gin.New()
 			engine.Use(f.testContext)
@@ -121,6 +127,8 @@ func TestSafeguardsHTTP(t *testing.T) {
 			} else {
 				require.Contains(t, recorder.Body.String(), `"outcome":"not_flagged"`)
 			}
+			require.Contains(t, recorder.Body.String(), `"tool_uses":{"tool1":`)
+			require.NotContains(t, recorder.Body.String(), `"t0"`)
 			if tc.stream {
 				require.Less(t, strings.Index(recorder.Body.String(), `"safeguard_results"`), strings.Index(recorder.Body.String(), "event:message_stop"))
 			}
@@ -137,7 +145,7 @@ func TestSafeguardsTerminalTailRejectsIncompleteStream(t *testing.T) {
 		calls := 0
 		evaluator, err := safeguards.New([]byte(`{"safeguards":[{"type":"dangerous_tool_use"}]}`), safeguards.Config{ClassifierModel: "reviewer"}, func(context.Context, safeguards.ClassifierRequest) (string, error) {
 			calls++
-			return `{"verdicts":{"tool1":{"flagged":false}}}`, nil
+			return `{"verdicts":{"t0":{"flagged":false}}}`, nil
 		})
 		require.NoError(t, err)
 		events := []*httpclient.StreamEvent{
@@ -153,4 +161,54 @@ func TestSafeguardsTerminalTailRejectsIncompleteStream(t *testing.T) {
 		require.Error(t, reviewed.Err())
 		require.Zero(t, calls)
 	}
+}
+
+// The same handler must resolve settings anew for each request without sharing
+// mutable configuration with in-flight reviews.
+func TestClaudeCodeSafeguardsRuntimeSettings(t *testing.T) {
+	payload := `{"id":"msg","type":"message","role":"assistant","model":"gpt-test","content":[{"type":"tool_use","id":"tool1","name":"Bash","input":{"command":"pwd"}}],"stop_reason":"tool_use","usage":{"input_tokens":12,"output_tokens":34}}`
+	f := newStreamDeliveryE2EFixture(t, llm.APIFormatAnthropicMessage, payload, false)
+	h := f.handler(t)
+	h.ChatCompletionOrchestrator.Inbound = anthropic.NewInboundTransformer()
+	config := safeguards.Config{ClassifierModel: "first", Policy: "First policy", Timeout: time.Second}
+	var loadErr error
+	lookups, reviews := 0, 0
+	h.safeguardsConfigProvider = func(context.Context) (safeguards.Config, error) {
+		lookups++
+		return config, loadErr
+	}
+	h.reviewer = func(_ context.Context, req safeguards.ClassifierRequest) (string, error) {
+		reviews++
+		require.Equal(t, config.ClassifierModel, req.Model)
+		require.Contains(t, req.System, config.Policy)
+		return `{"verdicts":{"t0":{"flagged":false}}}`, nil
+	}
+	engine := gin.New()
+	engine.Use(f.testContext)
+	engine.POST("/v1/messages", h.ChatCompletion)
+	send := func(withSafeguard bool) *httptest.ResponseRecorder {
+		body := `{"model":"gpt-test","max_tokens":128,"messages":[{"role":"user","content":"show cwd"}]}`
+		if withSafeguard {
+			body = strings.TrimSuffix(body, "}") + `,"safeguards":[{"type":"dangerous_tool_use"}]}`
+		}
+		req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(body)).WithContext(f.ctx)
+		req.Header.Set("Content-Type", "application/json")
+		recorder := httptest.NewRecorder()
+		engine.ServeHTTP(recorder, req)
+		return recorder
+	}
+	require.Equal(t, 200, send(true).Code)
+	config.ClassifierModel = "second"
+	config.Policy = "Second policy"
+	require.Equal(t, 200, send(true).Code)
+	require.Equal(t, 2, reviews)
+	config.ClassifierModel = ""
+	require.Equal(t, 200, send(true).Code)
+	require.Equal(t, 2, reviews)
+	loadErr = errors.New("database unavailable")
+	require.Equal(t, 500, send(true).Code)
+	require.Equal(t, 2, reviews)
+	require.Equal(t, 4, lookups)
+	require.Equal(t, 200, send(false).Code)
+	require.Equal(t, 4, lookups, "ordinary requests must not read safeguards settings")
 }

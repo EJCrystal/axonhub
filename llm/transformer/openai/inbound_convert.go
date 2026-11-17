@@ -1,6 +1,8 @@
 package openai
 
 import (
+	"strings"
+
 	"github.com/samber/lo"
 
 	"github.com/looplj/axonhub/llm"
@@ -145,12 +147,13 @@ func (t *ToolChoice) ToLLMToolChoice() *llm.ToolChoice {
 // ToLLMMessage converts OpenAI Message to unified llm.Message.
 func (m Message) ToLLMMessage() llm.Message {
 	msg := llm.Message{
-		Role:             m.Role,
-		Name:             m.Name,
-		Refusal:          m.Refusal,
-		ToolCallID:       m.ToolCallID,
-		ReasoningContent: m.ReasoningContent,
-		Reasoning:        m.Reasoning,
+		Role:               m.Role,
+		Name:               m.Name,
+		Refusal:            m.Refusal,
+		ToolCallID:         m.ToolCallID,
+		ReasoningContent:   m.ReasoningContent,
+		Reasoning:          m.Reasoning,
+		ReasoningSignature: m.ReasoningOpaque,
 	}
 
 	if m.Audio != nil {
@@ -160,6 +163,11 @@ func (m Message) ToLLMMessage() llm.Message {
 			ExpiresAt:  m.Audio.ExpiresAt,
 			Transcript: m.Audio.Transcript,
 		}
+	}
+
+	// Normalize reasoning_text (GitHub Copilot) when no other reasoning field is present.
+	if msg.ReasoningContent == nil && msg.Reasoning == nil && m.ReasoningText != nil {
+		msg.ReasoningContent = m.ReasoningText
 	}
 
 	// Sync reasoning fields: if one field has value and the other is nil, copy the value
@@ -185,7 +193,7 @@ func (m Message) ToLLMMessage() llm.Message {
 			return ok && raw != ""
 		})
 
-		if raw, ok := firstThoughtSignature.TransformerMetadata[TransformerMetadataKeyGoogleThoughtSignature].(string); ok {
+		if raw, ok := firstThoughtSignature.TransformerMetadata[TransformerMetadataKeyGoogleThoughtSignature].(string); ok && strings.TrimSpace(lo.FromPtr(msg.ReasoningSignature)) == "" {
 			msg.ReasoningSignature = lo.ToPtr(raw)
 		}
 	}

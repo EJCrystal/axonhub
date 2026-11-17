@@ -363,6 +363,11 @@ func convertToLLMRequest(anthropicReq *MessageRequest) (*llm.Request, error) {
 			// Preserve disabled thinking type so outbound transformers can disable reasoning.
 			chatReq.TransformerMetadata[TransformerMetadataKeyThinkingType] = "disabled"
 			chatReq.ReasoningEffort = "none"
+		case "between_tools":
+			// The only way to turn thinking off on models that reject "disabled": keep the
+			// type for Anthropic outbounds and expose "none" to the other protocols.
+			chatReq.TransformerMetadata[TransformerMetadataKeyThinkingType] = "between_tools"
+			chatReq.ReasoningEffort = "none"
 		case "adaptive":
 			// Adaptive thinking doesn't require a budget; preserve the type marker via TransformerMetadata.
 			chatReq.TransformerMetadata[TransformerMetadataKeyThinkingType] = "adaptive"
@@ -382,7 +387,11 @@ func convertToLLMRequest(anthropicReq *MessageRequest) (*llm.Request, error) {
 		// The client sent an explicit effort level: pass it through verbatim (including
 		// "max") so converted protocols see the exact requested level. The original
 		// value is preserved in TransformerMetadata for native round-trips.
-		chatReq.ReasoningEffort = anthropicReq.OutputConfig.Effort
+		// With between_tools the effort only tunes the Anthropic request: other
+		// protocols keep seeing "none".
+		if anthropicReq.Thinking == nil || anthropicReq.Thinking.Type != "between_tools" {
+			chatReq.ReasoningEffort = anthropicReq.OutputConfig.Effort
+		}
 	}
 
 	return chatReq, nil
@@ -703,8 +712,17 @@ func convertToAnthropicResponse(chatResp *llm.Response) *Message {
 			case "tool_calls":
 				stopReason := "tool_use"
 				resp.StopReason = &stopReason
-			default:
+			case "content_filter":
+				stopReason := "refusal"
+				resp.StopReason = &stopReason
+			case "stop_sequence", "pause_turn", "refusal":
+				// Already a valid Anthropic stop reason; pass through.
 				resp.StopReason = choice.FinishReason
+			default:
+				// Unknown reasons (e.g. "error", "cancelled") are not valid Anthropic
+				// stop reasons; fall back to end_turn like the streaming path.
+				stopReason := "end_turn"
+				resp.StopReason = &stopReason
 			}
 		} else {
 			stopReason := "end_turn"
@@ -720,6 +738,12 @@ func convertToAnthropicResponse(chatResp *llm.Response) *Message {
 	searchBlocks := responsesSearchBlocks(chatResp.TransformerMetadata, make(map[string]responsesSearchState), true, searchCitations)
 	resp.Content = append(searchBlocks, resp.Content...)
 
+	// Normalize the final blocks: restoring provider content from metadata can
+	// replace the tool blocks reconstructed from the unified response.
+	for i := range resp.Content {
+		resp.Content[i].ID = anthropicToolBlockID(resp.Content[i].Type, resp.Content[i].ID)
+	}
+
 	// Convert usage
 	if chatResp.Usage != nil {
 		resp.Usage = convertToAnthropicUsage(chatResp.Usage)
@@ -729,41 +753,58 @@ func convertToAnthropicResponse(chatResp *llm.Response) *Message {
 }
 
 // convertToolToLLM converts an Anthropic Tool to llm.Tool.
-// For web_search_20250305 native tools, it converts to llm.ToolTypeWebSearch type.
-// For regular function tools, it converts to llm.ToolTypeFunction type.
+// Known native web_search versions convert to llm.ToolTypeWebSearch while keeping
+// their version. For regular function tools, it converts to llm.ToolTypeFunction type.
 func convertToolToLLM(tool Tool) (llm.Tool, bool) {
+	if isNativeWebSearchToolType(tool.Type) {
+		return convertNativeWebSearchToolToLLM(tool, tool.Type), true
+	}
+
 	switch tool.Type {
-	case ToolTypeWebSearch20250305, WebSearchFunctionName:
-		return llm.Tool{
-			Type:         llm.ToolTypeWebSearch,
-			CacheControl: convertToLLMCacheControl(tool.CacheControl),
-			WebSearch: &llm.WebSearch{
-				MaxUses:        tool.MaxUses,
-				Strict:         tool.Strict,
-				AllowedDomains: tool.AllowedDomains,
-				BlockedDomains: tool.BlockedDomains,
-				UserLocation: llm.WebSearchToolUserLocation{
-					City:     tool.UserLocation.City,
-					Country:  tool.UserLocation.Country,
-					Region:   tool.UserLocation.Region,
-					Timezone: tool.UserLocation.Timezone,
-					Type:     tool.UserLocation.Type,
-				},
-			},
-		}, true
+	case WebSearchFunctionName:
+		// Legacy function-style declaration without a version keeps the version
+		// empty; the outbound transformer decides the concrete wire version.
+		return convertNativeWebSearchToolToLLM(tool, ""), true
 	case "", "custom":
 		return llm.Tool{
 			Type: llm.ToolTypeFunction,
 			Function: llm.Function{
-				Name:        tool.Name,
-				Description: tool.Description,
-				Parameters:  tool.InputSchema,
-				Strict:      tool.Strict,
+				Name:           tool.Name,
+				Description:    tool.Description,
+				Parameters:     tool.InputSchema,
+				Strict:         tool.Strict,
+				AllowedCallers: tool.AllowedCallers,
 			},
 			CacheControl: convertToLLMCacheControl(tool.CacheControl),
 		}, true
 	default:
-		// Ignore other native tools (image_generation, google_*, etc.)
+		// Ignore other native tools (image_generation, google_*, web_search versions
+		// this package does not know, etc.). An unknown version must not be guessed
+		// from its prefix, nor degraded into a function tool.
 		return llm.Tool{}, false
+	}
+}
+
+// convertNativeWebSearchToolToLLM maps a native web search tool and its
+// provider-level options onto the unified representation.
+func convertNativeWebSearchToolToLLM(tool Tool, version string) llm.Tool {
+	return llm.Tool{
+		Type:         llm.ToolTypeWebSearch,
+		CacheControl: convertToLLMCacheControl(tool.CacheControl),
+		WebSearch: &llm.WebSearch{
+			Version:        version,
+			MaxUses:        tool.MaxUses,
+			Strict:         tool.Strict,
+			AllowedDomains: tool.AllowedDomains,
+			BlockedDomains: tool.BlockedDomains,
+			UserLocation: llm.WebSearchToolUserLocation{
+				City:     tool.UserLocation.City,
+				Country:  tool.UserLocation.Country,
+				Region:   tool.UserLocation.Region,
+				Timezone: tool.UserLocation.Timezone,
+				Type:     tool.UserLocation.Type,
+			},
+			AllowedCallers: tool.AllowedCallers,
+		},
 	}
 }

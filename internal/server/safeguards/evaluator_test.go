@@ -24,16 +24,55 @@ func tools() []ToolUse {
 	return []ToolUse{{ID: "safe", Name: "Bash", Input: json.RawMessage(`{"command":"go test"}`)}, {ID: "danger", Name: "Bash", Input: json.RawMessage(`{"command":"rm -rf /"}`)}}
 }
 
+func TestConfiguredPolicyAcrossReviewers(t *testing.T) {
+	for _, policy := range []string{"", " \n\t", "Allow force-pushing user-owned feature branches.\nFlag disclosure of secrets."} {
+		t.Run(policy, func(t *testing.T) {
+			calls := 0
+			var firstSystem string
+			e, err := New([]byte(requestBody), Config{ClassifierModel: "primary", FallbackModels: []string{"backup"}, Policy: policy}, func(_ context.Context, req ClassifierRequest) (string, error) {
+				calls++
+				if !strings.Contains(req.System, classifierEvidence) || !strings.Contains(req.System, classifierOutput) {
+					t.Fatal("fixed evidence or output instructions missing")
+				}
+				if strings.TrimSpace(policy) == "" {
+					if req.System != ClassifierSystem {
+						t.Fatal("blank policy did not use the default prompt")
+					}
+				} else if !strings.Contains(req.System, policy) || strings.Contains(req.System, DefaultPolicy) {
+					t.Fatal("custom policy did not replace the default decision policy")
+				}
+				if calls == 1 {
+					firstSystem = req.System
+					return "", errors.New("primary unavailable")
+				}
+				if req.Model != "backup" || req.System != firstSystem {
+					t.Fatal("fallback did not receive the same policy")
+				}
+				// A custom policy must not bypass verdict validation.
+				return `{"verdicts":{"safe":{"flagged":"false"}}}`, nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			result := e.Evaluate(context.Background(), tools())[0].Status.ToolUses
+			if calls != 2 || result["safe"].Type != "unavailable" || result["danger"].Type != "unavailable" {
+				t.Fatalf("invalid verdict must remain unavailable: calls=%d, result=%+v", calls, result)
+			}
+		})
+	}
+}
+
 func TestVerdicts(t *testing.T) {
 	cases := []struct{ name, text, safe, danger string }{
-		{"valid", `{"verdicts":{"safe":{"flagged":false},"danger":{"flagged":true,"explanation":"destruction"}}}`, "not_flagged", "flagged"},
-		{"missing", `{"verdicts":{"safe":{"flagged":false}}}`, "not_flagged", ""},
-		{"string boolean", `{"verdicts":{"safe":{"flagged":"false"}}}`, "", ""},
-		{"null", `{"verdicts":{"safe":{"flagged":null}}}`, "", ""},
-		{"duplicate id", `{"verdicts":{"safe":{"flagged":true},"safe":{"flagged":false}}}`, "", ""},
-		{"duplicate flag", `{"verdicts":{"safe":{"flagged":true,"flagged":false}}}`, "", ""},
-		{"trailing", `{"verdicts":{"safe":{"flagged":false}}} garbage`, "", ""},
-		{"bad explanation", `{"verdicts":{"safe":{"flagged":false,"explanation":42}}}`, "", ""},
+		{"valid", `{"verdicts":{"t0":{"flagged":false},"t1":{"flagged":true,"explanation":"destruction"}}}`, "not_flagged", "flagged"},
+		{"original id is not an alias", `{"verdicts":{"safe":{"flagged":false},"danger":{"flagged":false}}}`, "", ""},
+		{"missing", `{"verdicts":{"t0":{"flagged":false}}}`, "not_flagged", ""},
+		{"string boolean", `{"verdicts":{"t0":{"flagged":"false"}}}`, "", ""},
+		{"null", `{"verdicts":{"t0":{"flagged":null}}}`, "", ""},
+		{"duplicate id", `{"verdicts":{"t0":{"flagged":true},"t0":{"flagged":false}}}`, "", ""},
+		{"duplicate flag", `{"verdicts":{"t0":{"flagged":true,"flagged":false}}}`, "", ""},
+		{"trailing", `{"verdicts":{"t0":{"flagged":false}}} garbage`, "", ""},
+		{"bad explanation", `{"verdicts":{"t0":{"flagged":false,"explanation":42}}}`, "", ""},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -122,7 +161,7 @@ func TestOptIn(t *testing.T) {
 
 func TestAnnotateResponse(t *testing.T) {
 	e := evaluator(t, func(context.Context, ClassifierRequest) (string, error) {
-		return `{"verdicts":{"safe":{"flagged":true,"explanation":"reviewed"}}}`, nil
+		return `{"verdicts":{"t0":{"flagged":true,"explanation":"reviewed"}}}`, nil
 	})
 	body := []byte(`{"content":[{"type":"tool_use","id":"safe","name":"Bash","input":{}}],"stop_reason":"tool_use","safeguard_results":[{"type":"other","status":{"type":"available"}},{"type":"dangerous_tool_use","status":{"type":"unsupported"}}]}`)
 	result, err := e.AnnotateResponse(context.Background(), body)
@@ -148,7 +187,7 @@ func TestStreamParallel(t *testing.T) {
 		if !strings.Contains(r.User, `"command":"go test"`) {
 			t.Fatal(r.User)
 		}
-		return `{"verdicts":{"safe":{"flagged":false},"danger":{"flagged":true}}}`, nil
+		return `{"verdicts":{"t0":{"flagged":false},"t1":{"flagged":true}}}`, nil
 	})
 	stream := NewStream(e)
 	events := []string{
@@ -206,7 +245,7 @@ func TestStreamMalformedEventsReturnErrors(t *testing.T) {
 			calls := 0
 			e := evaluator(t, func(context.Context, ClassifierRequest) (string, error) {
 				calls++
-				return `{"verdicts":{"safe":{"flagged":false}}}`, nil
+				return `{"verdicts":{"t0":{"flagged":false}}}`, nil
 			})
 			stream := NewStream(e)
 			_, err := stream.Observe(t.Context(), []byte(`{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"safe","name":"Bash","input":{}}}`))
@@ -226,7 +265,7 @@ func TestInvalidToolInputsFailClosed(t *testing.T) {
 		calls := 0
 		e := evaluator(t, func(context.Context, ClassifierRequest) (string, error) {
 			calls++
-			return `{"verdicts":{"safe":{"flagged":false}}}`, nil
+			return `{"verdicts":{"t0":{"flagged":false}}}`, nil
 		})
 		uses := tools()[:1]
 		uses[0].Input = json.RawMessage(raw)
@@ -241,7 +280,7 @@ func TestStreamReplacesUpstreamApprovals(t *testing.T) {
 	calls := 0
 	e := evaluator(t, func(context.Context, ClassifierRequest) (string, error) {
 		calls++
-		return `{"verdicts":{"safe":{"flagged":true,"explanation":"local denial"}}}`, nil
+		return `{"verdicts":{"t0":{"flagged":true,"explanation":"local denial"}}}`, nil
 	})
 	stream := NewStream(e)
 	for _, event := range []string{

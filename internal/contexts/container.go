@@ -30,6 +30,10 @@ type contextContainer struct {
 
 	// FailedChannelAPIKeys tracks API keys that failed during the current request, mapped by channel ID.
 	FailedChannelAPIKeys map[int][]string
+
+	// RequestHookState is request-hook bookkeeping owned by the plugin package.
+	// The value is opaque here so contexts does not import the plugin manager.
+	RequestHookState any
 }
 
 // getContainer retrieves the existing container from context, or creates a new one and stores it in the context if it doesn't exist.

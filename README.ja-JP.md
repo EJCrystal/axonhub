@@ -12,7 +12,7 @@
 [![Test Status](https://github.com/looplj/axonhub/actions/workflows/test.yml/badge.svg)](https://github.com/looplj/axonhub/actions/workflows/test.yml)
 [![Lint Status](https://github.com/looplj/axonhub/actions/workflows/lint.yml/badge.svg)](https://github.com/looplj/axonhub/actions/workflows/lint.yml)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/looplj/axonhub?logo=go&logoColor=white)](https://golang.org/)
-[![Docker Ready](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](https://docker.com)
+[![Docker Ready](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/looplj/axonhub)
 [![Greptile: The War on Bugs](https://www.greptile.com/badge.svg)](https://www.greptile.com/?utm_source=oss_badge&utm_medium=readme&utm_campaign=greptile_for_open_source)
 
 [English](README.en-US.md) | [中文](README.md) | [日本語](README.ja-JP.md)
@@ -20,6 +20,8 @@
 </div>
 
 ---
+
+> 🚀 **新しく開発している [Reveric（幻界）](https://lj.s.gy/LDfOjx) もぜひお試しください**：小説・脚本から動画の自動生成・自動編集まで、創作の全工程にエージェントが関わる Agent Native 創作ワークスペース。
 
 ## ❤️ スポンサー
 
@@ -45,26 +47,21 @@
       </div>
     </td>
     <td width="50%" align="center" valign="top">
-      <a href="https://lj.s.gy/DUq59H" target="_blank">
-        <img src="https://www.infistar.cc/logo.png" alt="無限星河 Infistar.cc" height="50"/>
+      <a href="https://noonoo.ai/login?aff=Y3u6" target="_blank">
+        <img src="docs/sponsors/noonoo-logo.png" alt="noonoo.ai" height="50"/>
         <br/>
-        <strong>無限星河 Infistar.cc</strong>
+        <strong>noonoo.ai</strong>
       </a>
       <div align="center">
-        <a href="https://lj.s.gy/DUq59H" target="_blank">
-          <img src="docs/sponsors/infistar-banner.png" alt="Infistar.cc 無限星河" width="100%"/>
+        <a href="https://noonoo.ai/login?aff=Y3u6" target="_blank">
+          <img src="docs/sponsors/noonoo-banner.png" alt="noonoo.ai" width="100%"/>
         </a>
       </div>
       <div align="left">
-        <strong>AxonHub × Infistar.cc 無限星河｜高可用 AI API</strong>
-      </div>
-      <div align="left">
-        ⚡ 安定ルーティング｜公式 1 割 · 透明料金 · フェイルオーバー<br/>
-        🧠 主要モデル｜ChatGPT · Claude · Gemini · Kimi · GLM · DeepSeek<br/>
-        🎨 マルチモーダル｜テキスト · 画像 · 動画 · Embedding / Rerank
-      </div>
-      <div align="left">
-        AxonHub ユーザーは<a href="https://lj.s.gy/DUq59H" target="_blank">専用リンク</a>から特典を利用できます。
+        noonoo.ai は、コストパフォーマンスに優れた、安定性と信頼性の高い AI API サービスです。1 つのアカウントで Claude、GPT、Gemini などのモデルを利用でき、テキスト・コーディング・画像生成に対応しています。<br/>
+        OpenAI、Anthropic、Gemini の API と互換性があり、既存のアプリケーションや開発ワークフローに組み込みやすく、モデルごとに個別のサブスクリプションを契約する必要はありません。<br/>
+        固定の明確な料金体系を採用し、ネットワーク負荷による価格変動や隠れた料金倍率はありません。複数の支払い方法に対応し、メールアドレスだけで登録できます。<br/>
+        <a href="https://noonoo.ai/login?aff=Y3u6" target="_blank">専用リンクから登録</a>して、ワンストップの AI API サービスをご利用ください。
       </div>
     </td>
   </tr>
@@ -167,9 +164,9 @@ OpenAI SDK、Anthropic SDK、またはその他のAI SDKを使用している場
 
 ## 🎯 デモ
 
-[デモインスタンス](https://axonhub.onrender.com)でAxonHubをお試しください！
+[デモインスタンス](https://axonhub.reveric.app)でAxonHubをお試しください！
 
-**注意**：デモインスタンスでは現在、ZhipuとOpenRouterの無料モデルが設定されています。
+**注意**：デモインスタンスには OpenRouter の無料モデルが設定されています。
 
 ### デモアカウント
 
@@ -349,8 +346,6 @@ print(response.choices[0].message.content)
 - 🌐 [gin-gonic/gin](https://github.com/gin-gonic/gin) - HTTPフレームワーク
 - 🗄️ [ent/ent](https://github.com/ent/ent) - ORMフレームワーク
 - 🔧 [air-verse/air](https://github.com/air-verse/air) - Goサービスの自動リロード
-- ☁️ [Render](https://render.com) - デモをホスティングする無料クラウドデプロイプラットフォーム
-- 🗃️ [TiDB Cloud](https://www.pingcap.com/tidb-cloud/) - デモデプロイ用のサーバーレスデータベースプラットフォーム
 
 ---
 

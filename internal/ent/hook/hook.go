@@ -153,6 +153,30 @@ func (f OIDCIdentityFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OIDCIdentityMutation", m)
 }
 
+// The PluginFunc type is an adapter to allow the use of ordinary
+// function as Plugin mutator.
+type PluginFunc func(context.Context, *ent.PluginMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PluginFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PluginMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PluginMutation", m)
+}
+
+// The PluginStorageFunc type is an adapter to allow the use of ordinary
+// function as PluginStorage mutator.
+type PluginStorageFunc func(context.Context, *ent.PluginStorageMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PluginStorageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PluginStorageMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PluginStorageMutation", m)
+}
+
 // The ProjectFunc type is an adapter to allow the use of ordinary
 // function as Project mutator.
 type ProjectFunc func(context.Context, *ent.ProjectMutation) (ent.Value, error)
@@ -211,6 +235,30 @@ func (f RequestFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RequestMutation", m)
+}
+
+// The RequestBodyChunkFunc type is an adapter to allow the use of ordinary
+// function as RequestBodyChunk mutator.
+type RequestBodyChunkFunc func(context.Context, *ent.RequestBodyChunkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RequestBodyChunkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RequestBodyChunkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RequestBodyChunkMutation", m)
+}
+
+// The RequestBodyChunkRefFunc type is an adapter to allow the use of ordinary
+// function as RequestBodyChunkRef mutator.
+type RequestBodyChunkRefFunc func(context.Context, *ent.RequestBodyChunkRefMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RequestBodyChunkRefFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RequestBodyChunkRefMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RequestBodyChunkRefMutation", m)
 }
 
 // The RequestExecutionFunc type is an adapter to allow the use of ordinary

@@ -52,6 +52,7 @@ type ChatCompletionHandlers struct {
 	sseHeartbeatFormat         sseHeartbeatFormat
 	streamAdapterFactory       streamAdapterFactory
 	safeguardsConfig           safeguards.Config
+	safeguardsConfigProvider   func(context.Context) (safeguards.Config, error)
 	reviewer                   safeguards.ClassifierFunc
 	inputUsageCache            *inputUsageCache
 }
@@ -95,7 +96,18 @@ func (handlers *ChatCompletionHandlers) ChatCompletionWithRequest(c *gin.Context
 		return
 	}
 
-	evaluator, prepared, err := prepareSafeguardsRequest(genericReq, handlers.safeguardsConfig, handlers.reviewer)
+	config := handlers.safeguardsConfig
+	// Only Claude Code requests asking for server-side safeguards need the settings lookup.
+	if handlers.safeguardsConfigProvider != nil && gjson.GetBytes(genericReq.Body, "safeguards.#(type==\"dangerous_tool_use\")").Exists() {
+		var err error
+		config, err = handlers.safeguardsConfigProvider(ctx)
+		if err != nil {
+			log.Error(ctx, "Unable to load Claude Code safeguards settings", log.Cause(err))
+			JSONError(c, http.StatusInternalServerError, errors.New("Unable to load Claude Code safeguards settings"))
+			return
+		}
+	}
+	evaluator, prepared, err := prepareSafeguardsRequest(genericReq, config, handlers.reviewer)
 	if err != nil {
 		JSONError(c, http.StatusBadRequest, err)
 		return
@@ -251,9 +263,8 @@ type StreamErrorFormatter func(ctx context.Context, err error) any
 
 // maxStreamEventsAfterCancel bounds how many events the stream writers drain after
 // the request context is canceled. Draining lets persistence wrappers observe a
-// buffered terminal event, but streams are expected to end promptly on cancellation
-// (see passThroughChannelStream.Next); the cap only guards against implementations
-// that ignore it. Pass-through channel buffers hold 64 events, so 256 is generous.
+// buffered terminal event, but streams are expected to end promptly on cancellation;
+// the cap only guards against implementations that ignore it.
 const maxStreamEventsAfterCancel = 256
 
 const sseWriteTimeout = 30 * time.Second

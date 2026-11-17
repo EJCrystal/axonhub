@@ -60,6 +60,7 @@ type ReasoningEffortMapping {
 type TransformOptions {
   forceArrayInstructions: Boolean!
   forceArrayInputs: Boolean!
+  forceArrayStop: Boolean!
   replaceDeveloperRoleWithSystem: Boolean!
   reasoningEffortMapping: [ReasoningEffortMapping!]
 }
@@ -80,6 +81,7 @@ input ReasoningEffortMappingInput {
 input TransformOptionsInput {
   forceArrayInstructions: Boolean
   forceArrayInputs: Boolean
+  forceArrayStop: Boolean
   replaceDeveloperRoleWithSystem: Boolean
   reasoningEffortMapping: [ReasoningEffortMappingInput!]
 }
@@ -212,6 +214,8 @@ type ChannelSettings {
   retryableStatusCodes: [Int!]
   retryableErrorPatterns: [RetryableErrorPattern!]
   maxSingleChannelRetries: Int
+
+  responseTimeout: ChannelResponseTimeout
   modelProtocols: [ModelProtocol!]
   apiKeyStrategy: String
   apiKeyRoundRobinSwitchAfter: Int
@@ -258,6 +262,23 @@ enum ChannelQuotaRoutingMode {
   IGNORE_QUOTA
   REMOVE_ON_EXHAUSTED
   BACKPRESSURE
+}
+
+enum ChannelResponseTimeoutMode {
+  INHERIT
+  CUSTOM
+}
+
+type ChannelResponseTimeout {
+  mode: ChannelResponseTimeoutMode
+  streamFirstEventTimeoutSeconds: Int
+  nonStreamResponseTimeoutSeconds: Int
+}
+
+input ChannelResponseTimeoutInput {
+  mode: ChannelResponseTimeoutMode
+  streamFirstEventTimeoutSeconds: Int
+  nonStreamResponseTimeoutSeconds: Int
 }
 
 enum CapabilityPolicy {
@@ -333,6 +354,8 @@ input ChannelSettingsInput {
   retryableStatusCodes: [Int!]
   retryableErrorPatterns: [RetryableErrorPatternInput!]
   maxSingleChannelRetries: Int
+
+  responseTimeout: ChannelResponseTimeoutInput
   modelProtocols: [ModelProtocolInput!]
   apiKeyStrategy: String
   apiKeyRoundRobinSwitchAfter: Int
@@ -406,6 +429,11 @@ type DisabledAPIKey {
   errorCode: Int!
   reason: String
   expiresAt: Time
+  """
+  True when a proactive provider quota observation owns this disable, which
+  means a later quota check may clear it once the key reports recovery.
+  """
+  quotaDisabled: Boolean!
 }
 
 type OAuthCredentials {

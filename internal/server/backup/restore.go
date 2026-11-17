@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -26,7 +27,9 @@ import (
 	"github.com/looplj/axonhub/internal/server/biz"
 )
 
-func (svc *BackupService) Restore(ctx context.Context, data []byte, opts RestoreOptions) error {
+// Restore decodes the backup from data. It reads the whole payload into memory
+// as it decodes, so callers should not buffer it first.
+func (svc *BackupService) Restore(ctx context.Context, data io.Reader, opts RestoreOptions) error {
 	user, ok := contexts.GetUser(ctx)
 	if !ok || user == nil {
 		return fmt.Errorf("user not found in context")
@@ -37,8 +40,16 @@ func (svc *BackupService) Restore(ctx context.Context, data []byte, opts Restore
 	}
 
 	var backupData BackupData
-	if err := json.Unmarshal(data, &backupData); err != nil {
+
+	dec := json.NewDecoder(data)
+	if err := dec.Decode(&backupData); err != nil {
 		return err
+	}
+
+	// json.Unmarshal used to reject trailing content; keep that contract now that
+	// the payload arrives as a stream.
+	if _, err := dec.Token(); err != io.EOF {
+		return fmt.Errorf("unexpected trailing data after backup")
 	}
 
 	if !lo.Contains([]string{BackupVersion, BackupVersionV4, BackupVersionV3, BackupVersionV2, BackupVersionV1}, backupData.Version) {
@@ -1047,6 +1058,11 @@ func (svc *BackupService) restoreUsageRequests(
 			continue
 		}
 
+		requestBody := reqData.RequestBody
+		bodyPlan := biz.PrepareChunkedRequestBody(requestBody)
+		if bodyPlan != nil {
+			requestBody = bodyPlan.Manifest
+		}
 		created, err := db.Request.Create().
 			SetCreatedAt(reqData.CreatedAt).
 			SetUpdatedAt(reqData.UpdatedAt).
@@ -1054,7 +1070,8 @@ func (svc *BackupService) restoreUsageRequests(
 			SetSource(reqData.Source).
 			SetModelID(reqData.ModelID).
 			SetFormat(reqData.Format).
-			SetRequestBody(reqData.RequestBody).
+			SetRequestBody(requestBody).
+			SetRequestBodyChunked(bodyPlan != nil).
 			SetStatus(reqData.Status).
 			SetStream(reqData.Stream).
 			SetClientIP(reqData.ClientIP).
@@ -1076,6 +1093,11 @@ func (svc *BackupService) restoreUsageRequests(
 			Save(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore usage request %d: %w", oldID, err)
+		}
+		if bodyPlan != nil {
+			if err := bodyPlan.Save(ctx, db, projectID, created.ID, 0); err != nil {
+				return nil, fmt.Errorf("failed to restore usage request body %d: %w", oldID, err)
+			}
 		}
 
 		idMap[oldID] = created.ID

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/samber/lo"
@@ -55,11 +54,26 @@ func (svc *ChannelService) DisableAPIKey(
 		return !dk.IsExpired()
 	})
 
-	disabled := lo.ContainsBy(activeDisabledKeys, func(dk objects.DisabledAPIKey) bool {
-		return dk.Key == key
-	})
+	// An explicit disable request owns the record from now on. An existing
+	// quota-owned record is replaced with the requested reason/error/expiry so
+	// a manual, plugin or HTTP-error-rule action transfers ownership away from
+	// the quota reconciler; any other existing record keeps this call
+	// idempotent.
+	var existing *objects.DisabledAPIKey
 
-	if disabled {
+	remainingDisabledKeys := make([]objects.DisabledAPIKey, 0, len(activeDisabledKeys))
+	for _, dk := range activeDisabledKeys {
+		if dk.Key == key {
+			candidate := dk
+			existing = &candidate
+
+			continue
+		}
+
+		remainingDisabledKeys = append(remainingDisabledKeys, dk)
+	}
+
+	if existing != nil && !existing.QuotaDisabled {
 		// 已禁用，忽略
 		return nil
 	}
@@ -75,7 +89,7 @@ func (svc *ChannelService) DisableAPIKey(
 		disabledKey.ExpiresAt = expiresAt[0]
 	}
 
-	newDisabledKeys := append(activeDisabledKeys, disabledKey)
+	newDisabledKeys := append(remainingDisabledKeys, disabledKey)
 
 	// 计算 enabled 凭证
 	enabledKeys := ch.Credentials.GetEnabledCredentialRefs(newDisabledKeys)
@@ -88,11 +102,15 @@ func (svc *ChannelService) DisableAPIKey(
 
 	// 如果没有可用 key 了，禁用整个 channel
 	channelDisabled := len(enabledKeys) == 0
+	// Taking over the last key of a channel an operator already disabled must not
+	// restamp the auto-disable markers: they are what allows a later recovery to
+	// enable the channel and report it as enabled.
+	autoDisable := channelDisabled && (ch.Status == channel.StatusEnabled || ch.AutoDisabledAt != nil)
 	var (
 		autoDisabledAt     time.Time
 		autoDisabledReason string
 	)
-	if channelDisabled {
+	if autoDisable {
 		autoDisabledAt = time.Now()
 		autoDisabledReason = fmt.Sprintf("%s (last error: %d)", allKeysDisabledErrorPrefix, errorCode)
 		update.SetStatus(channel.StatusDisabled)
@@ -114,7 +132,13 @@ func (svc *ChannelService) DisableAPIKey(
 		log.Int("error_code", errorCode),
 	)
 
+	status := ch.Status
 	if channelDisabled {
+		status = channel.StatusDisabled
+	}
+	svc.publishCredentialDisabled(ctx, ch, key, errorCode, reason, disabledKey.ExpiresAt, status)
+
+	if autoDisable {
 		svc.asyncNotifyChannelAutoDisabled(ctx, ChannelAutoDisabledEvent{
 			ChannelID:       ch.ID,
 			ChannelName:     ch.Name,
@@ -190,6 +214,7 @@ func (svc *ChannelService) EnableAPIKey(ctx context.Context, channelID int, key 
 		return fmt.Errorf("failed to enable api key: %w", err)
 	}
 
+	svc.publishCredentialEnabled(ctx, ch, []string{key}, newDisabledKeys, credentialTriggerManual)
 	svc.asyncReloadChannels()
 
 	return nil
@@ -226,6 +251,7 @@ func (svc *ChannelService) EnableAllAPIKeys(ctx context.Context, channelID int) 
 		log.Int("channel_id", channelID),
 	)
 
+	svc.publishCredentialEnabled(ctx, ch, disabledKeyValues(ch.DisabledAPIKeys), nil, credentialTriggerManual)
 	svc.asyncReloadChannels()
 
 	return nil
@@ -255,10 +281,13 @@ func (svc *ChannelService) EnableSelectedAPIKeys(ctx context.Context, channelID 
 	}
 
 	newDisabledKeys := make([]objects.DisabledAPIKey, 0, len(ch.DisabledAPIKeys))
+	enabledKeys := make([]string, 0, len(keys))
 	for _, dk := range ch.DisabledAPIKeys {
 		if _, found := keysToEnable[dk.Key]; !found {
 			newDisabledKeys = append(newDisabledKeys, dk)
+			continue
 		}
+		enabledKeys = append(enabledKeys, dk.Key)
 	}
 
 	if len(newDisabledKeys) == len(ch.DisabledAPIKeys) {
@@ -280,6 +309,7 @@ func (svc *ChannelService) EnableSelectedAPIKeys(ctx context.Context, channelID 
 		log.Int("count", len(keys)),
 	)
 
+	svc.publishCredentialEnabled(ctx, ch, enabledKeys, newDisabledKeys, credentialTriggerManual)
 	svc.asyncReloadChannels()
 
 	return nil
@@ -431,8 +461,9 @@ func applyRecoveredChannelStatus(
 	credentials objects.ChannelCredentials,
 	disabledKeys []objects.DisabledAPIKey,
 ) *ent.ChannelUpdateOne {
-	if ch.Status != channel.StatusDisabled || ch.ErrorMessage == nil ||
-		!strings.HasPrefix(*ch.ErrorMessage, allKeysDisabledErrorPrefix) ||
+	// AutoDisabledAt is the marker of this package's own all-keys auto-disable;
+	// a manual channel disable clears it and must survive a credential recovery.
+	if !channelIsAllKeysDisabled(ch) ||
 		len(credentials.GetEnabledCredentialRefs(disabledKeys)) == 0 {
 		return update
 	}
@@ -538,6 +569,7 @@ func (svc *ChannelService) cleanupExpiredAutoDisabledChannels(ctx context.Contex
 			log.Int("channel_id", channelID),
 		)
 		recovered = true
+		svc.publishChannelAutoEnabled(ctx, channelID)
 	}
 
 	return recovered
@@ -553,10 +585,16 @@ func (svc *ChannelService) cleanupChannelExpiredDisabledAPIKeys(ctx context.Cont
 		return false, 0, fmt.Errorf("failed to get channel: %w", err)
 	}
 
-	active := lo.Filter(ch.DisabledAPIKeys, func(dk objects.DisabledAPIKey, _ int) bool {
-		return !dk.IsExpired()
-	})
-	removed := len(ch.DisabledAPIKeys) - len(active)
+	expired := make([]objects.DisabledAPIKey, 0)
+	active := make([]objects.DisabledAPIKey, 0, len(ch.DisabledAPIKeys))
+	for _, dk := range ch.DisabledAPIKeys {
+		if dk.IsExpired() {
+			expired = append(expired, dk)
+			continue
+		}
+		active = append(active, dk)
+	}
+	removed := len(expired)
 	if removed == 0 {
 		return false, 0, nil
 	}
@@ -572,6 +610,8 @@ func (svc *ChannelService) cleanupChannelExpiredDisabledAPIKeys(ctx context.Cont
 	if _, err := update.Save(ctx); err != nil {
 		return false, 0, fmt.Errorf("failed to update channel: %w", err)
 	}
+
+	svc.publishCredentialEnabled(ctx, ch, disabledKeyValues(expired), active, credentialTriggerExpired)
 
 	return true, removed, nil
 }

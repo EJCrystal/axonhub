@@ -22,6 +22,7 @@ func applyTransformOptions(req *llm.Request, channelSettings *objects.ChannelSet
 
 	if !transformOptions.ForceArrayInstructions &&
 		!transformOptions.ForceArrayInputs &&
+		!transformOptions.ForceArrayStop &&
 		!transformOptions.ReplaceDeveloperRoleWithSystem {
 		return req
 	}
@@ -34,6 +35,18 @@ func applyTransformOptions(req *llm.Request, channelSettings *objects.ChannelSet
 
 	if transformOptions.ForceArrayInputs {
 		newReq.TransformOptions.ArrayInputs = lo.ToPtr(true)
+	}
+
+	if transformOptions.ForceArrayStop {
+		newReq.Stop = forceArrayStop(newReq.Stop)
+
+		// Legacy /v1/completions requests keep their stop value in Completion.Stop,
+		// which the outbound completion transformer reads instead of req.Stop.
+		if newReq.Completion != nil {
+			completion := *newReq.Completion
+			completion.Stop = forceArrayStop(completion.Stop)
+			newReq.Completion = &completion
+		}
 	}
 
 	if transformOptions.ReplaceDeveloperRoleWithSystem {
@@ -78,8 +91,21 @@ func applyReasoningEffortMapping(req *llm.Request, channelSettings *objects.Chan
 		return req
 	}
 
-	mapped := llm.ApplyReasoningEffortMapping(req.ReasoningEffort, channelSettings.TransformOptions.ReasoningEffortMapping)
-	if mapped == req.ReasoningEffort {
+	// With thinking.type=between_tools the Anthropic inbound keeps the unified effort at
+	// "none" (thinking is off for other protocols) and records the native effort only in
+	// TransformerMetadata, so map that value instead and leave ReasoningEffort as is.
+	source := req.ReasoningEffort
+	nativeOnly := false
+	if source == llm.ReasoningEffortNone && req.TransformerMetadata != nil {
+		thinkingType, _ := req.TransformerMetadata[anthropic.TransformerMetadataKeyThinkingType].(string)
+		if effort, ok := req.TransformerMetadata[anthropic.TransformerMetadataKeyOutputConfigEffort].(string); ok && thinkingType == "between_tools" && effort != "" {
+			source = effort
+			nativeOnly = true
+		}
+	}
+
+	mapped := llm.ApplyReasoningEffortMapping(source, channelSettings.TransformOptions.ReasoningEffortMapping)
+	if mapped == source {
 		return req
 	}
 
@@ -98,9 +124,22 @@ func applyReasoningEffortMapping(req *llm.Request, channelSettings *objects.Chan
 		newReq.TransformerMetadata = metadata
 	}
 
-	newReq.ReasoningEffort = mapped
+	if !nativeOnly {
+		newReq.ReasoningEffort = mapped
+	}
 
 	return &newReq
+}
+
+// forceArrayStop rewrites a single stop sequence into the array form.
+// OpenAI accepts both forms, but strict OpenAI-compatible upstreams reject the
+// string form with HTTP 400, so such channels can opt into the array form.
+func forceArrayStop(stop *llm.Stop) *llm.Stop {
+	if stop == nil || stop.Stop == nil {
+		return stop
+	}
+
+	return &llm.Stop{MultipleStop: []string{*stop.Stop}}
 }
 
 // replaceDeveloperRoleWithSystem replaces developer role with system in messages.

@@ -89,10 +89,10 @@ type AnalyticsDimensionStat struct {
 // Filter input for analytics queries. All fields are optional and support multi-select.
 // When multiple dimensions are specified, they are combined with AND logic.
 type AnalyticsFilter struct {
-	// Start date (inclusive, YYYY-MM-DD, parsed in system timezone)
-	StartTime *string `json:"startTime,omitempty"`
-	// End date (inclusive, YYYY-MM-DD, parsed in system timezone)
-	EndTime *string `json:"endTime,omitempty"`
+	// Start of the range (inclusive), as an RFC3339 timestamp
+	StartTime *time.Time `json:"startTime,omitempty"`
+	// End of the range (inclusive), as an RFC3339 timestamp
+	EndTime *time.Time `json:"endTime,omitempty"`
 	// Filter by project IDs
 	ProjectIDs []*objects.GUID `json:"projectIDs,omitempty"`
 	// Filter by channel IDs
@@ -107,8 +107,8 @@ type AnalyticsFilter struct {
 
 // Metadata for the analytics page (independent of filters)
 type AnalyticsMetadata struct {
-	// Earliest usage log date (YYYY-MM-DD), null if no data
-	EarliestDate *string `json:"earliestDate,omitempty"`
+	// Timestamp of the earliest usage log, null if no data
+	EarliestTime *time.Time `json:"earliestTime,omitempty"`
 }
 
 // Overview statistics for the analytics page
@@ -191,6 +191,11 @@ type ChannelLimiterStats struct {
 	Capacity int `json:"capacity"`
 	// Configured QueueSize (0 means soft mode — no waiting queue, only counts).
 	QueueSize int `json:"queueSize"`
+}
+
+type ChannelModelPreviewInput struct {
+	SupportedModels []string                 `json:"supportedModels"`
+	Settings        *objects.ChannelSettings `json:"settings,omitempty"`
 }
 
 // Performance statistics for a specific channel on a given date
@@ -687,8 +692,7 @@ type UpdateBrandSettingsInput struct {
 }
 
 type UpdateCatalogSettingsInput struct {
-	UpstreamURL    *string `json:"upstreamURL,omitempty"`
-	RefreshSeconds *int    `json:"refreshSeconds,omitempty"`
+	UpstreamURL *string `json:"upstreamURL,omitempty"`
 }
 
 type UpdateDefaultDataStorageInput struct {

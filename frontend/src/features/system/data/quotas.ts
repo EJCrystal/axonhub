@@ -10,8 +10,8 @@ const CHECK_PROVIDER_QUOTAS_QUERY = `
 `;
 
 const RESET_CHANNEL_QUOTA_NOW_MUTATION = `
-  mutation ResetChannelQuotaNow($channelID: ID!) {
-    resetChannelQuotaNow(channelID: $channelID)
+  mutation ResetChannelQuotaNow($channelID: ID!, $resetID: String) {
+    resetChannelQuotaNow(channelID: $channelID, resetID: $resetID)
   }
 `;
 
@@ -26,6 +26,14 @@ const PROVIDER_QUOTA_STATUSES_QUERY = `
           orderingWeight
           settings {
             quotaRoutingMode
+          }
+          # The persisted per-key view is only recomputed during collection, so
+          # the current disable records carry the ownership the popover shows:
+          # a key an operator took over manually is never quota-owned again.
+          disabledAPIKeys {
+            key
+            expiresAt
+            quotaDisabled
           }
           providerQuotaStatus {
             status
@@ -45,11 +53,17 @@ export async function checkProviderQuotas() {
   return graphqlRequest(CHECK_PROVIDER_QUOTAS_QUERY);
 }
 
-export async function resetChannelQuotaNow(channelID: string) {
-  return graphqlRequest(RESET_CHANNEL_QUOTA_NOW_MUTATION, { channelID });
+export async function resetChannelQuotaNow(channelID: string, resetID?: string) {
+  return graphqlRequest(RESET_CHANNEL_QUOTA_NOW_MUTATION, { channelID, resetID });
 }
 
 export type ProviderQuotaReset = {
+  clears?: string[];
+  recommended?: boolean;
+  remaining?: number;
+  redeemable?: boolean;
+  unavailableReason?: string;
+  upstreamReason?: string;
   id: string;
   status: string;
   type?: string;
@@ -59,9 +73,22 @@ export type ProviderQuotaReset = {
 };
 
 export type ProviderQuotaResetList = {
+  ineligibleReason?: string;
+  eligible?: boolean;
+  cooldownUntil?: string;
+  windowModels?: Record<string, string>;
   supported: boolean;
   resets: ProviderQuotaReset[];
   error?: string;
+};
+
+/** A normalized non-window account amount, such as a prepaid credit balance. */
+export type ProviderQuotaBalance = {
+  account?: string;
+  currency?: string;
+  total: number;
+  granted?: number;
+  topped_up?: number;
 };
 
 type ProviderQuotaDataCommon = {
@@ -69,6 +96,7 @@ type ProviderQuotaDataCommon = {
   error?: string;
   error_code?: string;
   _resets?: ProviderQuotaResetList;
+  _balances?: ProviderQuotaBalance[];
 };
 
 type ProviderClaudeQuotaWindow = {
@@ -83,6 +111,7 @@ type ProviderClaudeQuotaData = ProviderQuotaDataCommon & {
     '7d'?: ProviderClaudeQuotaWindow;
     overage?: ProviderClaudeQuotaWindow;
   };
+  model_windows?: (ProviderClaudeQuotaWindow & { model: string })[];
   representative_claim?: string;
 };
 
@@ -219,10 +248,35 @@ export type ProviderNeuralWattQuotaData = ProviderQuotaDataCommon & {
     plan?: string | null;
     kwh_reset_date?: string | null;
   } | null;
+  daily_free_energy?: {
+    kwh_included?: number | null;
+    kwh_used?: number | null;
+    kwh_remaining?: number | null;
+    reset_at?: string | null;
+    model_labels?: string[] | null;
+  } | null;
+  usage_current_month?: {
+    cost_usd?: number | null;
+    requests?: number | null;
+    tokens?: number | null;
+    energy_kwh?: number | null;
+  } | null;
 };
 
 export type ProviderCharmHyperQuotaData = ProviderQuotaDataCommon & {
   balance?: number | null;
+};
+
+export type ProviderDeepseekBalanceInfo = {
+  currency?: string | null;
+  total_balance?: number | string | null;
+  granted_balance?: number | string | null;
+  topped_up_balance?: number | string | null;
+};
+
+export type ProviderDeepseekQuotaData = ProviderQuotaDataCommon & {
+  is_available?: boolean | null;
+  balance_infos?: ProviderDeepseekBalanceInfo[] | null;
 };
 
 export type ProviderApertisQuotaData = ProviderQuotaDataCommon & {
@@ -316,24 +370,9 @@ export type ZhipuWindowRow = {
   remaining?: number;
 };
 
-// One API key of a channel that draws from several accounts. The backend keeps
-// every account of a multi-key channel in this shape so the UI can render them
-// side by side.
-export type ZhipuAccountQuota = {
-  ref?: string;
-  suffix?: string;
-  disabled?: boolean;
-  status?: string;
-  ready?: boolean;
-  level?: string;
-  error?: string;
-  rows?: ZhipuWindowRow[];
-};
-
 export type ProviderZhipuQuotaData = ProviderQuotaDataCommon & {
   rows?: ZhipuWindowRow[];
   level?: string;
-  accounts?: ZhipuAccountQuota[];
 };
 
 export type ProviderZenmuxQuotaPlan = {
@@ -489,8 +528,12 @@ export type OllamaQuotaWindow = {
 
 export type ProviderOllamaQuotaData = ProviderQuotaDataCommon & {
   windows?: {
+    monthly?: OllamaQuotaWindow;
     '5h'?: OllamaQuotaWindow;
     weekly?: OllamaQuotaWindow;
+  };
+  credits?: {
+    purchased_usd?: number;
   };
 };
 
@@ -512,6 +555,30 @@ export type ProviderQuotaLimit = {
   periodStart?: string;
   periodCost?: number;
   periodQuota?: number;
+};
+
+/**
+ * One API key of a channel whose keys are independent quota accounts, as
+ * serialized by the backend under `quotaData._api_key_quotas`. `ref` is an
+ * opaque digest; `index` and `suffix` are display-only. None of them identifies
+ * a key for a mutation.
+ */
+export type ProviderAPIKeyQuota = {
+  ref: string;
+  index: number;
+  suffix: string;
+  disabled: boolean;
+  /** True when a provider quota observation owns the disable. */
+  quotaDisabled: boolean;
+  /** `check_failed` when this key could not be read. */
+  errorCode?: string;
+  status: 'available' | 'warning' | 'exhausted' | 'unknown';
+  ready: boolean;
+  nextResetAt?: string;
+  /** This account's provider payload, including its own `_limits`/`_balances`. */
+  quotaData: Record<string, unknown>;
+  limits: ProviderQuotaLimit[];
+  balances: ProviderQuotaBalance[];
 };
 
 function optionalString(value: unknown): string | undefined {
@@ -584,6 +651,94 @@ export function parseQuotaLimits(quotaData: unknown): ProviderQuotaLimit[] {
     const parsed = parseQuotaLimit(entry);
     return parsed ? [parsed] : [];
   });
+}
+
+/**
+ * Non-window account amounts normalized by the backend and stashed under
+ * `quotaData._balances` (for example DeepSeek's prepaid balance). The table
+ * renders these as money rows instead of percentage bars.
+ */
+export function parseQuotaBalances(quotaData: unknown): ProviderQuotaBalance[] {
+  if (typeof quotaData !== 'object' || quotaData === null) return [];
+
+  const raw = (quotaData as { _balances?: unknown })._balances;
+  if (!Array.isArray(raw)) return [];
+
+  return raw.flatMap((entry) => {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return [];
+
+    const balance = entry as Record<string, unknown>;
+    const total = optionalNumber(balance.total);
+    if (total === undefined) return [];
+
+    return [
+      {
+        account: optionalString(balance.account),
+        currency: optionalString(balance.currency),
+        total,
+        granted: optionalNumber(balance.granted),
+        topped_up: optionalNumber(balance.topped_up),
+      },
+    ];
+  });
+}
+
+/**
+ * Parses the channel's per-key quota rows. Malformed entries are omitted, and an
+ * absent `_api_key_quotas` yields an empty list so a stored snapshot taken
+ * before per-key collection still renders through the legacy provider branch.
+ */
+export function parseAPIKeyQuotas(quotaData: unknown): ProviderAPIKeyQuota[] {
+  if (typeof quotaData !== 'object' || quotaData === null) return [];
+
+  const raw = (quotaData as { _api_key_quotas?: unknown })._api_key_quotas;
+  if (!Array.isArray(raw)) return [];
+
+  return raw.flatMap((entry) => {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return [];
+
+    const row = entry as Record<string, unknown>;
+    const ref = requiredString(row.ref);
+    if (!ref) return [];
+
+    const index = optionalNumber(row.index);
+    if (index === undefined || !Number.isInteger(index) || index < 1) return [];
+
+    if (!isNormalizedQuotaStatus(row.status)) return [];
+    if (typeof row.ready !== 'boolean') return [];
+    if (typeof row.disabled !== 'boolean' || typeof row.quotaDisabled !== 'boolean') return [];
+
+    const nextResetAt = optionalString(row.nextResetAt);
+    if (row.nextResetAt !== undefined && nextResetAt === undefined) return [];
+    if (nextResetAt !== undefined && Number.isNaN(Date.parse(nextResetAt))) return [];
+
+    const nested = typeof row.quotaData === 'object' && row.quotaData !== null && !Array.isArray(row.quotaData)
+      ? (row.quotaData as Record<string, unknown>)
+      : {};
+
+    return [
+      {
+        ref,
+        index,
+        suffix: typeof row.suffix === 'string' ? row.suffix : '',
+        disabled: row.disabled,
+        quotaDisabled: row.quotaDisabled,
+        errorCode: optionalString(row.errorCode),
+        status: row.status,
+        ready: row.ready,
+        nextResetAt,
+        quotaData: nested,
+        limits: parseQuotaLimits(nested),
+        balances: parseQuotaBalances(nested),
+      },
+    ];
+  });
+}
+
+/** Formats a normalized balance amount for display. */
+export function formatQuotaBalance(value?: number | null): string | undefined {
+  if (value == null || !Number.isFinite(value)) return undefined;
+  return value.toFixed(2);
 }
 
 const CLAUDE_WINDOW_KEYS = {
@@ -673,6 +828,8 @@ export type ProviderQuotaChannel = {
     nextResetAt: string | null;
     ready: boolean;
     limits: ProviderQuotaLimit[];
+    /** Per-key results of a channel whose keys are independent quota accounts. */
+    apiKeyQuotas: ProviderAPIKeyQuota[];
   };
 } & (
   | {
@@ -709,6 +866,12 @@ export type ProviderQuotaChannel = {
       type: 'github_copilot';
       quotaStatus: {
         quotaData: ProviderGitHubCopilotQuotaData;
+      };
+    }
+  | {
+      type: 'deepseek' | 'deepseek_anthropic';
+      quotaStatus: {
+        quotaData: ProviderDeepseekQuotaData;
       };
     }
   | {
@@ -789,6 +952,13 @@ export type ProviderQuotaChannel = {
     }
   | {
       type: 'openai' | 'openai_responses';
+      providerType: 'deepseek';
+      quotaStatus: {
+        quotaData: ProviderDeepseekQuotaData;
+      };
+    }
+  | {
+      type: 'openai' | 'openai_responses';
       providerType?: undefined;
       quotaStatus: {
         quotaData: ProviderQuotaDataCommon;
@@ -823,6 +993,7 @@ type QueryChannelNode = {
   type: string;
   orderingWeight: number;
   settings: { quotaRoutingMode: ChannelQuotaRoutingMode } | null;
+  disabledAPIKeys: Array<{ key: string; expiresAt: string | null; quotaDisabled: boolean }> | null;
   providerQuotaStatus: ProviderQuotaStatusNode | null;
 };
 
@@ -832,6 +1003,9 @@ type QueryChannelsResponse = {
       node: QueryChannelNode | null;
     } | null>;
   };
+  // Hex SHA-256 of every disabled key across the fetched channels, keyed by
+  // the key itself: the same value the backend stamps as a row's ref.
+  disabledKeyDigests: Record<string, string>;
 };
 
 type QueryChannelNodeWithQuota = QueryChannelNode & {
@@ -842,6 +1016,96 @@ function hasProviderQuotaStatus(node: QueryChannelNode | null | undefined): node
   return node?.providerQuotaStatus != null;
 }
 
+type DisabledKeyRecord = { key: string; expiresAt: string | null; quotaDisabled: boolean };
+
+// digestAPIKeys hashes the disabled keys the query carries, using the same hex
+// SHA-256 the backend stamps as a per-key quota row's ref, so a row can be
+// matched to the disable record it names without exposing the key. Keys that
+// cannot be hashed are reported as unresolved so the ownership sync can keep
+// their persisted rows instead of clearing them.
+async function digestAPIKeys(keys: string[]): Promise<{ digests: Record<string, string>; unresolved: Set<string> }> {
+  const digests: Record<string, string> = {};
+  const unresolved = new Set<string>();
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) {
+    for (const key of keys) {
+      unresolved.add(key);
+    }
+    return { digests, unresolved };
+  }
+
+  for (const key of keys) {
+    try {
+      const bytes = new TextEncoder().encode(key);
+      const digest = new Uint8Array(await subtle.digest('SHA-256', bytes));
+      digests[key] = Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    } catch {
+      // An unavailable digest cannot prove the key's identity.
+      unresolved.add(key);
+    }
+  }
+  return { digests, unresolved };
+}
+
+// applyDisabledKeyOwnershipSync derives each per-key row's usability and
+// ownership from the channel's current disable records as well as from
+// collection. A key an operator kept disabled manually is no longer quota-owned
+// and the row must stop claiming automatic recovery from the moment the
+// mutation lands; a key the operator re-enabled is usable again even when the
+// stored row still says parked. The query supplies each key's digest so the row
+// it names can be matched without exposing the key.
+//
+// A null/undefined list means the records are unavailable, not that the channel
+// has none; the persisted rows then stay exactly as stored. An empty list is a
+// real answer and clears non-matching rows. Unresolved digests are scoped to
+// this channel's own keys: a digest that failed to compute for an unrelated
+// channel must not protect this channel's rows.
+export function applyDisabledKeyOwnershipSync(
+  apiKeyQuotas: ProviderAPIKeyQuota[],
+  disabledKeys: DisabledKeyRecord[] | null,
+  digests: Record<string, string>,
+  unresolvedKeys?: Set<string>
+): ProviderAPIKeyQuota[] {
+  if (apiKeyQuotas.length === 0) return apiKeyQuotas;
+  if (disabledKeys == null) return apiKeyQuotas;
+
+  const now = Date.now();
+  const refOwnership = new Map<string, boolean>();
+  for (const record of disabledKeys) {
+    if (record.expiresAt && Date.parse(record.expiresAt) <= now) continue;
+    const ref = digests[record.key];
+    if (ref) refOwnership.set(ref, record.quotaDisabled === true);
+  }
+
+  // A key whose digest could not be computed may still name a stale row; the
+  // persisted ownership can only be cleared once every reference resolved.
+  // Only this channel's own keys count: unresolved digests from other channels
+  // say nothing about this one.
+  const unresolved = unresolvedKeys != null && disabledKeys.some((record) => unresolvedKeys.has(record.key));
+
+  return apiKeyQuotas.map((account) => {
+    const quotaOwned = refOwnership.get(account.ref);
+    if (quotaOwned === undefined) {
+      // No active record: the key is usable, and nothing quota-owned.
+      if (account.disabled || account.quotaDisabled) {
+        if (unresolved) {
+          // The key's identity cannot be proven absent from the disable list;
+          // keep the persisted ownership and usability as stored.
+          return account;
+        }
+        return { ...account, disabled: false, quotaDisabled: false };
+      }
+      return account;
+    }
+
+    // The key is in the channel's disabled list, so it is not usable; the
+    // record's ownership flag decides whether a quota recovery may clear it.
+    return { ...account, disabled: true, quotaDisabled: quotaOwned };
+  });
+}
+
+// parseChannelNode converts a channel with quota status into the discriminated
+// provider quota view used by the quota popover.
 function parseChannelNode(node: QueryChannelNodeWithQuota): ProviderQuotaChannel {
   const quotaStatus = node.providerQuotaStatus;
   const providerType = quotaStatus.providerType;
@@ -857,6 +1121,7 @@ function parseChannelNode(node: QueryChannelNodeWithQuota): ProviderQuotaChannel
       nextResetAt: quotaStatus.nextResetAt,
       ready: quotaStatus.ready,
       limits: parseQuotaLimits(quotaStatus.quotaData),
+      apiKeyQuotas: parseAPIKeyQuotas(quotaStatus.quotaData),
     },
   };
 
@@ -910,6 +1175,13 @@ function parseChannelNode(node: QueryChannelNodeWithQuota): ProviderQuotaChannel
       ...base,
       type: 'github_copilot' as const,
       quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderGitHubCopilotQuotaData },
+    };
+  }
+  if (node.type === 'deepseek' || node.type === 'deepseek_anthropic') {
+    return {
+      ...base,
+      type: node.type as 'deepseek' | 'deepseek_anthropic',
+      quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderDeepseekQuotaData },
     };
   }
   if (node.type === 'nanogpt') {
@@ -995,6 +1267,14 @@ function parseChannelNode(node: QueryChannelNodeWithQuota): ProviderQuotaChannel
         quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderCharmHyperQuotaData },
       };
     }
+    if (providerType === 'deepseek') {
+      return {
+        ...base,
+        type: typeVal,
+        providerType: 'deepseek' as const,
+        quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderDeepseekQuotaData },
+      };
+    }
     return {
       ...base,
       type: typeVal,
@@ -1030,19 +1310,33 @@ export function useProviderQuotaStatuses() {
     queryFn: async () => {
       const input = {
         where: {
-          statusIn: ['enabled'],
+          // A channel whose last key this service disabled on quota grounds
+          // stays visible (and pollable) until a key recovers; a later manual
+          // channel disable clears autoDisabledAt and drops out here.
+          or: [
+            { statusIn: ['enabled'] },
+            {
+              statusIn: ['disabled'],
+              autoDisabledAtNotNil: true,
+              errorMessageHasPrefix: 'All API keys disabled',
+            },
+          ],
         },
       };
-      return graphqlRequest<QueryChannelsResponse>(PROVIDER_QUOTA_STATUSES_QUERY, { input });
+      const data = await graphqlRequest<QueryChannelsResponse>(PROVIDER_QUOTA_STATUSES_QUERY, { input });
+      const keys = [
+        ...new Set((data.queryChannels.edges ?? []).flatMap((edge) => (edge?.node?.disabledAPIKeys ?? []).map((key) => key.key))),
+      ];
+      const { digests, unresolved } = await digestAPIKeys(keys);
+      return { ...data, disabledKeyDigests: digests, disabledKeyUnresolved: unresolved };
     },
     refetchInterval: 60000,
     refetchIntervalInBackground: true,
   });
 
-  const edges = query.data?.queryChannels?.edges;
-  const channels = useMemo(
+  const nodes = useMemo(
     () =>
-      (edges ?? [])
+      (query.data?.queryChannels?.edges ?? [])
         .map((edge) => edge?.node ?? null)
         .filter(hasProviderQuotaStatus)
         .filter((c) => {
@@ -1051,9 +1345,31 @@ export function useProviderQuotaStatuses() {
           // available with their generic status for administrators to inspect.
           const quotaData = c.providerQuotaStatus.quotaData as { error?: string; error_code?: string } | undefined;
           return quotaData?.error_code !== 'missing_credentials' && quotaData?.error !== 'channel has no credentials';
-        })
-        .map(parseChannelNode),
-    [edges]
+        }),
+    [query.data]
+  );
+
+  // The per-key view is persisted during collection, so its ownership only
+  // reflects the last collection pass. Derive it from the channel's current
+  // disable records on every render: a key an operator took over manually must
+  // stop claiming quota ownership and automatic recovery immediately. The
+  // query precomputes the digest of every disabled key, the same value the
+  // backend stamps as a row's ref.
+  const channels = useMemo(
+    () =>
+      // The spread below would widen the discriminated union, so name the
+      // element type explicitly: the runtime shape is parseChannelNode's,
+      // with only the derived per-key rows substituted, and the cast restores
+      // the type-level correlation between type and quotaData the spread
+      // destroys (apiKeyQuotas has one declared type on every arm).
+      nodes.map((node): ProviderQuotaChannel => {
+        const channel = parseChannelNode(node);
+        const digests = query.data?.disabledKeyDigests ?? {};
+        const unresolved = query.data?.disabledKeyUnresolved;
+        const derived = applyDisabledKeyOwnershipSync(channel.quotaStatus.apiKeyQuotas, node.disabledAPIKeys, digests, unresolved);
+        return { ...channel, quotaStatus: { ...channel.quotaStatus, apiKeyQuotas: derived } } as ProviderQuotaChannel;
+      }),
+    [nodes, query.data]
   );
 
   return {

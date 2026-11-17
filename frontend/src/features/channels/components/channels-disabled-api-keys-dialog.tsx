@@ -302,6 +302,12 @@ export function ChannelsDisabledAPIKeysDialog({ open, onOpenChange }: ChannelsDi
                           </div>
                           <div className='text-muted-foreground flex items-center gap-2 text-xs'>
                             <span>{format(new Date(dk.disabledAt), 'yyyy-MM-dd HH:mm:ss')}</span>
+                            {dk.quotaDisabled && (
+                              <>
+                                <span>•</span>
+                                <span>{t('channels.dialogs.keyManagement.quotaDisabled')}</span>
+                              </>
+                            )}
                             {dk.reason && (
                               <>
                                 <span>•</span>
@@ -382,7 +388,7 @@ export function ChannelsDisabledAPIKeysDialog({ open, onOpenChange }: ChannelsDi
           )}
         </div>
 
-        <DialogFooter className='flex items-center justify-between sm:justify-between'>
+        <DialogFooter align='between' className='items-center'>
           <div>
             {disabledKeys.length > 0 && (
               <Popover open={confirmEnableAll} onOpenChange={setConfirmEnableAll}>

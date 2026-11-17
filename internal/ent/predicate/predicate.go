@@ -42,6 +42,12 @@ type Model func(*sql.Selector)
 // OIDCIdentity is the predicate function for oidcidentity builders.
 type OIDCIdentity func(*sql.Selector)
 
+// Plugin is the predicate function for plugin builders.
+type Plugin func(*sql.Selector)
+
+// PluginStorage is the predicate function for pluginstorage builders.
+type PluginStorage func(*sql.Selector)
+
 // Project is the predicate function for project builders.
 type Project func(*sql.Selector)
 
@@ -56,6 +62,12 @@ type ProviderQuotaStatus func(*sql.Selector)
 
 // Request is the predicate function for request builders.
 type Request func(*sql.Selector)
+
+// RequestBodyChunk is the predicate function for requestbodychunk builders.
+type RequestBodyChunk func(*sql.Selector)
+
+// RequestBodyChunkRef is the predicate function for requestbodychunkref builders.
+type RequestBodyChunkRef func(*sql.Selector)
 
 // RequestExecution is the predicate function for requestexecution builders.
 type RequestExecution func(*sql.Selector)

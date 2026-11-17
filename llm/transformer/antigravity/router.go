@@ -81,14 +81,14 @@ func DetermineQuotaPreference(modelName string) QuotaPreference {
 // Daily has the latest features and better quota availability.
 func GetInitialEndpoint(quotaPreference QuotaPreference) string {
 	// Both quota preferences use the current Antigravity Daily endpoint first.
-	return EndpointDaily
+	return EndpointDailyDirect
 }
 
 // GetFallbackEndpoints returns all endpoints to try in order.
 // Regardless of the initial endpoint, we try all three for maximum reliability.
 func GetFallbackEndpoints() []string {
 	return []string{
-		EndpointDaily,    // App/CLI Daily (latest features)
+		EndpointDailyDirect, // App/CLI Daily (direct, non-sandbox)
 		EndpointAutopush, // Autopush sandbox (staging)
 		EndpointProd,     // Production (most stable)
 	}

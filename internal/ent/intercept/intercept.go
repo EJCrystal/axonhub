@@ -20,12 +20,16 @@ import (
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
+	"github.com/looplj/axonhub/internal/ent/plugin"
+	"github.com/looplj/axonhub/internal/ent/pluginstorage"
 	"github.com/looplj/axonhub/internal/ent/predicate"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/prompt"
 	"github.com/looplj/axonhub/internal/ent/promptprotectionrule"
 	"github.com/looplj/axonhub/internal/ent/providerquotastatus"
 	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/ent/requestbodychunk"
+	"github.com/looplj/axonhub/internal/ent/requestbodychunkref"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/ent/role"
 	"github.com/looplj/axonhub/internal/ent/system"
@@ -417,6 +421,60 @@ func (f TraverseOIDCIdentity) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.OIDCIdentityQuery", q)
 }
 
+// The PluginFunc type is an adapter to allow the use of ordinary function as a Querier.
+type PluginFunc func(context.Context, *ent.PluginQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f PluginFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.PluginQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.PluginQuery", q)
+}
+
+// The TraversePlugin type is an adapter to allow the use of ordinary function as Traverser.
+type TraversePlugin func(context.Context, *ent.PluginQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraversePlugin) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraversePlugin) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.PluginQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.PluginQuery", q)
+}
+
+// The PluginStorageFunc type is an adapter to allow the use of ordinary function as a Querier.
+type PluginStorageFunc func(context.Context, *ent.PluginStorageQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f PluginStorageFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.PluginStorageQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.PluginStorageQuery", q)
+}
+
+// The TraversePluginStorage type is an adapter to allow the use of ordinary function as Traverser.
+type TraversePluginStorage func(context.Context, *ent.PluginStorageQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraversePluginStorage) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraversePluginStorage) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.PluginStorageQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.PluginStorageQuery", q)
+}
+
 // The ProjectFunc type is an adapter to allow the use of ordinary function as a Querier.
 type ProjectFunc func(context.Context, *ent.ProjectQuery) (ent.Value, error)
 
@@ -550,6 +608,60 @@ func (f TraverseRequest) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.RequestQuery", q)
+}
+
+// The RequestBodyChunkFunc type is an adapter to allow the use of ordinary function as a Querier.
+type RequestBodyChunkFunc func(context.Context, *ent.RequestBodyChunkQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f RequestBodyChunkFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.RequestBodyChunkQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.RequestBodyChunkQuery", q)
+}
+
+// The TraverseRequestBodyChunk type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseRequestBodyChunk func(context.Context, *ent.RequestBodyChunkQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseRequestBodyChunk) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseRequestBodyChunk) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.RequestBodyChunkQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.RequestBodyChunkQuery", q)
+}
+
+// The RequestBodyChunkRefFunc type is an adapter to allow the use of ordinary function as a Querier.
+type RequestBodyChunkRefFunc func(context.Context, *ent.RequestBodyChunkRefQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f RequestBodyChunkRefFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.RequestBodyChunkRefQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.RequestBodyChunkRefQuery", q)
+}
+
+// The TraverseRequestBodyChunkRef type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseRequestBodyChunkRef func(context.Context, *ent.RequestBodyChunkRefQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseRequestBodyChunkRef) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseRequestBodyChunkRef) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.RequestBodyChunkRefQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.RequestBodyChunkRefQuery", q)
 }
 
 // The RequestExecutionFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -822,6 +934,10 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ModelQuery, predicate.Model, model.OrderOption]{typ: ent.TypeModel, tq: q}, nil
 	case *ent.OIDCIdentityQuery:
 		return &query[*ent.OIDCIdentityQuery, predicate.OIDCIdentity, oidcidentity.OrderOption]{typ: ent.TypeOIDCIdentity, tq: q}, nil
+	case *ent.PluginQuery:
+		return &query[*ent.PluginQuery, predicate.Plugin, plugin.OrderOption]{typ: ent.TypePlugin, tq: q}, nil
+	case *ent.PluginStorageQuery:
+		return &query[*ent.PluginStorageQuery, predicate.PluginStorage, pluginstorage.OrderOption]{typ: ent.TypePluginStorage, tq: q}, nil
 	case *ent.ProjectQuery:
 		return &query[*ent.ProjectQuery, predicate.Project, project.OrderOption]{typ: ent.TypeProject, tq: q}, nil
 	case *ent.PromptQuery:
@@ -832,6 +948,10 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ProviderQuotaStatusQuery, predicate.ProviderQuotaStatus, providerquotastatus.OrderOption]{typ: ent.TypeProviderQuotaStatus, tq: q}, nil
 	case *ent.RequestQuery:
 		return &query[*ent.RequestQuery, predicate.Request, request.OrderOption]{typ: ent.TypeRequest, tq: q}, nil
+	case *ent.RequestBodyChunkQuery:
+		return &query[*ent.RequestBodyChunkQuery, predicate.RequestBodyChunk, requestbodychunk.OrderOption]{typ: ent.TypeRequestBodyChunk, tq: q}, nil
+	case *ent.RequestBodyChunkRefQuery:
+		return &query[*ent.RequestBodyChunkRefQuery, predicate.RequestBodyChunkRef, requestbodychunkref.OrderOption]{typ: ent.TypeRequestBodyChunkRef, tq: q}, nil
 	case *ent.RequestExecutionQuery:
 		return &query[*ent.RequestExecutionQuery, predicate.RequestExecution, requestexecution.OrderOption]{typ: ent.TypeRequestExecution, tq: q}, nil
 	case *ent.RoleQuery:

@@ -109,7 +109,7 @@ func FetchModelCatalog(ctx context.Context, client *httpclient.HttpClient, acces
 	headers := http.Header{"Content-Type": {"application/json"}, "Accept": {"application/json"}}
 	SetClientHeaders(headers)
 	headers.Set("Authorization", "Bearer "+accessToken)
-	response, err := client.Do(ctx, &httpclient.Request{Method: http.MethodPost, URL: EndpointDaily + "/v1internal:fetchAvailableModels", Headers: headers, Body: encoded})
+	response, err := client.Do(ctx, &httpclient.Request{Method: http.MethodPost, URL: EndpointDailyDirect + "/v1internal:fetchAvailableModels", Headers: headers, Body: encoded})
 	if err != nil {
 		return nil, fmt.Errorf("fetch Antigravity model catalog: %w", err)
 	}

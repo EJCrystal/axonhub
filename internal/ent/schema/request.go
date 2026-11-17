@@ -3,6 +3,7 @@ package schema
 import (
 	"entgo.io/contrib/entgql"
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
@@ -90,6 +91,10 @@ func (Request) Fields() []ent.Field {
 			Annotations(
 				entgql.Directives(forceResolver()),
 			),
+		field.Bool("request_body_chunked").
+			Default(false).
+			Annotations(entgql.Skip()).
+			Comment("Request body is a manifest referencing project-scoped content chunks"),
 		// The final response to the user.
 		field.JSON("response_headers", objects.JSONRawMessage{}).
 			Optional().
@@ -145,6 +150,8 @@ func (Request) Fields() []ent.Field {
 
 func (Request) Edges() []ent.Edge {
 	return []ent.Edge{
+		edge.To("request_body_chunks", RequestBodyChunkRef.Type).
+			Annotations(entgql.Skip(), entsql.OnDelete(entsql.Cascade)),
 		edge.From("api_key", APIKey.Type).Ref("requests").Field("api_key_id").Immutable().Unique(),
 		edge.From("project", Project.Type).
 			Ref("requests").
@@ -194,13 +201,15 @@ func (Request) Annotations() []schema.Annotation {
 func (Request) Policy() ent.Policy {
 	return scopes.Policy{
 		Query: scopes.QueryPolicy{
-			scopes.APIKeyScopeQueryRule(scopes.ScopeWriteRequests),
+			// API key principals stay inside the key's project: a project-level
+			// write_requests grant must not become a system-wide read.
+			scopes.APIKeyProjectScopeReadRule(scopes.ScopeWriteRequests),
 			scopes.UserProjectScopeReadRequestsRule(scopes.ScopeReadRequests),
 			scopes.OwnerRule(),
 			scopes.UserReadScopeRule(scopes.ScopeReadRequests),
 		},
 		Mutation: scopes.MutationPolicy{
-			scopes.APIKeyScopeMutationRule(scopes.ScopeWriteRequests),
+			scopes.APIKeyProjectScopeWriteRule(scopes.ScopeWriteRequests),
 			scopes.UserProjectScopeWriteRule(scopes.ScopeWriteRequests),
 			scopes.OwnerRule(),
 			scopes.UserWriteScopeRule(scopes.ScopeWriteRequests),

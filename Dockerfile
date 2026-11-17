@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM node:24-alpine AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:26-alpine AS frontend-builder
 
 WORKDIR /build
 RUN npm install -g pnpm@10
@@ -14,7 +14,7 @@ RUN pnpm build
 FROM alpine AS frontend-dist
 COPY --from=frontend-builder /build/dist /dist
 
-FROM golang:1.27.3-alpine3.24 AS backend-builder
+FROM golang:1.27.4-alpine3.24 AS backend-builder
 
 WORKDIR /build
 

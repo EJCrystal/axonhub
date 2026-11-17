@@ -942,7 +942,7 @@ func (s *anthropicInboundStream) Next() bool {
 						Index: &s.contentIndex,
 						ContentBlock: &MessageContentBlock{
 							Type:   blockType,
-							ID:     deltaToolCall.ID,
+							ID:     anthropicToolBlockID(blockType, deltaToolCall.ID),
 							Name:   &deltaToolCall.Function.Name,
 							Input:  json.RawMessage("{}"),
 							Caller: getAnthropicCaller(deltaToolCall.TransformerMetadata),
@@ -1115,7 +1115,10 @@ func (s *anthropicInboundStream) Next() bool {
 				contentClosed = true
 			}
 
-			if !contentClosed && !s.hasTextContentStarted && !s.hasToolContentStarted && !s.hasThinkingContentStarted {
+			// A content_filter terminal may carry no content block at all. Closing
+			// index 0 here would emit an orphan content_block_stop to the client.
+			if !contentClosed && !s.hasTextContentStarted && !s.hasToolContentStarted && !s.hasThinkingContentStarted &&
+				*choice.FinishReason != "content_filter" {
 				streamEvent := StreamEvent{
 					Type:  "content_block_stop",
 					Index: &s.contentIndex,
@@ -1138,6 +1141,8 @@ func (s *anthropicInboundStream) Next() bool {
 				stopReason = "max_tokens"
 			case "tool_calls":
 				stopReason = "tool_use"
+			case "content_filter":
+				stopReason = "refusal"
 			default:
 				stopReason = "end_turn"
 			}
@@ -1148,11 +1153,13 @@ func (s *anthropicInboundStream) Next() bool {
 		}
 	}
 
-	// The terminal event must wait for the choices-less usage-only chunk that carries the
-	// real counts. Some providers (e.g. ModelScope) attach a zeroed usage object to every
-	// chunk, including the one carrying finish_reason; finalizing there would emit the
-	// placeholder zeros and drop the real counts arriving afterwards.
-	if chunk.Usage != nil && len(chunk.Choices) == 0 && s.hasFinished && !s.messageStoped {
+	// The terminal event must carry the real counts, so it is emitted as soon as a
+	// post-finish chunk supplies them. The discriminator is the content of `usage`,
+	// not the shape of `choices`: providers that pad every chunk with a zeroed usage
+	// object (ModelScope, see #2615) keep waiting, while providers that put the real
+	// counts on the finish_reason chunk itself (agent2api and many
+	// OpenAI-compatible relays) finalize right here instead of at stream end.
+	if chunk.Usage.HasRealCounts() && s.hasFinished && !s.messageStoped {
 		// Usage-only chunk after finish_reason - generate message_delta with both stop reason and usage.
 		if err := s.enqueueTerminalEvents(); err != nil {
 			s.err = err

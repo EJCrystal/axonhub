@@ -10,6 +10,7 @@ import (
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/gc"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
+	"github.com/looplj/axonhub/internal/server/plugin"
 	"github.com/looplj/axonhub/internal/server/scheduler"
 	"github.com/looplj/axonhub/internal/server/video_storage"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -55,6 +56,7 @@ type Resolver struct {
 	gcWorker                       *gc.Worker
 	videoWorker                    *video_storage.Worker
 	catalogService                 *biz.CatalogService
+	pluginManager                  *plugin.Manager
 }
 
 // NewSchema creates a graphql executable schema.
@@ -91,6 +93,7 @@ func NewSchema(
 	gcWorker *gc.Worker,
 	videoWorker *video_storage.Worker,
 	catalogService *biz.CatalogService,
+	pluginManager *plugin.Manager,
 ) graphql.ExecutableSchema {
 	modelFetcher := biz.NewModelFetcher(httpClient, channelService)
 
@@ -127,6 +130,7 @@ func NewSchema(
 			gcWorker:                       gcWorker,
 			videoWorker:                    videoWorker,
 			catalogService:                 catalogService,
+			pluginManager:                  pluginManager,
 		},
 	})
 }

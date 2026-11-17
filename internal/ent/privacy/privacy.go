@@ -399,6 +399,54 @@ func (f OIDCIdentityMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mu
 	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.OIDCIdentityMutation", m)
 }
 
+// The PluginQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type PluginQueryRuleFunc func(context.Context, *ent.PluginQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f PluginQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.PluginQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.PluginQuery", q)
+}
+
+// The PluginMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type PluginMutationRuleFunc func(context.Context, *ent.PluginMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f PluginMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.PluginMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.PluginMutation", m)
+}
+
+// The PluginStorageQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type PluginStorageQueryRuleFunc func(context.Context, *ent.PluginStorageQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f PluginStorageQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.PluginStorageQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.PluginStorageQuery", q)
+}
+
+// The PluginStorageMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type PluginStorageMutationRuleFunc func(context.Context, *ent.PluginStorageMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f PluginStorageMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.PluginStorageMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.PluginStorageMutation", m)
+}
+
 // The ProjectQueryRuleFunc type is an adapter to allow the use of ordinary
 // functions as a query rule.
 type ProjectQueryRuleFunc func(context.Context, *ent.ProjectQuery) error
@@ -517,6 +565,54 @@ func (f RequestMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutatio
 		return f(ctx, m)
 	}
 	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.RequestMutation", m)
+}
+
+// The RequestBodyChunkQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type RequestBodyChunkQueryRuleFunc func(context.Context, *ent.RequestBodyChunkQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f RequestBodyChunkQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.RequestBodyChunkQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.RequestBodyChunkQuery", q)
+}
+
+// The RequestBodyChunkMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type RequestBodyChunkMutationRuleFunc func(context.Context, *ent.RequestBodyChunkMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f RequestBodyChunkMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.RequestBodyChunkMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.RequestBodyChunkMutation", m)
+}
+
+// The RequestBodyChunkRefQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type RequestBodyChunkRefQueryRuleFunc func(context.Context, *ent.RequestBodyChunkRefQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f RequestBodyChunkRefQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.RequestBodyChunkRefQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.RequestBodyChunkRefQuery", q)
+}
+
+// The RequestBodyChunkRefMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type RequestBodyChunkRefMutationRuleFunc func(context.Context, *ent.RequestBodyChunkRefMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f RequestBodyChunkRefMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.RequestBodyChunkRefMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.RequestBodyChunkRefMutation", m)
 }
 
 // The RequestExecutionQueryRuleFunc type is an adapter to allow the use of ordinary
@@ -794,6 +890,10 @@ func queryFilter(q ent.Query) (Filter, error) {
 		return q.Filter(), nil
 	case *ent.OIDCIdentityQuery:
 		return q.Filter(), nil
+	case *ent.PluginQuery:
+		return q.Filter(), nil
+	case *ent.PluginStorageQuery:
+		return q.Filter(), nil
 	case *ent.ProjectQuery:
 		return q.Filter(), nil
 	case *ent.PromptQuery:
@@ -803,6 +903,10 @@ func queryFilter(q ent.Query) (Filter, error) {
 	case *ent.ProviderQuotaStatusQuery:
 		return q.Filter(), nil
 	case *ent.RequestQuery:
+		return q.Filter(), nil
+	case *ent.RequestBodyChunkQuery:
+		return q.Filter(), nil
+	case *ent.RequestBodyChunkRefQuery:
 		return q.Filter(), nil
 	case *ent.RequestExecutionQuery:
 		return q.Filter(), nil
@@ -853,6 +957,10 @@ func mutationFilter(m ent.Mutation) (Filter, error) {
 		return m.Filter(), nil
 	case *ent.OIDCIdentityMutation:
 		return m.Filter(), nil
+	case *ent.PluginMutation:
+		return m.Filter(), nil
+	case *ent.PluginStorageMutation:
+		return m.Filter(), nil
 	case *ent.ProjectMutation:
 		return m.Filter(), nil
 	case *ent.PromptMutation:
@@ -862,6 +970,10 @@ func mutationFilter(m ent.Mutation) (Filter, error) {
 	case *ent.ProviderQuotaStatusMutation:
 		return m.Filter(), nil
 	case *ent.RequestMutation:
+		return m.Filter(), nil
+	case *ent.RequestBodyChunkMutation:
+		return m.Filter(), nil
+	case *ent.RequestBodyChunkRefMutation:
 		return m.Filter(), nil
 	case *ent.RequestExecutionMutation:
 		return m.Filter(), nil

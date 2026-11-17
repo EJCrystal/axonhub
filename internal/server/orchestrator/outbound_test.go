@@ -921,6 +921,39 @@ func TestPersistentOutboundTransformer_CanRetry(t *testing.T) {
 			require.True(t, outbound.CanRetry(retryErr))
 		}
 	})
+
+	// A channel that lists 429 asks for a same-channel retry on a rate limit. The
+	// candidate keeps a single mapped model so the decision is about the 429
+	// branch itself — with a second model the retry is also allowed for "try the
+	// next mapped model".
+	t.Run("a channel that lists 429 opts a rate limit into same-channel retry", func(t *testing.T) {
+		optInChannel := &biz.Channel{
+			Channel: &ent.Channel{
+				ID:       2,
+				Name:     "opt-in-channel",
+				Settings: &objects.ChannelSettings{RetryableStatusCodes: []int{http.StatusTooManyRequests}},
+			},
+			Outbound: &mockTransformer{},
+		}
+		newOutbound := func(ch *biz.Channel) *PersistentOutboundTransformer {
+			return &PersistentOutboundTransformer{
+				wrapped: &mockTransformer{},
+				state: &PersistenceState{
+					CurrentCandidate: &ChannelModelsCandidate{
+						Channel: ch,
+						Models:  []biz.ChannelModelEntry{{RequestModel: "gpt-4", ActualModel: "gpt-4"}},
+					},
+				},
+			}
+		}
+
+		require.True(t, newOutbound(optInChannel).CanRetry(&httpclient.Error{StatusCode: http.StatusTooManyRequests}))
+		require.True(t, newOutbound(optInChannel).CanRetry(&llm.ResponseError{StatusCode: http.StatusTooManyRequests}))
+
+		// Without 429 in the list a rate limit still switches channels.
+		require.False(t, newOutbound(channel).CanRetry(&httpclient.Error{StatusCode: http.StatusTooManyRequests}))
+		require.False(t, newOutbound(channel).CanRetry(&llm.ResponseError{StatusCode: http.StatusTooManyRequests}))
+	})
 }
 
 func TestShouldForceStreamingForCandidate(t *testing.T) {
@@ -2027,6 +2060,76 @@ func TestPersistentOutboundTransformer_CanRetry_429_WithMultipleModels(t *testin
 	})
 }
 
+func TestPersistentOutboundTransformer_CanRetry_520_WithMultipleModels(t *testing.T) {
+	channel := &biz.Channel{
+		Channel: &ent.Channel{
+			ID:   1,
+			Name: "test-channel",
+		},
+		Outbound: &mockTransformer{},
+	}
+
+	t.Run("520 edge error should switch channel instead of iterating models", func(t *testing.T) {
+		outbound := &PersistentOutboundTransformer{
+			wrapped: &mockTransformer{},
+			state: &PersistenceState{
+				CurrentCandidate: &ChannelModelsCandidate{
+					Channel: channel,
+					Models: []biz.ChannelModelEntry{
+						{RequestModel: "gpt-4", ActualModel: "gpt-4"},
+						{RequestModel: "gpt-3.5-turbo", ActualModel: "gpt-3.5-turbo"},
+					},
+				},
+				CurrentModelIndex: 0,
+			},
+		}
+
+		// 520 with empty body from a Cloudflare-fronted relay
+		httpErr := &httpclient.Error{
+			StatusCode: 520,
+		}
+
+		// Should skip same-channel model iteration so the pipeline switches
+		// to the next candidate instead of grinding aliases on a dead edge.
+		require.False(t, outbound.CanRetry(httpErr))
+	})
+}
+
+func TestPersistentOutboundTransformer_CanRetry_402_WithMultipleModels(t *testing.T) {
+	channel := &biz.Channel{
+		Channel: &ent.Channel{
+			ID:   1,
+			Name: "test-channel",
+		},
+		Outbound: &mockTransformer{},
+	}
+
+	t.Run("402 balance exhausted should switch channel instead of iterating models", func(t *testing.T) {
+		outbound := &PersistentOutboundTransformer{
+			wrapped: &mockTransformer{},
+			state: &PersistenceState{
+				CurrentCandidate: &ChannelModelsCandidate{
+					Channel: channel,
+					Models: []biz.ChannelModelEntry{
+						{RequestModel: "gpt-4", ActualModel: "gpt-4"},
+						{RequestModel: "gpt-3.5-turbo", ActualModel: "gpt-3.5-turbo"},
+					},
+				},
+				CurrentModelIndex: 0,
+			},
+		}
+
+		// An exhausted account cannot serve any alias on this channel.
+		httpErr := &httpclient.Error{
+			StatusCode: http.StatusPaymentRequired,
+		}
+
+		// Should skip same-channel model iteration so the pipeline switches
+		// to the next candidate (a backup channel with a funded account).
+		require.False(t, outbound.CanRetry(httpErr))
+	})
+}
+
 // A transport failure after content was delivered must keep the latency metrics that
 // were already captured and persist a classified error, so operators can tell "stalled
 // before the first byte" from "cut after N tokens" and the status code is not lost.
@@ -2107,10 +2210,9 @@ func TestPersistentOutboundTransformer_RetrySelectionCounts(t *testing.T) {
 		Channel: &biz.Channel{Channel: &ent.Channel{ID: 2}, Outbound: &mockTransformer{}},
 		Models:  []biz.ChannelModelEntry{{ActualModel: "model-c"}},
 	}
-	policy := &mockRetryPolicyProvider{policy: &biz.RetryPolicy{Enabled: true, MaxChannelRetries: 1}}
-	lb := NewLoadBalancer(policy, service)
+	lb := NewLoadBalancer(nil, service)
 	candidates := (&LoadBalancedSelector{}).sortCandidates(ctx, lb,
-		[]*ChannelModelsCandidate{first, second}, &llm.Request{Model: "model"}, 2, true)
+		[]*ChannelModelsCandidate{first, second}, &llm.Request{Model: "model"}, 2, 2, true)
 	require.Same(t, first, candidates[0])
 	processor := &PersistentOutboundTransformer{
 		wrapped: first.Channel.Outbound,
@@ -2138,4 +2240,36 @@ func TestPersistentOutboundTransformer_RetrySelectionCounts(t *testing.T) {
 	assertCounts(3, 2)
 	require.Error(t, processor.NextChannel(ctx)) // exhausted candidates are not attempts
 	assertCounts(3, 2)
+}
+
+func TestPersistentStreams_RecordOncePerAdvance(t *testing.T) {
+	// Two actual events with identical content must both survive. Repeated Current
+	// calls must not add records, including when the same pointer is reused.
+	event := &httpclient.StreamEvent{Data: []byte(`{"choices":[{"index":0,"delta":{"content":"x"}}]}`)}
+	state := &PersistenceState{}
+	outbound := &OutboundPersistentStream{
+		ctx: t.Context(), stream: streams.SliceStream([]*httpclient.StreamEvent{event, event}),
+		state: state, terminalTracker: NewStreamTerminalTracker(1),
+	}
+	inbound := &InboundPersistentStream{
+		ctx: t.Context(), stream: outbound,
+		state: state, terminalTracker: NewStreamTerminalTracker(1),
+	}
+	require.Nil(t, inbound.Current())
+	require.Nil(t, outbound.Current())
+	for i := 1; i <= 2; i++ {
+		require.True(t, inbound.Next())
+		// Recording happens on advancement, even before the first Current call.
+		require.Len(t, outbound.responseChunks, i)
+		require.Len(t, inbound.responseChunks, i)
+		for range 3 {
+			require.Same(t, event, inbound.Current())
+			require.Same(t, event, outbound.Current())
+		}
+		require.Len(t, outbound.responseChunks, i)
+		require.Len(t, inbound.responseChunks, i)
+	}
+	require.False(t, inbound.Next())
+	require.Nil(t, inbound.Current())
+	require.Nil(t, outbound.Current())
 }

@@ -5,11 +5,22 @@
 - Added per-channel API key rules with status/keyword matching, configurable error thresholds, temporary auto-recovery, and permanent disable/delete actions.
 - NeuralWatt channels now show the elapsed monthly energy window marker on the kWh bar and an estimated period quota, matching the other windowed providers.
 
+### Changed
+
+- All dialog footers now share `DialogFooter`/`AlertDialogFooter` variants instead of per-dialog flex classes: `pinned` for sticky footers, `divided` for the top border, `gap` for spacing, `layout`/`align` for row/edge placement. Footers stack full width below `sm` (primary action on top) and sit right-aligned above it; the `content` layout keeps source order for footers that lead with explanatory text. This fixes the Model Association dialog's Cancel/Save buttons rendering with no gap.
+- Footer buttons now meet a 44px touch target on phones and keep their normal control height from `sm` up.
+- The `/analytics` time range is now precise to the second. `AnalyticsFilter.startTime`/`endTime` take RFC3339 timestamps instead of `YYYY-MM-DD` strings, `analyticsMetadata.earliestTime` replaces `earliestDate` with the earliest usage instant, every range is filtered as an inclusive absolute instant down to the millisecond, and the page uses the shared date-and-time range picker. The trend chart still aggregates per local calendar day.
+
 ### Fixed
 
+- Reduced repeated request-history tail data during small Responses appends, avoided request-body payload readback on writes, and reused PostgreSQL upsert-returned chunk IDs.
+- Restored externally stored execution request bodies in request details when hidden storage metadata is reloaded.
+- Deduplicated large database request bodies across calls and execution attempts while preserving complete JSON, request-log backups, and retention-safe cleanup. Existing rows stay readable; downgrade requires exporting request logs and restoring them into a separate database.
 - Dashboard analytics no longer rescan the full usage history for every widget: request, cost, and token widgets share one grouped query, expensive 30-day aggregates are cached, SQLite uses window functions instead of correlated `MAX(id)` scans, and off-screen sections load only when they approach the viewport.
+- PostgreSQL fastest-model and fastest-channel resolver rankings use `DISTINCT ON` to select each request's latest successful execution before aggregation; SQLite retains the `ROW_NUMBER` path. `modelPerformanceStats` keeps `ROW_NUMBER` because `DISTINCT ON` measured a 5% regression without the covering index (not yet approved).
 - Personal API Key names can be reused by different creators in a project; creating or renaming a key rejects collisions with non-personal keys visible to its creator. Duplicate checks run after create authorization.
 - Synthetic weekly credit amounts that parse to NaN or infinity are now ignored instead of leaking into the period money fields and breaking quota persistence.
+- Chat Completions requests with `response_format: {"type":"json_object"}` no longer fail on Responses-based channels when only the system prompt mentions JSON. The conversion appends a short reminder to the input so the upstream keyword check passes.
 
 ### Removed
 
